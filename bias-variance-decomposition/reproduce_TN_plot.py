@@ -12,7 +12,7 @@ TABPFN_TOKEN = os.environ.get(TABPFN_TOKEN_ENV_VAR, "")
 
 DIM = 5
 
-NUM_DATASETS = 500
+NUM_DATASETS = 50
 
 TEST_SIZE = 100
 
@@ -64,33 +64,33 @@ def calculate_bias_variance(predictions, p0_test):
     averaged_predictions = {n: preds.mean(axis=0) for n, preds in predictions.items()}
 
     variances = {
-        n: (predictions[n] - averaged_predictions[n]).mean(axis=0) for n in SAMPLE_SIZES
+        n: ((predictions[n] - averaged_predictions[n]) ** 2).mean(axis=0) for n in SAMPLE_SIZES
     }
 
-    biases = {
-        n: (averaged_predictions[n] - p0_test.numpy()) for n in SAMPLE_SIZES
+    squared_biases = {
+        n: ((averaged_predictions[n] - p0_test.numpy()) ** 2) for n in SAMPLE_SIZES
     }
 
     total_variances = {n: variances[n].mean() for n in SAMPLE_SIZES}
-    total_biases = {n: biases[n].mean() for n in SAMPLE_SIZES}
+    total_squared_biases = {n: squared_biases[n].mean() for n in SAMPLE_SIZES}
 
-    return total_variances, total_biases
+    return total_variances, total_squared_biases
 
 
-def make_plot(total_variances, total_biases):
+def make_plot(total_variances, total_squared_biases):
     plt.figure(figsize=FIGSIZE)
 
     plt.subplot(1, 2, 1)
+    plt.plot(list(total_squared_biases.keys()), list(total_squared_biases.values()), marker="o")
+    plt.xlabel("Sample Size")
+    plt.ylabel("Total Squared Bias")
+    plt.title("Average Squared Bias")
+    
+    plt.subplot(1, 2, 2)
     plt.plot(list(total_variances.keys()), list(total_variances.values()), marker="o")
     plt.xlabel("Sample Size")
     plt.ylabel("Total Variance")
-    plt.title("Variance vs Sample Size")
-
-    plt.subplot(1, 2, 2)
-    plt.plot(list(total_biases.keys()), list(total_biases.values()), marker="o")
-    plt.xlabel("Sample Size")
-    plt.ylabel("Total Bias")
-    plt.title("Bias vs Sample Size")
+    plt.title("Average Variance")
 
     plt.tight_layout()
     plt.savefig(OUTPUT_PLOT_PATH, dpi=FIG_DPI, bbox_inches="tight")
@@ -107,8 +107,8 @@ def main() -> None:
     clf = tabpfn.TabPFNClassifier(device=device)
     predictions = make_prediction(clf, x, y, p0, x_test)
     
-    total_variances, total_biases = calculate_bias_variance(predictions, p0_test)
-    make_plot(total_variances, total_biases)
+    total_variances, total_squared_biases = calculate_bias_variance(predictions, p0_test)
+    make_plot(total_variances, total_squared_biases)
 
 
 if __name__ == "__main__":
