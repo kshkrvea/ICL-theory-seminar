@@ -22,7 +22,7 @@ class DatasetGeneratorBase(abc.ABC):
 		num_samples: int,
 		x_kwargs: Optional[Dict[str, object]] = None,
 		y_kwargs: Optional[Dict[str, object]] = None,
-	) -> tuple[torch.Tensor, torch.Tensor]:
+	) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
 
 		x_kwargs = x_kwargs or {}
 		y_kwargs = y_kwargs or {}
@@ -33,7 +33,7 @@ class DatasetGeneratorBase(abc.ABC):
 		probs = self.p_y_given_x(x, **y_kwargs)
 		y = torch.distributions.Categorical(probs=probs).sample()
 		
-		return x, y
+		return x, y, probs[..., 0]
 
 
 class NaglerDatasetGenerator(DatasetGeneratorBase):
