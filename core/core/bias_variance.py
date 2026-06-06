@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from data import data_generators
 
 FEATURES_DIM = 5
-NUM_DATASETS = 2
-TEST_SIZE = 5
+NUM_DATASETS = 100
+TEST_SIZE = 500
 SAMPLE_SIZES = [200, 500, 1000, 2000, 4000]
 UPPER_BOUND_NEAREST_NEIGHBORS = 500
 FIGSIZE = (12, 5)
