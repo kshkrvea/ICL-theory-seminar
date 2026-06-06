@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "icl-data"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "torch",
+]
+
+[tool.setuptools]
+packages = ["data"]
+
+[tool.setuptools.package-dir]
+data = "."

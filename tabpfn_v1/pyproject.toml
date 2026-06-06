@@ -1,0 +1,19 @@
+[project]
+name = "tabpfn-v1"
+version = "0.1.0"
+description = "Bias-variance experiment with TabPFN v1 (tabpfn==0.1.11)"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "tabpfn==0.1.11",
+    "torch==2.1.2",
+    "numpy<2",
+    "matplotlib",
+    "tqdm",
+    "scikit-learn<1.6",
+    "icl-core",
+    "icl-data",
+]
+
+[tool.uv.sources]
+icl-core = { path = "../core", editable = true }
+icl-data = { path = "../data", editable = true }
