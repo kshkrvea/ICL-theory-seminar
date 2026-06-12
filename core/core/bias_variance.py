@@ -7,9 +7,7 @@ from data import data_generators
 
 FEATURES_DIM = 5
 NUM_DATASETS = 100
-TEST_SIZE = 500
-SAMPLE_SIZES = [200, 500, 1000, 2000, 4000]
-UPPER_BOUND_NEAREST_NEIGHBORS = 500
+TEST_SIZE = 100
 FIGSIZE = (12, 5)
 FIG_DPI = 200
 
@@ -20,13 +18,13 @@ def generate_test_data():
     return x, y, p0
 
 
-def generate_train_data():
+def generate_train_data(sample_sizes):
     dataset_generators = [
         data_generators.NaglerDatasetGenerator(dim=FEATURES_DIM) for _ in range(NUM_DATASETS)
     ]
     x, y, p0 = [], [], []
     for dataset in dataset_generators:
-        x_, y_, p0_ = dataset.sample(num_samples=max(SAMPLE_SIZES))
+        x_, y_, p0_ = dataset.sample(num_samples=max(sample_sizes))
         x.append(x_)
         y.append(y_)
         p0.append(p0_)
@@ -34,10 +32,10 @@ def generate_train_data():
     return torch.stack(x), torch.stack(y), torch.stack(p0)
 
 
-def make_prediction(clf, x, y, x_test):
+def make_prediction(clf, x, y, x_test, sample_sizes):
     print("Making predictions with TabPFN...")
     predictions = {}
-    for n in SAMPLE_SIZES:
+    for n in sample_sizes:
         print(f"Processing n={n}...")
         predictions[n] = []
         for i in tqdm.tqdm(range(NUM_DATASETS)):
@@ -52,14 +50,14 @@ def make_prediction(clf, x, y, x_test):
     return {n: np.stack(preds) for n, preds in predictions.items()}
 
 
-def make_localised_prediction(clf, x, y, x_test):
+def make_localised_prediction(clf, x, y, x_test, sample_sizes, upper_bound_nearest_neighbors=10_000):
     print("Making localized predictions with TabPFN...")
-    predictions = {n: [] for n in SAMPLE_SIZES}
+    predictions = {n: [] for n in sample_sizes}
     d = x.shape[-1]
 
-    for n in SAMPLE_SIZES:
+    for n in sample_sizes:
         print(f"Processing n={n}...")
-        k_n = round(n * min((n / UPPER_BOUND_NEAREST_NEIGHBORS) ** (-d / (d + 4)), 1.0))
+        k_n = round(n * min((n / upper_bound_nearest_neighbors) ** (-d / (d + 4)), 1.0))
 
         for i in tqdm.tqdm(range(NUM_DATASETS)):
             x_train = x[i, :n]
@@ -90,15 +88,15 @@ def calculate_bias_variance(predictions, p0_test):
     averaged_predictions = {n: preds.mean(axis=0) for n, preds in predictions.items()}
 
     variances = {
-        n: ((predictions[n] - averaged_predictions[n]) ** 2).mean(axis=0) for n in SAMPLE_SIZES
+        n: ((predictions[n] - averaged_predictions[n]) ** 2).mean(axis=0) for n in predictions
     }
 
     squared_biases = {
-        n: ((averaged_predictions[n] - p0_test.numpy()) ** 2) for n in SAMPLE_SIZES
+        n: ((averaged_predictions[n] - p0_test.numpy()) ** 2) for n in predictions
     }
 
-    total_variances = {n: variances[n].mean() for n in SAMPLE_SIZES}
-    total_squared_biases = {n: squared_biases[n].mean() for n in SAMPLE_SIZES}
+    total_variances = {n: variances[n].mean() for n in predictions}
+    total_squared_biases = {n: squared_biases[n].mean() for n in predictions}
 
     return total_variances, total_squared_biases
 
@@ -128,10 +126,10 @@ def make_plot(total_variances, total_squared_biases, loc_variances, loc_squared_
     print(f"Saved plot to {output_path}")
 
 
-def save_predictions(predictions, p0_test, output_path):
+def save_predictions(predictions, p0_test, output_path, sample_sizes):
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
     payload = {f"preds_{n}": preds for n, preds in predictions.items()}
     payload["p0_test"] = p0_test.detach().cpu().numpy()
-    payload["sample_sizes"] = np.array(SAMPLE_SIZES, dtype=int)
+    payload["sample_sizes"] = np.array(sample_sizes, dtype=int)
     np.savez_compressed(output_path, **payload)
     print(f"Saved predictions to {output_path}")
