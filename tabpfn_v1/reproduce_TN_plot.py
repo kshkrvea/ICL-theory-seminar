@@ -40,15 +40,24 @@ def main() -> None:
     clf = tabpfn.TabPFNClassifier(device=device)
 
     predictions = make_prediction(clf, x, y, x_test, SAMPLE_SIZES)
-    total_variances, total_squared_biases = calculate_bias_variance(predictions, p0_test)
+    variances, squared_biases, variance_ci, bias_ci = calculate_bias_variance(predictions, p0_test)
     save_predictions(predictions, p0_test, output_preds, SAMPLE_SIZES)
-
+    
     loc_predictions = make_localised_prediction(clf, x, y, x_test, SAMPLE_SIZES, upper_bound_nearest_neighbors=upper_bound_nn)
-    loc_variances, loc_squared_biases = calculate_bias_variance(loc_predictions, p0_test)
+    loc_variances, loc_squared_biases, loc_variance_ci, loc_bias_ci = calculate_bias_variance(loc_predictions, p0_test)
     save_predictions(loc_predictions, p0_test, output_loc_preds, SAMPLE_SIZES)
 
-    make_plot(total_variances, total_squared_biases, loc_variances, loc_squared_biases, output_plot)
-
+    make_plot(
+        variances, 
+        squared_biases, 
+        loc_variances, 
+        loc_squared_biases, 
+        output_plot, 
+        variance_ci=variance_ci, 
+        bias_ci=bias_ci, 
+        loc_variance_ci=loc_variance_ci, 
+        loc_bias_ci=loc_bias_ci
+    )
 
 if __name__ == "__main__":
     main()
