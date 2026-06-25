@@ -87,34 +87,60 @@ def make_localised_prediction(clf, x, y, x_test, sample_sizes, upper_bound_neare
 def calculate_bias_variance(predictions, p0_test):
     averaged_predictions = {n: preds.mean(axis=0) for n, preds in predictions.items()}
 
-    variances = {
+    per_point_variances = {
         n: ((predictions[n] - averaged_predictions[n]) ** 2).mean(axis=0) for n in predictions
     }
 
-    squared_biases = {
+    per_point_squared_biases = {
         n: ((averaged_predictions[n] - p0_test.numpy()) ** 2) for n in predictions
     }
 
-    total_variances = {n: variances[n].mean() for n in predictions}
-    total_squared_biases = {n: squared_biases[n].mean() for n in predictions}
+    total_variances = {n: per_point_variances[n].mean() for n in predictions}
+    total_squared_biases = {n: per_point_squared_biases[n].mean() for n in predictions}
 
-    return total_variances, total_squared_biases
+    # 95% credible interval half-widths via normal approximation over TEST_SIZE test points
+    n_test = next(iter(per_point_variances.values())).shape[0]
+    z95 = 1.96
+    variance_ci = {n: z95 * per_point_variances[n].std() / np.sqrt(n_test) for n in predictions}
+    bias_ci = {n: z95 * per_point_squared_biases[n].std() / np.sqrt(n_test) for n in predictions}
+
+    return total_variances, total_squared_biases, variance_ci, bias_ci
 
 
-def make_plot(total_variances, total_squared_biases, loc_variances, loc_squared_biases, output_path):
+def make_plot(
+    total_variances, total_squared_biases,
+    loc_variances=None, loc_squared_biases=None,
+    output_path="",
+    variance_ci=None, bias_ci=None,
+    loc_variance_ci=None, loc_bias_ci=None,
+):
     plt.figure(figsize=FIGSIZE)
 
     plt.subplot(1, 2, 1)
-    plt.plot(list(total_squared_biases.keys()), list(total_squared_biases.values()), marker="o", label="TabPFN", color="black")
-    plt.plot(list(loc_squared_biases.keys()), list(loc_squared_biases.values()), marker="o", label="Localized TabPFN", color="lightskyblue")
+    ns = list(total_squared_biases.keys())
+    vals = np.array(list(total_squared_biases.values()))
+    ci = np.array([bias_ci[n] for n in ns]) if bias_ci is not None else None
+    plt.errorbar(ns, vals, yerr=ci, marker="o", label="TabPFN", color="black", capsize=4)
+    if loc_squared_biases is not None:
+        loc_ns = list(loc_squared_biases.keys())
+        loc_vals = np.array(list(loc_squared_biases.values()))
+        loc_ci = np.array([loc_bias_ci[n] for n in loc_ns]) if loc_bias_ci is not None else None
+        plt.errorbar(loc_ns, loc_vals, yerr=loc_ci, marker="o", label="Localized TabPFN", color="lightskyblue", capsize=4)
     plt.xlabel("Sample Size")
     plt.ylabel("Total Squared Bias")
     plt.title("Average Squared Bias")
     plt.legend()
 
     plt.subplot(1, 2, 2)
-    plt.plot(list(total_variances.keys()), list(total_variances.values()), marker="o", label="TabPFN", color="black")
-    plt.plot(list(loc_variances.keys()), list(loc_variances.values()), marker="o", label="Localized TabPFN", color="lightskyblue")
+    ns = list(total_variances.keys())
+    vals = np.array(list(total_variances.values()))
+    ci = np.array([variance_ci[n] for n in ns]) if variance_ci is not None else None
+    plt.errorbar(ns, vals, yerr=ci, marker="o", label="TabPFN", color="black", capsize=4)
+    if loc_variances is not None:
+        loc_ns = list(loc_variances.keys())
+        loc_vals = np.array(list(loc_variances.values()))
+        loc_ci = np.array([loc_variance_ci[n] for n in loc_ns]) if loc_variance_ci is not None else None
+        plt.errorbar(loc_ns, loc_vals, yerr=loc_ci, marker="o", label="Localized TabPFN", color="lightskyblue", capsize=4)
     plt.xlabel("Sample Size")
     plt.ylabel("Total Variance")
     plt.title("Average Variance")
