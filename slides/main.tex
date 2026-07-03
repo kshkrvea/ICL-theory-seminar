@@ -9,6 +9,37 @@
 \usepackage{hyperref}
 \usepackage{xcolor}
 \usepackage{tikz}
+\usepackage{pgfpages}
+\setbeameroption{show notes on second screen=right}
+\usetikzlibrary{arrows.meta, calc, decorations.pathmorphing}
+
+% -----------------------------------------------
+% Review build. The talk PDF stays clean; a separate PDF adds the
+% hidden (handout-only) slides and the speaker notes so they can be read.
+%   Talk:    make         -> main.pdf        (no notes, hidden slides skipped)
+%   Review:  make notes   -> main-notes.pdf  (hidden slides + speaker notes)
+% `make notes` passes the `handout` class option (reveals the hidden
+% slides) and defines \shownotes (enables the \note{...} pages below).
+% -----------------------------------------------
+\ifdefined\shownotes
+  \setbeameroption{show notes}
+\fi
+
+% -----------------------------------------------
+% Figures: colors, feature-space plots, hypothesis-space icons/panels.
+% Kept in a separate file so main.tex doesn't get swamped by TikZ code.
+% -----------------------------------------------
+\input{figures.tex}
+
+% -----------------------------------------------
+% Section dividers: show the outline at the start of every section with the
+% upcoming section highlighted (others shaded).
+% -----------------------------------------------
+\AtBeginSection[]{
+  \begin{frame}{Outline}
+    \tableofcontents[currentsection]
+  \end{frame}
+}
 
 % -----------------------------------------------
 % Metadata
@@ -31,190 +62,15 @@
 \end{frame}
 
 % -----------------------------------------------
-\section{Background}
+% Sections: one file per section, kept in sections/ for readability.
 % -----------------------------------------------
-
-\begin{frame}{Background}
-  \framesubtitle{Posterior Predictive Distribution}
-  \begin{block}{PPD}
-    definition
-  \end{block}
-\end{frame}
-
-\begin{frame}{Background}
-  \framesubtitle{Prior-Data Fitted Networks}
-  % content
-\end{frame}
-
-
-% -----------------------------------------------
-\section{TabPFN}
-% -----------------------------------------------
-
-\begin{frame}{TabPFN}
-  \framesubtitle{Problem Formulation}
-  % content
-\end{frame}
-
-\begin{frame}{TabPFN}
-  \framesubtitle{A Prior for Tabular Data}
-  % content
-\end{frame}
-
-
-\begin{frame}{TabPFN}
-  \framesubtitle{Architecture}
-  % content
-\end{frame}
-
-
-\begin{frame}{TabPFN}
-  \framesubtitle{Experiments \& Results}
-  % content
-\end{frame}
-
-
-\begin{frame}{TabPFN}
-  \framesubtitle{Discussion}
-  \begin{block}{Conclusions}
-    ...
-  \end{block}
-  \begin{alertblock}{Limitations}
-    ...
-  \end{alertblock}
-\end{frame}
-
-
-
-% -----------------------------------------------
-\section{Statistical Foundations of PFNs}
-% -----------------------------------------------
-\begin{frame}{Statistical Foundations of PFNs}
-  \framesubtitle{Studied Questions}
-  % content
-\end{frame}
-
-\begin{frame}{Statistical Foundations of PFNs}
-  \framesubtitle{When PPDs can Learn}
-  % content
-\end{frame}
-
-\begin{frame}{Statistical Foundations of PFNs}
-  \framesubtitle{PFN Approximation of the PPD}
-  % content
-\end{frame}
-\begin{frame}{Statistical Foundations of PFNs}
-  \framesubtitle{Bias-Variance Decomposition of PFNs}
-  % content
-\end{frame}
-
-\begin{frame}{Statistical Foundations of PFNs}
-  \framesubtitle{Variance and Diminishing Sensitivity}
-  % content
-\end{frame}
-
-\begin{frame}{Statistical Foundations of PFNs}
-  \framesubtitle{Bias and the Need for Locality}
-  % content
-\end{frame}
-
-\begin{frame}{Statistical Foundations of PFNs}
-  \framesubtitle{Transformer Networks}
-  % content
-\end{frame}
-
-\begin{frame}{Statistical Foundations of PFNs}
-  \framesubtitle{Localized PFNs}
-  % content
-\end{frame}
-
-
-\begin{frame}{Statistical Foundations of PFNs}
-  \framesubtitle{Numerical Validation}
-  \begin{figure}
-    \centering
-    % \includegraphics[width=0.8\linewidth]{../src/results/bias_variance_plot_v3.png}
-    \caption{Caption here.}
-  \end{figure}
-\end{frame}
-
-\begin{frame}{Statistical Foundations of PFNs}
-  \framesubtitle{Discussion}
-  % content
-\end{frame}
-
-
-
-
-
-% -----------------------------------------------
-\section{TabPFNv2 \& TabPFNv2.5}
-% -----------------------------------------------
-
-\begin{frame}{Background}
-  \begin{block}{Definition}
-    Insert key definition here.
-  \end{block}
-
-  \begin{alertblock}{Key insight}
-    Insert key insight here.
-  \end{alertblock}
-\end{frame}
-
-
-
-% -----------------------------------------------
-\section{TabICL}
-% -----------------------------------------------
-\begin{frame}{TabICL}
-  \framesubtitle{Discussion}
-  % content
-\end{frame}
-
-
-% -----------------------------------------------
-\section{TabPFNv3}
-% -----------------------------------------------
-
-\begin{frame}{TabPFNv3}
-  \framesubtitle{Discussion}
-  % content
-\end{frame}
-
-
-% -----------------------------------------------
-\section{Connections to Other Topics}
-% -----------------------------------------------
-
-\begin{frame}{Connections to Other Topics}
-  \framesubtitle{Background: Simulation-Based Inference}
-  % content
-\end{frame}
-
-\begin{frame}{Connections to Other Topics}
-  \framesubtitle{PFN-NPE}
-  % content
-\end{frame}
-
-\begin{frame}{Connections to Other Topics}
-  \framesubtitle{NPE-PFN}
-  % content
-\end{frame}
-
-% -----------------------------------------------
-\section{Conclusion}
-% -----------------------------------------------
-
-\begin{frame}{Conclusion}
-  \begin{itemize}
-    \item Summary point one
-    \item Summary point two
-  \end{itemize}
-\end{frame}
-
-\begin{frame}{References}
-  \bibliographystyle{plain}
-  \bibliography{references}
-\end{frame}
+\input{sections/background.tex}
+\input{sections/tabpfn.tex}
+\input{sections/statistical_foundations.tex}
+\input{sections/tabpfnv2.tex}
+\input{sections/tabicl.tex}
+\input{sections/recent_sota.tex}
+\input{sections/connections.tex}
+\input{sections/conclusion.tex}
 
 \end{document}

@@ -23,3 +23,4 @@ slides/*.fdb_latexmk
 slides/*.fls
 slides/*.synctex.gz
 
+library/*

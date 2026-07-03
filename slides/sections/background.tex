@@ -1,0 +1,189 @@
+% -----------------------------------------------
+\section{Background}
+% -----------------------------------------------
+
+\begin{frame}{Background}
+  \framesubtitle{Statistical Model}
+
+  \vspace*{\fill}
+  \begin{columns}[c]
+    \begin{column}{0.55\textwidth}
+      \centering
+      \begin{tikzpicture}[scale=0.85]
+        \fixedbbox
+        \featurecloud
+        \node[hlB, draw, circle, thick, minimum size=6pt, inner sep=0pt] at (3.35,2.865) {};
+        \node[hlB] at (3.75,3.25) {$x^{(2)}$};
+        \node[hlA, draw, circle, thick, minimum size=6pt, inner sep=0pt] at (0.95,1.9) {};
+        \node[hlA] at (0.55,2.25) {$x^{(1)}$};
+        \featurelegend
+        \node[overlay, align=center] at (3.0,-0.9) {e.g.\ $D_{12} = \Big\{ \big(x^{(1)}; 1\big),\, \big(x^{(2)}; 0\big),\, \dots \Big\}$};
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \centering
+      $X$ -- features; \quad $Y$ -- classification label
+      \begin{gather*}
+        D_n = \big\{ \big(x^{(i)}_{\text{train}}, y^{(i)}_{\text{train}}\big) \big\}_{i=1}^n \\
+        \text{s.t.} \quad
+        \big(y^{(i)} \mid x^{(i)}\big) \overset{\text{iid}}{\sim} p_0(Y \mid X)
+      \end{gather*}
+    \end{column}
+  \end{columns}
+  \vspace*{\fill}
+\end{frame}
+
+
+\begin{frame}{Background}
+  \framesubtitle{Supervised Learning Framework}
+
+  \vspace*{\fill}
+  \begin{columns}[c]
+    \begin{column}{0.55\textwidth}
+      \centering
+      \begin{tikzpicture}[scale=0.85]
+        \fixedbbox
+        \featurecloud
+        \node[testred] at (2.0,3.95) {$\bigstar$};
+        \node[testred] at (2.0,4.35) {$x_{\text{test}}$};
+        \featurelegend
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      At inference we want to estimate $p_0(y \mid x)$:
+      \begin{enumerate}
+        \item fix $D_n$
+        \item train $q_\theta(x) \approx p_0(y \mid x)$ on $D_n$
+        \item make prediction $ \hat{y}_{\text{test}} = q_\theta(x_{\text{test}}) $
+      \end{enumerate}
+    \end{column}
+  \end{columns}
+  \vspace*{\fill}
+\end{frame}
+
+\begin{frame}{Background}
+  \framesubtitle{Bayesian Framework}
+
+  Want to estimate
+  \[
+    \pi(y_{\text{test}} \mid x_{\text{test}}, D_n)
+    \overset{\text{def}}{\equiv}
+    \mathbb{P}\big(Y = y_{\text{test}} \mid X = x_{\text{test}};\, D_n\big)
+  \]
+
+  \vspace{0.5em}
+  With
+  \[
+    q_\theta(x_{\text{test}}, D_n) \approx \pi(x_{\text{test}}, D_n)
+    \quad and \quad
+    \hat{y}_{\text{test}} = q_\theta(x_{\text{test}}, D_n)
+  \]
+
+  \vspace{1em}
+  \begin{alertblock}{}
+    \centering $\pi$ is called the \textbf{Posterior Predictive Distribution}
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Background}
+  \framesubtitle{Meta Level}
+
+  \small
+  \begin{block}{Prior $\Phi$}
+    Define a hypothesis space $\Phi$ of data generation mechanisms where each hypothesis $\varphi \in \Phi$:\ ($y \mid x) \sim \varphi$.
+  \end{block}
+
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \centering
+      {\footnotesize $ $}\\[0.2em]
+      \metapanel{$\Phi(\varphi)$}{0.3}{0.3}{0.3}{0.3}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \centering
+      {\footnotesize $ $}\\[0.2em]
+      \metapanel{$\Phi(\varphi \mid D_n)$}{2.0}{0.05}{0.6}{0.05}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+
+\begin{frame}{Background}
+  \framesubtitle{Posterior Predictive Distribution}
+
+  \onslide<1->{
+  \[
+    \pi(y_{\text{test}} \mid \alt<4>{}{\alt<3>{\textcolor{red}{x_{\text{test}}}}{x_{\text{test}}}, }D_n)
+    = \int \varphi(y \mid x)\, d\Phi(\varphi \mid x, D_n) \tag{1}
+  \]
+  }
+
+  \onslide<2->{
+  \begin{align*}
+    = \; & \mathbb{P}\big(\varphi = \varphi_1 = \text{\scalebox{0.45}{\hypLinA}} \mid \alt<4>{}{\alt<3>{\textcolor{red}{x_{\text{test}}}}{x_{\text{test}}}, }D_n\big) \cdot \varphi_1(y_{\text{test}} \mid x_{\text{test}}) \\
+      + \; & \mathbb{P}\big(\varphi = \varphi_2 = \text{\scalebox{0.45}{\hypLinB}} \mid \alt<4>{}{\alt<3>{\textcolor{red}{x_{\text{test}}}}{x_{\text{test}}}, }D_n\big) \cdot \varphi_2(y_{\text{test}} \mid x_{\text{test}}) \; + \; \dots
+  \end{align*}
+  }
+
+  \onslide<3->{
+  \vspace{0.5em}
+  \begin{alertblock}{Assumption}
+    \centering $\mathbb{P}(\varphi \mid x, D) = \mathbb{P}(\varphi \mid D)$ \quad (the hypothesis does not depend on $x_{\text{test}}$ itself)
+  \end{alertblock}
+  }
+\end{frame}
+
+\begin{frame}{Background}
+  \framesubtitle{Posterior Predictive Distribution (2)}
+
+  Dropping $x_{\text{test}}$ from the conditioning on $\varphi$:
+  \[
+    \pi(y_{\text{test}} \mid x_{\text{test}}, D_n)
+    = \int \varphi(y \mid x)\, d\Phi(\varphi \mid D_n)
+    = \int p(y_{\text{test}} \mid x_{\text{test}}, \varphi) \cdot \underbrace{p(\varphi \mid D_n)}_{\text{not available}} \, d\varphi
+  \]
+
+  \onslide<2->{
+  \vspace{0.5em}
+  By Bayes' rule, $p(\varphi \mid D_n) \propto p(D_n \mid \varphi)\, p(\varphi)$, so
+  \[
+    \pi(y_{\text{test}} \mid x_{\text{test}}, D_n) \;\propto\; \int
+    \color{olive}{\underbrace{\color{black}p(y_{\text{test}} \mid x_{\text{test}}, \varphi)}_{\substack{\text{prediction based} \\ \text{on hypothesis } \varphi}}}
+    \color{black}\cdot
+    \color{teal}\underbrace{\color{black}p(D_n \mid \varphi)}_{\substack{\text{how likely is} \\ D_n \text{ under } \varphi}}
+    \color{black}\cdot
+    \color{blue!70!olive}\underbrace{\color{black}p(\varphi)}_{\substack{\text{prior belief} \\ \text{about } \varphi}}
+    \, \color{black}d\varphi
+  \]
+  }
+\end{frame}
+
+\begin{frame}{Background}
+  \framesubtitle{Prior-Data Fitted Networks (PFNs)}
+
+  \small
+  \setlength{\abovedisplayskip}{3pt}\setlength{\belowdisplayskip}{2pt}
+  \setlength{\abovedisplayshortskip}{2pt}\setlength{\belowdisplayshortskip}{2pt}
+  \textbf{Prior-Data Fitted Network} is a numerical approximation of the entire \emph{family} of PPDs $\{\pi(\cdot \mid \cdot,\, D_n)\}_{n}$.
+
+  \vspace{-0.2em}
+  \begin{block}{Theorem 2.2. \cite{naglerStatisticalFoundationsPriorData2023}}
+    Let $\mathcal{Q}$ be the set of \emph{all} conditional probability functions. Then the PPD satisfies
+    \[
+      \pi \;=\; \arg\max_{q \in \mathcal{Q}}\; \mathbb{E}_{\varphi \sim \Phi}\big[\log q(Y \mid X, D_n)\big].
+    \]
+  \end{block}
+
+  \begin{center}
+    $\Downarrow$\enspace {\footnotesize restrict to a parametric model $q_\theta$}
+  \end{center}
+
+  \vspace{-0.2em}
+  \begin{align*}
+    \theta^{*}       &= \arg\max_{\theta}\; \mathbb{E}_{N \sim \Phi_N,\, \varphi \sim \Phi}\big[\log q_{\theta}(Y \mid X, D_N)\big] \\[0.25em]
+                     &\phantom{{}={}}\Downarrow\ \ \text{\footnotesize approximate in practice by Monte-Carlo} \\[0.25em]
+    \widehat{\theta} &= \arg\max_{\theta}\; \sum_{j=1}^{m} \log q_{\theta}\big(Y_j \mid X_j, D^{(j)}\big)
+  \end{align*}
+
+  \note{The expectation in Theorem~2.2 follows the hierarchical data-generating mechanism: first draw the true model (data-generating process) $\varphi \sim \Phi$; then generate the training sample $D_n$ and the test pair $(Y, X)$ from that selected $\varphi$.}
+\end{frame}
