@@ -155,35 +155,33 @@
   \draw[testred, thick] (-0.15,0.15) -- (1.55,1.25);
 }}
 
-% Quadratic split (y ~ x^2): × fills the bottom valley (below the U-curve),
-% ○ fills the two upper-corner half-spaces (above the U-curve).
-% Points are spread across their respective half-spaces, not just in compact
-% clusters, to convey that each class occupies a whole region of feature space.
+% Quadratic split (y ~ x^2): × fills the bottom valley, ○ fills above.
+% Boundary is the exact parabola y = 2(x-0.7)^2 + 0.35 (vertex at (0.7,0.35),
+% arms reach y≈1.33 at the sides of the 1.4×1.4 box).
 % HOW TO ADJUST:
-%   - The U-curve waypoints define the boundary: middle waypoint (0.7,0.5) is
-%     the parabola vertex; outer waypoints (-0.15,1.2)/(1.55,1.2) are the arms.
-%   - × points must satisfy y < curve(x); ○ points must satisfy y > curve(x).
-%   - At x≈0.7 the curve is at y≈0.5, so × lives in the bottom strip there;
-%     at x≈0 or 1.4 the curve is at y≈1.1, so × can extend much higher on the
-%     sides (the entire lower two-thirds of those columns is × territory).
+%   - Vertex position: change (0.7) and (0.35) in the formula.
+%   - Curvature: change the leading coefficient (currently 2).
+%   - Data points: × must satisfy y < 2(x-0.7)^2+0.35; ○ must be above.
 \newcommand{\hypCurve}{\hypIconBase{
-  % half-space fills (clipped to box by \hypIconBase)
-  \fill[class0!25] plot[smooth] coordinates {(-0.15,1.2) (0.4,0.55) (0.7,0.5) (1.0,0.55) (1.55,1.2)} -- (1.55,1.55) -- (-0.15,1.55) -- cycle;
-  \fill[class1!25] plot[smooth] coordinates {(-0.15,1.2) (0.4,0.55) (0.7,0.5) (1.0,0.55) (1.55,1.2)} -- (1.55,-0.1) -- (-0.15,-0.1) -- cycle;
-  % × (class 1) -- below the U, spread across bottom half-space
-  \node[class1, font=\tiny] at (0.7,0.18)  {$\times$};
-  \node[class1, font=\tiny] at (0.5,0.3)   {$\times$};
-  \node[class1, font=\tiny] at (0.9,0.3)   {$\times$};
-  \node[class1, font=\tiny] at (0.28,0.55) {$\times$};
-  \node[class1, font=\tiny] at (1.12,0.55) {$\times$};
-  % ○ (class 0) -- above the U, spread across the two upper-corner regions
-  \node[class0, font=\tiny] at (0.1,1.28)  {$\circ$};
-  \node[class0, font=\tiny] at (0.3,1.1)   {$\circ$};
-  \node[class0, font=\tiny] at (1.1,1.1)   {$\circ$};
-  \node[class0, font=\tiny] at (1.3,1.28)  {$\circ$};
-  \node[class0, font=\tiny] at (0.12,0.88) {$\circ$};
-  \node[class0, font=\tiny] at (1.28,0.88) {$\circ$};
-  \draw[testred, thick] plot[smooth] coordinates {(-0.15,1.2) (0.4,0.55) (0.7,0.5) (1.0,0.55) (1.55,1.2)};
+  % half-space fills using the exact parabola (clipped to box by \hypIconBase)
+  \fill[class0!25] plot[domain=-0.15:1.55, samples=60] (\x, {2*(\x-0.7)*(\x-0.7)+0.35})
+    -- (1.55,1.55) -- (-0.15,1.55) -- cycle;
+  \fill[class1!25] plot[domain=-0.15:1.55, samples=60] (\x, {2*(\x-0.7)*(\x-0.7)+0.35})
+    -- (1.55,-0.1) -- (-0.15,-0.1) -- cycle;
+  % × (class 1) -- below the parabola, spread across bottom valley
+  \node[class1, font=\tiny] at (0.7,0.15)  {$\times$};
+  \node[class1, font=\tiny] at (0.5,0.25)  {$\times$};
+  \node[class1, font=\tiny] at (0.9,0.25)  {$\times$};
+  \node[class1, font=\tiny] at (0.3,0.45)  {$\times$};
+  \node[class1, font=\tiny] at (1.1,0.45)  {$\times$};
+  % ○ (class 0) -- above the parabola, spread across upper region
+  \node[class0, font=\tiny] at (0.7,0.9)   {$\circ$};
+  \node[class0, font=\tiny] at (0.35,0.85) {$\circ$};
+  \node[class0, font=\tiny] at (1.05,0.85) {$\circ$};
+  \node[class0, font=\tiny] at (0.1,1.3)   {$\circ$};
+  \node[class0, font=\tiny] at (1.3,1.3)   {$\circ$};
+  \node[class0, font=\tiny] at (0.7,1.2)   {$\circ$};
+  \draw[testred, thick] plot[domain=0:1.4, samples=60] (\x, {2*(\x-0.7)*(\x-0.7)+0.35});
 }}
 
 % Wiggly separation: an irregular oscillating line cuts the box into two
@@ -244,7 +242,7 @@
 \newcommand{\metapanel}[5]{%
   \begin{tikzpicture}[scale=0.5]
     \draw[-{Latex}] (-1.9,0) -- (10,0) node[right] {$\varphi$};
-    \draw[-{Latex}] (-1.9,-0.2) -- (-1.9,4.2) node[above] {#1};
+    \draw[-{Latex}] (-1.9,-0.2) -- (-1.9,3.7) node[above] {#1};
     
     \draw[fill=testred!70, draw=testred] (-1.2,0) rectangle (0.2,#2);
     \node at (-0.5,-1.85) {\scalebox{0.8}{\hypLinA}};

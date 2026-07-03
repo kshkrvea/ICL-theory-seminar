@@ -7,26 +7,25 @@
 
   \vspace*{\fill}
   \begin{columns}[c]
-    \begin{column}{0.55\textwidth}
+    \begin{column}{0.45\textwidth}
       \centering
       \begin{tikzpicture}[scale=0.85]
         \fixedbbox
         \featurecloud
         \node[hlB, draw, circle, thick, minimum size=6pt, inner sep=0pt] at (3.35,2.865) {};
-        \node[hlB] at (3.75,3.25) {$x^{(2)}$};
+        \node[hlB] at (3.75,3.25) {$x^{(12)}$};
         \node[hlA, draw, circle, thick, minimum size=6pt, inner sep=0pt] at (0.95,1.9) {};
         \node[hlA] at (0.55,2.25) {$x^{(1)}$};
         \featurelegend
-        \node[overlay, align=center] at (3.0,-0.9) {e.g.\ $D_{12} = \Big\{ \big(x^{(1)}; 1\big),\, \big(x^{(2)}; 0\big),\, \dots \Big\}$};
+        \node[overlay, align=center] at (3.0,-0.9) {\ $\mathcal{D}_n = D_{12} = \Big\{ \big(x^{(1)}; 1\big),\, \dots,\, \big(x^{(12)}; 0\big) \Big\}$};
       \end{tikzpicture}
     \end{column}
-    \begin{column}{0.5\textwidth}
+    \begin{column}{0.6\textwidth}
       \centering
-      $X$ -- features; \quad $Y$ -- classification label
+      $X \in \mathcal{X}$ -- features; \quad $Y \in \mathcal{Y}$ -- classification label
       \begin{gather*}
-        D_n = \big\{ \big(x^{(i)}_{\text{train}}, y^{(i)}_{\text{train}}\big) \big\}_{i=1}^n \\
-        \text{s.t.} \quad
-        \big(y^{(i)} \mid x^{(i)}\big) \overset{\text{iid}}{\sim} p_0(Y \mid X)
+        \text{r.v. }\mathcal{D}_n = \big(X^{(i)}, Y^{(i)}\big)_{i=1}^n \quad \text{is s.t. }
+        \big( X^{(i)}, Y^{(i)} \big) \overset{\text{iid}}{\sim} p_0(\cdot, \cdot)
       \end{gather*}
     \end{column}
   \end{columns}
@@ -39,7 +38,7 @@
 
   \vspace*{\fill}
   \begin{columns}[c]
-    \begin{column}{0.55\textwidth}
+    \begin{column}{0.45\textwidth}
       \centering
       \begin{tikzpicture}[scale=0.85]
         \fixedbbox
@@ -49,12 +48,12 @@
         \featurelegend
       \end{tikzpicture}
     \end{column}
-    \begin{column}{0.5\textwidth}
-      At inference we want to estimate $p_0(y \mid x)$:
+    \begin{column}{0.6\textwidth}
+      At inference we want to estimate $p_0(Y \mid X)$:
       \begin{enumerate}
-        \item fix $D_n$
-        \item train $q_\theta(x) \approx p_0(y \mid x)$ on $D_n$
-        \item make prediction $ \hat{y}_{\text{test}} = q_\theta(x_{\text{test}}) $
+        \item fix $\mathcal{D}_n = D_n$
+        \item train $q_\theta(X) \approx p_0(Y \mid X)$ on data from $D_n$
+        \item predict $\mathbb{P}(Y = \hat{y}_{\text{test}} \mid X = x_{\text{test}}) = q_\theta(\hat{y}_{\text{test}} \mid x_{\text{test}})$
       \end{enumerate}
     \end{column}
   \end{columns}
@@ -64,45 +63,66 @@
 \begin{frame}{Background}
   \framesubtitle{Bayesian Framework}
 
-  Want to estimate
+  For every $n$, the statistical model gives a tuple $ (\mathcal{D}_n \cup (Y, X), p). $
+  
+  \vspace{0.25em}
+
+  We want to approximate $p(Y \mid X)$ by
   \[
-    \pi(y_{\text{test}} \mid x_{\text{test}}, D_n)
+    \pi(y \mid x, D_n)
     \overset{\text{def}}{\equiv}
-    \mathbb{P}\big(Y = y_{\text{test}} \mid X = x_{\text{test}};\, D_n\big)
+    \mathbb{P}\big(Y = y \mid X = x;\, \mathcal{D}_n = D_n\big)
   \]
 
-  \vspace{0.5em}
+  \onslide<2->{
   With
   \[
-    q_\theta(x_{\text{test}}, D_n) \approx \pi(x_{\text{test}}, D_n)
-    \quad and \quad
-    \hat{y}_{\text{test}} = q_\theta(x_{\text{test}}, D_n)
+    q_\theta(X, \mathcal{D}_n) \approx \pi(Y \mid X, \mathcal{D}_n)
   \]
+  }
 
-  \vspace{1em}
+  \onslide<3->{
+  \vspace{-1.0em}
+  And make predictions
+  \[
+    \mathbb{P}(Y = \hat{y}_{\text{test}} \mid X = x_{\text{test}}, \mathcal{D}_n = D_n) = q_\theta(\hat{y}_{\text{test}} \mid x_{\text{test}}, D_n)
+  \]
+  }
+  \vspace{1.0em}
+
+  \onslide<4->{
+  \vspace{-2.5em}
   \begin{alertblock}{}
     \centering $\pi$ is called the \textbf{Posterior Predictive Distribution}
   \end{alertblock}
+  }
 \end{frame}
 
 \begin{frame}{Background}
   \framesubtitle{Meta Level}
 
   \small
-  \begin{block}{Prior $\Phi$}
-    Define a hypothesis space $\Phi$ of data generation mechanisms where each hypothesis $\varphi \in \Phi$:\ ($y \mid x) \sim \varphi$.
+  \begin{block}{Prior $\mathbb{P}_\Phi$}
+    \begin{center}
+      Define a hypothesis space $\Phi$ of DGPs where each hypothesis $\varphi \in \Phi$ is s.t. \ ($y \mid x) \sim \varphi$.
+    \end{center}
+
+    \vspace{-1.5em}
+    \begin{center}
+      The distribution $\mathbb{P}_\Phi$ is called \textbf{prior} and expresses our beliefs about $\varphi$ before seeing any data.
+    \end{center}
   \end{block}
 
   \begin{columns}[T]
     \begin{column}{0.5\textwidth}
       \centering
       {\footnotesize $ $}\\[0.2em]
-      \metapanel{$\Phi(\varphi)$}{0.3}{0.3}{0.3}{0.3}
+      \metapanel{$\mathbb{P}_{\Phi(\cdot)}(\varphi)$}{0.3}{0.3}{0.3}{0.3}
     \end{column}
     \begin{column}{0.5\textwidth}
       \centering
       {\footnotesize $ $}\\[0.2em]
-      \metapanel{$\Phi(\varphi \mid D_n)$}{2.0}{0.05}{0.6}{0.05}
+      \metapanel{$\mathbb{P}_{\Phi(\cdot \mid \cdot)}(\varphi \mid D_n)$}{2.0}{0.05}{0.6}{0.05}
     \end{column}
   \end{columns}
 \end{frame}
@@ -113,46 +133,46 @@
 
   \onslide<1->{
   \[
-    \pi(y_{\text{test}} \mid \alt<4>{}{\alt<3>{\textcolor{red}{x_{\text{test}}}}{x_{\text{test}}}, }D_n)
-    = \int \varphi(y \mid x)\, d\Phi(\varphi \mid x, D_n) \tag{1}
+    \pi(y \mid {\alt<3>{\textcolor{red}{x}}{x},} \text{ }D_n)
+    = \int \only<2>{\color{blue!90!olive}}\varphi(y \mid x)\only<2>{\color{black}}\, \only<2>{\color{red!70!olive}}d\mathbb{P}_{\Phi(\cdot \mid \cdot)}\only<2>{\color{black}}(\varphi \mid \alt<4>{}{\alt<3>{\textcolor{red}{x}}{x}, }D_n) \tag{1}
   \]
   }
 
   \onslide<2->{
   \begin{align*}
-    = \; & \mathbb{P}\big(\varphi = \varphi_1 = \text{\scalebox{0.45}{\hypLinA}} \mid \alt<4>{}{\alt<3>{\textcolor{red}{x_{\text{test}}}}{x_{\text{test}}}, }D_n\big) \cdot \varphi_1(y_{\text{test}} \mid x_{\text{test}}) \\
-      + \; & \mathbb{P}\big(\varphi = \varphi_2 = \text{\scalebox{0.45}{\hypLinB}} \mid \alt<4>{}{\alt<3>{\textcolor{red}{x_{\text{test}}}}{x_{\text{test}}}, }D_n\big) \cdot \varphi_2(y_{\text{test}} \mid x_{\text{test}}) \; + \; \dots
+    = \; & \only<2>{\color{red!70!olive}}\mathbb{P}\big(\varphi = \varphi_1 = \text{\scalebox{0.45}{\hypLinA}} \mid \alt<4>{}{\alt<3>{\textcolor{red}{x}}{x}, }D_n\big)\only<2>{\color{black}} \cdot \only<2>{\color{blue!90!olive}}\varphi_1(y \mid x)\only<2>{\color{black}} \\
+      + \; & \only<2>{\color{red!70!olive}}\mathbb{P}\big(\varphi = \varphi_2 = \text{\scalebox{0.45}{\hypLinB}} \mid \alt<4>{}{\alt<3>{\textcolor{red}{x}}{x}, }D_n\big)\only<2>{\color{black}} \cdot \only<2>{\color{blue!90!olive}}\varphi_2(y \mid x)\only<2>{\color{black}} \; + \; \dots
   \end{align*}
   }
 
   \onslide<3->{
   \vspace{0.5em}
   \begin{alertblock}{Assumption}
-    \centering $\mathbb{P}(\varphi \mid x, D) = \mathbb{P}(\varphi \mid D)$ \quad (the hypothesis does not depend on $x_{\text{test}}$ itself)
+    \centering $\mathbb{P}(\varphi \mid x, D_n) = \mathbb{P}(\varphi \mid D_n)$ \quad i.e. $x \equiv x_{\text{test}}$ is not informative about hypothesis $\varphi$.
   \end{alertblock}
   }
 \end{frame}
 
 \begin{frame}{Background}
-  \framesubtitle{Posterior Predictive Distribution (2)}
+  \framesubtitle{Posterior Predictive Distribution}
 
-  Dropping $x_{\text{test}}$ from the conditioning on $\varphi$:
+  Dropping $x$ from the conditioning on $\varphi$:
   \[
-    \pi(y_{\text{test}} \mid x_{\text{test}}, D_n)
-    = \int \varphi(y \mid x)\, d\Phi(\varphi \mid D_n)
-    = \int p(y_{\text{test}} \mid x_{\text{test}}, \varphi) \cdot \underbrace{p(\varphi \mid D_n)}_{\text{not available}} \, d\varphi
+    \pi(y \mid x, D_n)
+    = \int \varphi(y \mid x)\, d\mathbb{P}_{\Phi(\cdot \mid \cdot)}(\varphi \mid D_n)
+    = \int p(y \mid x, \varphi) \cdot \underbrace{p(\varphi \mid D_n)}_{\text{not available}} \, d\varphi
   \]
 
   \onslide<2->{
   \vspace{0.5em}
   By Bayes' rule, $p(\varphi \mid D_n) \propto p(D_n \mid \varphi)\, p(\varphi)$, so
   \[
-    \pi(y_{\text{test}} \mid x_{\text{test}}, D_n) \;\propto\; \int
-    \color{olive}{\underbrace{\color{black}p(y_{\text{test}} \mid x_{\text{test}}, \varphi)}_{\substack{\text{prediction based} \\ \text{on hypothesis } \varphi}}}
+    \pi(y \mid x, D_n) \;\propto\; \int
+    \color{olive}{\underbrace{\color{black}p(y \mid x, \varphi)}_{\substack{\text{prediction based} \\ \text{on hypothesis } \varphi}}}
     \color{black}\cdot
     \color{teal}\underbrace{\color{black}p(D_n \mid \varphi)}_{\substack{\text{how likely is} \\ D_n \text{ under } \varphi}}
     \color{black}\cdot
-    \color{blue!70!olive}\underbrace{\color{black}p(\varphi)}_{\substack{\text{prior belief} \\ \text{about } \varphi}}
+    \color{blue}\underbrace{\color{black}p(\varphi)}_{\substack{\text{prior belief} \\ \text{about } \varphi}}
     \, \color{black}d\varphi
   \]
   }
@@ -164,25 +184,29 @@
   \small
   \setlength{\abovedisplayskip}{3pt}\setlength{\belowdisplayskip}{2pt}
   \setlength{\abovedisplayshortskip}{2pt}\setlength{\belowdisplayshortskip}{2pt}
-  \textbf{Prior-Data Fitted Network} is a numerical approximation of the entire \emph{family} of PPDs $\{\pi(\cdot \mid \cdot,\, D_n)\}_{n}$.
+  \textbf{Prior-Data Fitted Network} is a numerical approximation of the entire \emph{family} of PPDs $\{\pi(\cdot \mid \cdot,\, \mathcal{D}_n)\}_{n}$.
 
   \vspace{-0.2em}
+  \onslide<1->{
   \begin{block}{Theorem 2.2. \cite{naglerStatisticalFoundationsPriorData2023}}
     Let $\mathcal{Q}$ be the set of \emph{all} conditional probability functions. Then the PPD satisfies
     \[
-      \pi \;=\; \arg\max_{q \in \mathcal{Q}}\; \mathbb{E}_{\varphi \sim \Phi}\big[\log q(Y \mid X, D_n)\big].
+      \pi \;=\; \arg\max_{q \in \mathcal{Q}}\; \mathbb{E}_{{\color{blue}\varphi \sim \mathbb{P}_{\Phi}},\, {\color{teal}\mathcal{D}_n \cup (Y, X) \sim (\mathcal{D}_{n+1} \mid \varphi)}}\big[\log {\color{olive}q(Y \mid X, \mathcal{D}_n)}\big].
     \]
   \end{block}
+  }
 
+  \onslide<2->{
   \begin{center}
     $\Downarrow$\enspace {\footnotesize restrict to a parametric model $q_\theta$}
   \end{center}
+  }
 
-  \vspace{-0.2em}
+  \vspace{-0.5em}
   \begin{align*}
-    \theta^{*}       &= \arg\max_{\theta}\; \mathbb{E}_{N \sim \Phi_N,\, \varphi \sim \Phi}\big[\log q_{\theta}(Y \mid X, D_N)\big] \\[0.25em]
-                     &\phantom{{}={}}\Downarrow\ \ \text{\footnotesize approximate in practice by Monte-Carlo} \\[0.25em]
-    \widehat{\theta} &= \arg\max_{\theta}\; \sum_{j=1}^{m} \log q_{\theta}\big(Y_j \mid X_j, D^{(j)}\big)
+    \onslide<2->{\theta^{*}       &= \arg\max_{\theta}\; \mathbb{E}_{N \sim \mathbb{P}_N,\, {\color{blue}\varphi \sim \mathbb{P}_{\Phi}},\, {\color{teal}\mathcal{D}_n \cup (Y, X) \sim (\mathcal{D}_{n+1} \mid \varphi)}}\big[\log {\color{olive}q_{\theta}(Y \mid X, \mathcal{D}_N)}\big]} \\[0.25em]
+    \onslide<3->{                &\phantom{{}={}}\Downarrow\ \ \text{\footnotesize approximate in practice by Monte-Carlo}} \\[0.25em]
+    \onslide<3->{\widehat{\theta} &= \arg\max_{\theta}\; \sum_{j=1}^{m} \log q_{\theta}\big(Y_j \mid X_j, D^{(j)}\big)}
   \end{align*}
 
   \note{The expectation in Theorem~2.2 follows the hierarchical data-generating mechanism: first draw the true model (data-generating process) $\varphi \sim \Phi$; then generate the training sample $D_n$ and the test pair $(Y, X)$ from that selected $\varphi$.}
