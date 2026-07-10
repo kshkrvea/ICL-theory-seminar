@@ -4,7 +4,6 @@
 __pycache__
 *.egg-info
 
-*.png
 *.npz
 *.ipynb
 
@@ -18,9 +17,12 @@ slides/*.out
 slides/*.snm
 slides/*.toc
 slides/*.vrb
-slides/*.pdf
 slides/*.fdb_latexmk
 slides/*.fls
 slides/*.synctex.gz
 
+src/*.png
+
 library/*
+
+preview.pdf

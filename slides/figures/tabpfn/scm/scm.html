@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SCM Prior Construction & Target Discretization Pipeline</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/svg2pdf.js@2.2.3/dist/svg2pdf.umd.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 20px;
+            background-color: #f8f9fa;
+            color: #212529;
+        }
+        h2, h3, h4 {
+            margin-top: 0;
+            color: #343a40;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            max-width: 1450px;
+            margin: 0 auto;
+        }
+        .controls {
+            flex: 1;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .visualization-panel {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .canvas-box {
+            background: #ffffff;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+        .control-group {
+            padding-bottom: 12px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .control-group:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #495057;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ced4da;
+            box-sizing: border-box;
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s, border-color 0.2s;
+            margin-bottom: 8px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+        button:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #e9ecef;
+            border-color: #dee2e6;
+            color: #adb5bd;
+            cursor: not-allowed;
+        }
+        button.secondary {
+            background-color: #6c757d;
+        }
+        button.secondary:hover:not(:disabled) {
+            background-color: #5a6268;
+        }
+        button.success {
+            background-color: #28a745;
+        }
+        button.success:hover:not(:disabled) {
+            background-color: #218838;
+        }
+        button.warning {
+            background-color: #fd7e14;
+        }
+        button.warning:hover:not(:disabled) {
+            background-color: #e36802;
+        }
+        button.export {
+            background-color: #17a2b8;
+            text-align: center;
+            font-size: 1rem;
+            padding: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        }
+        button.export:hover:not(:disabled) {
+            background-color: #138496;
+        }
+        .status-box {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 12px;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+            font-family: monospace;
+            font-size: 0.80rem;
+            white-space: pre-wrap;
+            height: 280px;
+            overflow-y: auto;
+            line-height: 1.4;
+        }
+        svg {
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            background-color: #ffffff;
+            width: 100%;
+            height: auto;
+            aspect-ratio: 1000 / 470;
+        }
+    </style>
+</head>
+<body>
+
+<h2>SCM Prior Construction & Target Discretization Pipeline</h2>
+
+<div class="container">
+    <div class="controls">
+        <div class="control-group">
+            <label>Phase I: SCM DAG Generation</label>
+            <button id="btn-sample-hyper">Step 1: Sample Meta-Prior Hyperparameters</button>
+            <button id="btn-build-dense" class="secondary" disabled>Step 2: Build Network Topology</button>
+            <button id="btn-dropout-edges" class="warning" disabled>Step 3: Edge Dropout</button>
+        </div>
+
+        <div class="control-group">
+            <label>Phase II: Causal Data Generation</label>
+            <button id="btn-sample-noise" class="secondary" disabled>Step 4: Sample Exogenous Noise (ε)</button>
+            <button id="btn-flow-data" class="secondary" disabled>Step 5: Causal Forward Propagation</button>
+        </div>
+
+        <div class="control-group">
+            <label>Phase III: Target Discretization</label>
+            <button id="btn-transform-class" class="success" disabled>Step 6: Transform Continuous z_y to Class</button>
+        </div>
+
+        <div class="control-group">
+            <label>Slide Export</label>
+            <button id="btn-save-pdf" class="export" disabled>📄 Save Current Plot as PDF</button>
+        </div>
+
+        <div class="control-group">
+            <label>Unified Execution Ledger</label>
+            <div id="status" class="status-box">System Idle. Click Step 1 to initiate hyperparameter sampling.</div>
+        </div>
+    </div>
+
+    <div class="visualization-panel">
+        <div class="canvas-box">
+            <svg id="main-svg" viewBox="0 0 1000 470" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+    </div>
+</div>
+
+<script>
+    let state = {
+        step: 0,
+        stepTitle: "System Idle",
+        layers: 0,
+        hiddenUnits: 0,
+        activation: 'Identity',
+        dropoutRate: 0.0,
+        graph: null,
+        currentPropagationLayer: -1,
+        continuousOutput: null,
+        classData: null,
+        axisDomain: null
+    };
+
+    const activations = ['Tanh', 'Leaky ReLU', 'ELU', 'Identity'];
+
+    const btnSampleHyper = document.getElementById('btn-sample-hyper');
+    const btnBuildDense = document.getElementById('btn-build-dense');
+    const btnDropoutEdges = document.getElementById('btn-dropout-edges');
+    const btnSampleNoise = document.getElementById('btn-sample-noise');
+    const btnFlowData = document.getElementById('btn-flow-data');
+    const btnTransformClass = document.getElementById('btn-transform-class');
+    const btnSavePdf = document.getElementById('btn-save-pdf');
+    const statusBox = document.getElementById('status');
+    const mainSvg = document.getElementById('main-svg');
+
+    function logToLedger(text) {
+        if (state.step === 1) {
+            statusBox.textContent = text;
+        } else {
+            statusBox.textContent += "\n\n" + "-".repeat(50) + "\n\n" + text;
+        }
+        statusBox.scrollTop = statusBox.scrollHeight;
+    }
+
+    function updateUIState() {
+        btnBuildDense.disabled = state.step < 1;
+        btnDropoutEdges.disabled = state.step < 2;
+        btnSampleNoise.disabled = state.step < 3;
+        btnFlowData.disabled = state.step < 4;
+        btnTransformClass.disabled = state.step < 5 || state.continuousOutput === null;
+        btnSavePdf.disabled = state.step < 1;
+    }
+
+    function applyActivation(x, type) {
+        switch(type) {
+            case 'Tanh': return Math.tanh(x);
+            case 'Leaky ReLU': return x >= 0 ? x : 0.1 * x;
+            case 'ELU': return x >= 0 ? x : 1.0 * (Math.exp(x) - 1);
+            case 'Identity': 
+            default: return x;
+        }
+    }
+
+    btnSampleHyper.addEventListener('click', () => {
+        state.layers = Math.floor(Math.random() * 2) + 1; 
+        state.hiddenUnits = Math.floor(Math.random() * 2) + 2; 
+        state.activation = activations[Math.floor(Math.random() * activations.length)];
+        state.dropoutRate = +(Math.random() * 0.30 + 0.30).toFixed(2);
+        
+        state.step = 1;
+        state.stepTitle = "Step 1: Sample SCM Meta-Prior Hyperparameters";
+        state.currentPropagationLayer = -1;
+        state.continuousOutput = null;
+        state.classData = null;
+        state.axisDomain = null;
+        state.graph = null;
+        
+        logToLedger(`[Step 1: Hyperparameters Sampled]\n` +
+            `• SCM Depth (l): ${state.layers}\n` +
+            `• SCM Width (h): ${state.hiddenUnits}\n` +
+            `• Deterministic Function f_i: ${state.activation}\n` +
+            `• Structural Edge Dropout Probability: ${state.dropoutRate * 100}%`);
+        
+        renderUnifiedCanvas();
+        updateUIState();
+    });
+
+    btnBuildDense.addEventListener('click', () => {
+        const width = 1000;
+        const height = 285;
+        const offsetY = 72;
+        
+        let topology = [];
+        for(let i = 0; i <= state.layers; i++) {
+            topology.push({ type: 'latent', count: state.hiddenUnits });
+        }
+
+        let nodes = [];
+        let edges = [];
+
+        // Equal left/right margins (= layerSpacing) so the graph is horizontally
+        // centered in the exported image.
+        let layerSpacing = width / (topology.length + 1);
+
+        topology.forEach((layer, lIdx) => {
+            let x = layerSpacing * (lIdx + 1);
+            let nodeSpacing = height / (layer.count + 1);
+            
+            for(let nIdx = 0; nIdx < layer.count; nIdx++) {
+                let y = offsetY + nodeSpacing * (nIdx + 1);
+                let id = `Z_L${lIdx}_N${nIdx}`;
+                nodes.push({
+                    id: id,
+                    x: x,
+                    y: y,
+                    layer: lIdx,
+                    role: 'latent',
+                    value: 0.0,
+                    noise: 0.0
+                });
+            }
+        });
+
+        const totalNodes = nodes.length;
+        const featureCount = 2;
+        let availableIndices = Array.from({length: totalNodes}, (_, i) => i);
+        
+        // Target node position is sampled uniformly over the whole graph (any layer),
+        // matching the paper's "randomly sample feature and target node positions"
+        // (Fig. 2, step 2). A target on an early/root layer is a valid, if less
+        // informative, sample and is fully supported by the propagation below.
+        let targetIdx = Math.floor(Math.random() * totalNodes);
+        nodes[targetIdx].role = 'target';
+        availableIndices.splice(availableIndices.indexOf(targetIdx), 1);
+
+        for(let i = 0; i < featureCount; i++) {
+            let randIdx = Math.floor(Math.random() * availableIndices.length);
+            let fIdx = availableIndices[randIdx];
+            nodes[fIdx].role = 'feature';
+            nodes[fIdx].featureIdx = i;
+            availableIndices.splice(randIdx, 1);
+        }
+
+        for(let l = 0; l < topology.length - 1; l++) {
+            let currentLayerNodes = nodes.filter(n => n.layer === l);
+            let nextLayerNodes = nodes.filter(n => n.layer === l + 1);
+            
+            currentLayerNodes.forEach(source => {
+                nextLayerNodes.forEach(target => {
+                    let u1 = Math.max(1e-9, Math.random());
+                    let u2 = Math.random();
+                    let w = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2) * 0.8; 
+                    
+                    edges.push({
+                        id: `E_${source.id}_${target.id}`,
+                        source: source,
+                        target: target,
+                        weight: w,
+                        dropped: false
+                    });
+                });
+            });
+        }
+
+        state.graph = { nodes, edges, topology };
+        state.step = 2;
+        state.stepTitle = "Step 2: Build Dense Topology and Select Observed Variables (Z_X, z_y)";
+        state.currentPropagationLayer = -1;
+        state.continuousOutput = null;
+        state.classData = null;
+        state.axisDomain = null;
+        
+        logToLedger(`[Step 2: SCM Topology Constructed]\n` +
+            `• Endogenous Variables (|Z|): ${nodes.length}\n` +
+            `• Observed Features (Z_X): ${featureCount}\n` +
+            `• Observed Target (z_y): 1\n` +
+            `• Dense Synaptic Weights Initialized via N(0, σ²)`);
+        
+        renderUnifiedCanvas();
+        updateUIState();
+    });
+
+    btnDropoutEdges.addEventListener('click', () => {
+        if (!state.graph) return;
+
+        let dropCount = 0;
+        state.graph.edges.forEach(edge => {
+            if (Math.random() < state.dropoutRate) {
+                edge.dropped = true;
+                dropCount++;
+            }
+        });
+
+        state.step = 3;
+        state.stepTitle = "Step 3: Edge Dropout (Sparsify SCM to Random DAG)";
+        
+        let activeEdges = state.graph.edges.length - dropCount;
+        let actualRate = ((dropCount / state.graph.edges.length) * 100).toFixed(1);
+        
+        logToLedger(`[Step 3: Edge Dropout Applied]\n` +
+            `• Dropped Causal Mechanisms: ${dropCount} (${actualRate}% removed)\n` +
+            `• Surviving Active Edges: ${activeEdges}\n` +
+            `• Topological Structure: Directed Acyclic Graph (DAG) established.`);
+            
+        renderUnifiedCanvas();
+        updateUIState();
+    });
+
+    btnSampleNoise.addEventListener('click', () => {
+        if (!state.graph) return;
+        
+        state.graph.nodes.forEach(node => {
+            node.noise = +(Math.random() * 2 - 1).toFixed(3);
+            node.value = 0.0;
+        });
+
+        state.step = 4;
+        state.stepTitle = "Step 4: Sample Exogenous Noise (ε) for all Nodes";
+        state.currentPropagationLayer = -1;
+        state.continuousOutput = null;
+        state.classData = null;
+        state.axisDomain = null;
+        
+        logToLedger(`[Step 4: Exogenous Noise Injected]\n` +
+            `• Structural Noise ε_i ~ N(0, σ_i^2) sampled for all nodes in Z.\n` +
+            `• Ready to propagate causal generation layer-by-layer.`);
+            
+        renderUnifiedCanvas();
+        updateUIState();
+    });
+
+    btnFlowData.addEventListener('click', () => {
+        if (!state.graph) return;
+
+        let nextLayer = state.currentPropagationLayer + 1;
+        if (nextLayer >= state.graph.topology.length) {
+            state.currentPropagationLayer = -2;
+            let targetNode = state.graph.nodes.find(n => n.role === 'target');
+            state.continuousOutput = targetNode.value;
+
+            logToLedger(`[Causal Generation Completed]\n` +
+                `• Continuous Scalar Target (z_y): ${state.continuousOutput.toFixed(4)}\n` +
+                `• Ready for Phase III interval discretization.`);
+            
+            state.axisDomain = {
+                min: state.continuousOutput - 2.5,
+                max: state.continuousOutput + 2.5
+            };
+
+            updateUIState();
+            renderUnifiedCanvas();
+            return;
+        }
+
+        let targetNodes = state.graph.nodes.filter(n => n.layer === nextLayer);
+        let trace = [];
+        
+        targetNodes.forEach(tNode => {
+            let incomingEdges = state.graph.edges.filter(e => e.target.id === tNode.id && !e.dropped);
+            let dotProduct = 0;
+            let equationTerms = [];
+            
+            incomingEdges.forEach(edge => {
+                let term = edge.source.value * edge.weight;
+                dotProduct += term;
+                let sourceName = edge.source.role === 'feature' ? `z_X${edge.source.featureIdx + 1}` : edge.source.id.split('_')[2];
+                equationTerms.push(`(${edge.weight.toFixed(2)} * ${sourceName}[${edge.source.value.toFixed(2)}])`);
+            });
+            
+            let linearEq = equationTerms.length > 0 ? equationTerms.join(' + ') : '0';
+            let linearActivation = dotProduct + tNode.noise;
+            tNode.value = +applyActivation(linearActivation, state.activation).toFixed(4);
+
+            trace.push(`  - ${tNode.id} [${tNode.role}]:\n    z_i = ${state.activation}( ${linearEq} + ${tNode.noise.toFixed(2)}[ε] ) = ${tNode.value.toFixed(4)}`);
+        });
+
+        state.currentPropagationLayer = nextLayer;
+        state.stepTitle = `Step 5: Causal Forward Propagation (Evaluating Layer ${nextLayer})`;
+        if (nextLayer === state.graph.topology.length - 1) {
+            state.step = 5;
+            state.stepTitle = "Step 5: Causal Forward Propagation Complete (Dataset Sample Generated)";
+        }
+        
+        logToLedger(`[Step 5: Generated Layer ${nextLayer}]\n` +
+            `• General Mechanism: z_i = f(Σ(W_{ij} * z_j) + ε_i)\n\n` +
+            `• Mathematical Evaluation Trace:\n${trace.join('\n\n')}`);
+            
+        renderUnifiedCanvas(true);
+        updateUIState();
+    });
+
+    btnTransformClass.addEventListener('click', () => {
+        if (state.continuousOutput === null) return;
+
+        let numClasses = Math.floor(Math.random() * 3) + 1; 
+        
+        let bounds = [];
+        let baseVal = state.continuousOutput;
+        for (let i = 0; i < numClasses - 1; i++) {
+            let offset = (Math.random() * 3 - 1.5);
+            bounds.push(+(baseVal + offset).toFixed(2));
+        }
+        bounds.sort((a, b) => a - b);
+
+        for(let i = 1; i < bounds.length; i++) {
+            if(bounds[i] <= bounds[i-1]) bounds[i] = +(bounds[i-1] + 0.35).toFixed(2);
+        }
+
+        let minVal = Math.min(state.axisDomain.min, ...bounds) - 0.5;
+        let maxVal = Math.max(state.axisDomain.max, ...bounds) + 0.5;
+        state.axisDomain = { min: minVal, max: maxVal };
+
+        let assignedClass = 0;
+        bounds.forEach(bound => {
+            if (bound < state.continuousOutput) {
+                assignedClass++;
+            }
+        });
+
+        let intervals = [];
+        for(let c = 0; c < numClasses; c++) {
+            let lower = c === 0 ? '-∞' : bounds[c-1];
+            let upper = c === numClasses - 1 ? '+∞' : bounds[c];
+            let match = c === assignedClass ? ' ◄== [ASSIGNED]' : '';
+            intervals.push(`  Class ${c}: (${lower}, ${upper}]${match}`);
+        }
+
+        state.classData = { numClasses, bounds, assignedClass };
+        state.step = 6;
+        state.stepTitle = "Step 6: Transform Continuous Target z_y to Discrete Class Label";
+        
+        logToLedger(`[Step 6: Target Discretized to Class Label]\n` +
+            `• Sampled Class Count (N_c): ${numClasses}\n` +
+            `• Threshold Split Boundaries (B_i): [${bounds.join(', ')}]\n` +
+            `• Continuous Target (z_y): ${state.continuousOutput.toFixed(4)}\n` +
+            `• Interval Mapping Ledger:\n${intervals.join('\n')}\n` +
+            `• Final Assigned Class: [ y = ${assignedClass} ]`);
+            
+        renderUnifiedCanvas();
+        updateUIState();
+    });
+
+    btnSavePdf.addEventListener('click', () => {
+        const jsPDF = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : window.jsPDF;
+        if (!jsPDF) {
+            alert("PDF export library is still loading or failed to load.");
+            return;
+        }
+        const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: [1000, 470] });
+        doc.svg(mainSvg, { x: 0, y: 0, width: 1000, height: 470 }).then(() => {
+            doc.save(`SCM_Prior_Step_${state.step}_Slide.pdf`);
+        }).catch(err => {
+            console.error("PDF generation error: ", err);
+            alert("An error occurred while building the PDF.");
+        });
+    });
+
+    function renderUnifiedCanvas(highlightActiveFlow = false) {
+        mainSvg.innerHTML = '';
+
+        const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        defs.innerHTML = `
+            <style>
+                text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+                .mono { font-family: monospace; font-weight: bold; }
+            </style>
+        `;
+        mainSvg.appendChild(defs);
+
+        const titleText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        titleText.setAttribute('x', 30);
+        titleText.setAttribute('y', 28);
+        titleText.setAttribute('font-size', '18px');
+        titleText.setAttribute('font-weight', 'bold');
+        titleText.setAttribute('fill', '#212529');
+        titleText.textContent = state.stepTitle;
+        mainSvg.appendChild(titleText);
+
+        const subText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        subText.setAttribute('x', 30);
+        subText.setAttribute('y', 47);
+        subText.setAttribute('font-size', '13px');
+        subText.setAttribute('fill', '#6c757d');
+        subText.textContent = `Architecture: ${state.layers} Layers | Width: ${state.hiddenUnits} | SCM Deterministic Function f_i: ${state.activation} | Target Edge Dropout: ${(state.dropoutRate*100).toFixed(0)}%`;
+        mainSvg.appendChild(subText);
+
+        if (state.graph) {
+            state.graph.edges.forEach(edge => {
+                // Geometry: start at the source boundary, end just outside the target
+                // boundary. The arrowhead is drawn as an explicit polygon (not an SVG
+                // <marker>) so the exported PDF matches the browser exactly — svg2pdf.js
+                // does not render markers (refX/orient/markerUnits) reliably.
+                const dx = edge.target.x - edge.source.x;
+                const dy = edge.target.y - edge.source.y;
+                const len = Math.hypot(dx, dy) || 1;
+                const ux = dx / len, uy = dy / len;
+                const px = -uy, py = ux; // unit perpendicular
+                const sR = edge.source.role === 'target' ? 26 : 22;
+                const tR = edge.target.role === 'target' ? 26 : 22;
+
+                const aLen = 11, aHalf = 4.5;          // arrowhead length / half-width
+                const startX = edge.source.x + ux * sR;
+                const startY = edge.source.y + uy * sR;
+                const tipX = edge.target.x - ux * (tR + 3);
+                const tipY = edge.target.y - uy * (tR + 3);
+                const baseX = tipX - ux * aLen;
+                const baseY = tipY - uy * aLen;
+
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', startX);
+                line.setAttribute('y1', startY);
+
+                if (edge.dropped) {
+                    line.setAttribute('x2', tipX);
+                    line.setAttribute('y2', tipY);
+                    line.setAttribute('stroke', '#e9ecef');
+                    line.setAttribute('stroke-opacity', '0.4');
+                    line.setAttribute('stroke-dasharray', '3,5');
+                    line.setAttribute('stroke-width', '1.5px');
+                    mainSvg.appendChild(line);
+                    return; // dropped mechanism: no arrowhead
+                }
+
+                const isActive = highlightActiveFlow && (edge.target.layer === state.currentPropagationLayer);
+                const lineColor = isActive ? '#28a745' : '#adb5bd';
+                const headColor = isActive ? '#28a745' : '#6c757d';
+
+                // stop the line at the base of the arrowhead so it doesn't poke past the tip
+                line.setAttribute('x2', baseX);
+                line.setAttribute('y2', baseY);
+                line.setAttribute('stroke', lineColor);
+                if (isActive) {
+                    line.setAttribute('stroke-width', '3px');
+                    line.setAttribute('stroke-dasharray', '6,6');
+                } else {
+                    line.setAttribute('stroke-opacity', '0.6');
+                    line.setAttribute('stroke-width', Math.min(Math.abs(edge.weight) * 2.0 + 1.0, 3.5));
+                }
+                mainSvg.appendChild(line);
+
+                const head = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                head.setAttribute('points',
+                    `${tipX},${tipY} ` +
+                    `${baseX + px * aHalf},${baseY + py * aHalf} ` +
+                    `${baseX - px * aHalf},${baseY - py * aHalf}`);
+                head.setAttribute('fill', headColor);
+                mainSvg.appendChild(head);
+            });
+
+            // Exogenous noise (ε_i) is drawn as its OWN node — a small dashed circle
+            // sitting up-and-left of each endogenous variable, with a dashed arrow
+            // pointing into it. It only appears once noise has been sampled (step 4/5)
+            // and disappears once the target is discretized (Phase III).
+            if (state.step >= 4 && !state.classData) {
+                const nR = 14;            // noise-node radius
+                const offX = -30, offY = -44;
+                state.graph.nodes.forEach(node => {
+                    const r = node.role === 'target' ? 26 : 22;
+                    const nx = node.x + offX;
+                    const ny = node.y + offY;
+
+                    // dashed connector: noise node -> variable boundary
+                    const dx = node.x - nx, dy = node.y - ny;
+                    const len = Math.hypot(dx, dy) || 1;
+                    const ux = dx / len, uy = dy / len;
+                    const px = -uy, py = ux;
+                    const aLen = 9, aHalf = 4;
+                    const startX = nx + ux * nR;
+                    const startY = ny + uy * nR;
+                    const tipX = node.x - ux * (r + 2);
+                    const tipY = node.y - uy * (r + 2);
+                    const baseX = tipX - ux * aLen;
+                    const baseY = tipY - uy * aLen;
+
+                    const nLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    nLine.setAttribute('x1', startX);
+                    nLine.setAttribute('y1', startY);
+                    nLine.setAttribute('x2', baseX);
+                    nLine.setAttribute('y2', baseY);
+                    nLine.setAttribute('stroke', '#fd7e14');
+                    nLine.setAttribute('stroke-width', '1.5px');
+                    nLine.setAttribute('stroke-dasharray', '4,3');
+                    mainSvg.appendChild(nLine);
+
+                    const nHead = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                    nHead.setAttribute('points',
+                        `${tipX},${tipY} ` +
+                        `${baseX + px * aHalf},${baseY + py * aHalf} ` +
+                        `${baseX - px * aHalf},${baseY - py * aHalf}`);
+                    nHead.setAttribute('fill', '#fd7e14');
+                    mainSvg.appendChild(nHead);
+
+                    // dashed noise node
+                    const nCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    nCircle.setAttribute('cx', nx);
+                    nCircle.setAttribute('cy', ny);
+                    nCircle.setAttribute('r', nR);
+                    nCircle.setAttribute('fill', '#fff3e6');
+                    nCircle.setAttribute('stroke', '#fd7e14');
+                    nCircle.setAttribute('stroke-width', '1.5px');
+                    nCircle.setAttribute('stroke-dasharray', '3,2.5');
+                    mainSvg.appendChild(nCircle);
+
+                    const nVal = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    nVal.setAttribute('x', nx);
+                    nVal.setAttribute('y', ny + 3);
+                    nVal.setAttribute('text-anchor', 'middle');
+                    nVal.setAttribute('class', 'mono');
+                    nVal.setAttribute('font-size', '9px');
+                    nVal.setAttribute('fill', '#c25e00');
+                    nVal.textContent = node.noise.toFixed(2);
+                    mainSvg.appendChild(nVal);
+
+                    const nLbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    nLbl.setAttribute('x', nx);
+                    nLbl.setAttribute('y', ny - nR - 3);
+                    nLbl.setAttribute('text-anchor', 'middle');
+                    nLbl.setAttribute('font-size', '11px');
+                    nLbl.setAttribute('font-style', 'italic');
+                    nLbl.setAttribute('font-weight', '600');
+                    nLbl.setAttribute('fill', '#fd7e14');
+                    nLbl.textContent = 'ε';
+                    mainSvg.appendChild(nLbl);
+                });
+            }
+
+            state.graph.nodes.forEach(node => {
+                const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                
+                const r = node.role === 'target' ? 26 : 22;
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', node.x);
+                circle.setAttribute('cy', node.y);
+                circle.setAttribute('r', r);
+                
+                let baseColor = '#f8f9fa';
+                let strokeColor = '#ced4da';
+
+                if (node.role === 'feature') {
+                    baseColor = '#d1ecf1';
+                    strokeColor = '#17a2b8';
+                } else if (node.role === 'target') {
+                    baseColor = state.classData ? '#28a745' : '#fff3cd';
+                    strokeColor = state.classData ? '#1e7e34' : '#ffc107';
+                }
+
+                if (highlightActiveFlow && node.layer === state.currentPropagationLayer) {
+                    strokeColor = '#28a745';
+                    circle.setAttribute('stroke-width', '3.5px');
+                } else if (node.role === 'target' || node.role === 'feature') {
+                    circle.setAttribute('stroke-width', '3px');
+                } else {
+                    circle.setAttribute('stroke-width', '2px');
+                }
+
+                circle.setAttribute('fill', baseColor);
+                circle.setAttribute('stroke', strokeColor);
+                group.appendChild(circle);
+
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', node.x);
+                text.setAttribute('y', node.y + 4);
+                text.setAttribute('text-anchor', 'middle');
+                
+                if (node.role === 'target' && state.classData) {
+                    text.setAttribute('font-size', '14px');
+                    text.setAttribute('font-weight', 'bold');
+                    text.setAttribute('fill', '#ffffff');
+                    text.textContent = `C:${state.classData.assignedClass}`;
+                } else {
+                    text.setAttribute('class', 'mono');
+                    text.setAttribute('font-size', '12px');
+                    text.setAttribute('fill', '#212529');
+                    if (state.step >= 4) {
+                        text.textContent = node.value.toFixed(2);
+                    }
+                }
+                group.appendChild(text);
+                
+                const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                label.setAttribute('x', node.x);
+                label.setAttribute('y', node.y - (r + 7));
+                label.setAttribute('font-size', '11px');
+                label.setAttribute('font-weight', '600');
+                label.setAttribute('text-anchor', 'middle');
+                
+                if (node.role === 'feature') {
+                    label.setAttribute('fill', '#17a2b8');
+                    label.textContent = `z_X${node.featureIdx + 1}`;
+                } else if (node.role === 'target') {
+                    label.setAttribute('fill', '#d39e00');
+                    label.textContent = state.classData ? `z_y (Class ${state.classData.assignedClass})` : `z_y`;
+                } else {
+                    label.setAttribute('fill', '#adb5bd');
+                    label.textContent = node.id.split('_')[2];
+                }
+                
+                group.appendChild(label);
+
+                mainSvg.appendChild(group);
+            });
+        } else {
+            const ph = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            ph.setAttribute('x', 500);
+            ph.setAttribute('y', 230);
+            ph.setAttribute('text-anchor', 'middle');
+            ph.setAttribute('fill', '#adb5bd');
+            ph.setAttribute('font-size', '15px');
+            ph.textContent = "";
+            mainSvg.appendChild(ph);
+        }
+
+        const padX = 60;
+        const drawWidth = 1000 - (padX * 2);
+        const lineY = 410;
+
+        const axis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        axis.setAttribute('x1', padX);
+        axis.setAttribute('y1', lineY);
+        axis.setAttribute('x2', 1000 - padX);
+        axis.setAttribute('y2', lineY);
+        axis.setAttribute('stroke', '#343a40');
+        axis.setAttribute('stroke-width', '2px');
+        mainSvg.appendChild(axis);
+
+        if (state.continuousOutput !== null && state.axisDomain !== null) {
+            let minVal = state.axisDomain.min;
+            let maxVal = state.axisDomain.max;
+            let range = maxVal - minVal;
+            const mapX = (val) => padX + ((val - minVal) / range) * drawWidth;
+
+            if (state.classData) {
+                let { numClasses, bounds, assignedClass } = state.classData;
+                let extBounds = [minVal, ...bounds, maxVal];
+
+                for(let c = 0; c < numClasses; c++) {
+                    let x1 = mapX(extBounds[c]);
+                    let x2 = mapX(extBounds[c+1]);
+                    let isTarget = (c === assignedClass);
+
+                    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    rect.setAttribute('x', x1);
+                    rect.setAttribute('y', lineY - 32);
+                    rect.setAttribute('width', Math.max(0, x2 - x1));
+                    rect.setAttribute('height', 64);
+                    rect.setAttribute('fill', isTarget ? '#d4edda' : (c % 2 === 0 ? '#f8f9fa' : '#e9ecef'));
+                    rect.setAttribute('stroke', isTarget ? '#28a745' : '#dee2e6');
+                    rect.setAttribute('stroke-width', isTarget ? '2px' : '1px');
+                    mainSvg.insertBefore(rect, axis);
+
+                    const classLbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    classLbl.setAttribute('x', x1 + (x2 - x1) / 2);
+                    classLbl.setAttribute('y', lineY - 42);
+                    classLbl.setAttribute('text-anchor', 'middle');
+                    classLbl.setAttribute('font-size', '12px');
+                    classLbl.setAttribute('font-weight', isTarget ? 'bold' : 'normal');
+                    classLbl.setAttribute('fill', isTarget ? '#155724' : '#495057');
+                    classLbl.textContent = `Class ${c}`;
+                    mainSvg.appendChild(classLbl);
+                }
+
+                bounds.forEach((b, idx) => {
+                    let bx = mapX(b);
+                    const bLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    bLine.setAttribute('x1', bx);
+                    bLine.setAttribute('y1', lineY - 32);
+                    bLine.setAttribute('x2', bx);
+                    bLine.setAttribute('y2', lineY + 32);
+                    bLine.setAttribute('stroke', '#dc3545');
+                    bLine.setAttribute('stroke-width', '2px');
+                    bLine.setAttribute('stroke-dasharray', '3,3');
+                    mainSvg.appendChild(bLine);
+
+                    const bTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    bTxt.setAttribute('x', bx);
+                    bTxt.setAttribute('y', lineY + 47);
+                    bTxt.setAttribute('text-anchor', 'middle');
+                    bTxt.setAttribute('font-size', '11px');
+                    bTxt.setAttribute('class', 'mono');
+                    bTxt.setAttribute('fill', '#dc3545');
+                    bTxt.textContent = `B${idx}: ${b.toFixed(2)}`;
+                    mainSvg.appendChild(bTxt);
+                });
+            }
+
+            let yx = mapX(state.continuousOutput);
+            const yLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            yLine.setAttribute('x1', yx);
+            yLine.setAttribute('y1', lineY - 20);
+            yLine.setAttribute('x2', yx);
+            yLine.setAttribute('y2', lineY + 20);
+            yLine.setAttribute('stroke', '#007bff');
+            yLine.setAttribute('stroke-width', '3px');
+            mainSvg.appendChild(yLine);
+
+            const yPoint = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            yPoint.setAttribute('cx', yx);
+            yPoint.setAttribute('cy', lineY);
+            yPoint.setAttribute('r', 6);
+            yPoint.setAttribute('fill', '#007bff');
+            yPoint.setAttribute('stroke', '#ffffff');
+            yPoint.setAttribute('stroke-width', '2px');
+            mainSvg.appendChild(yPoint);
+
+            const yTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            yTxt.setAttribute('x', yx);
+            yTxt.setAttribute('y', lineY - 26);
+            yTxt.setAttribute('text-anchor', 'middle');
+            yTxt.setAttribute('font-size', '12px');
+            yTxt.setAttribute('class', 'mono');
+            yTxt.setAttribute('fill', '#007bff');
+            yTxt.textContent = `z_y: ${state.continuousOutput.toFixed(3)}`;
+            mainSvg.appendChild(yTxt);
+        } else {
+            const ph = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            ph.setAttribute('x', 500);
+            ph.setAttribute('y', lineY - 15);
+            ph.setAttribute('text-anchor', 'middle');
+            ph.setAttribute('fill', '#adb5bd');
+            ph.setAttribute('font-size', '13px');
+            ph.textContent = 'Awaiting continuous scalar target (z_y) from Phase II causal generation...';
+            mainSvg.appendChild(ph);
+        }
+    }
+
+    updateUIState();
+</script>
+</body>
+</html>

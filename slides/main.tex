@@ -1,54 +1,6 @@
-\documentclass[aspectratio=169]{beamer}
-
-\usetheme{Madrid}
-\usecolortheme{default}
-
-\usepackage{amsmath, amssymb, amsthm}
-\usepackage{graphicx}
-\usepackage{booktabs}
-\usepackage{hyperref}
-\usepackage{xcolor}
-\usepackage{tikz}
-\usepackage{pgfpages}
-\setbeameroption{show notes on second screen=right}
-\usetikzlibrary{arrows.meta, calc, decorations.pathmorphing}
-
-% -----------------------------------------------
-% Review build. The talk PDF stays clean; a separate PDF adds the
-% hidden (handout-only) slides and the speaker notes so they can be read.
-%   Talk:    make         -> main.pdf        (no notes, hidden slides skipped)
-%   Review:  make notes   -> main-notes.pdf  (hidden slides + speaker notes)
-% `make notes` passes the `handout` class option (reveals the hidden
-% slides) and defines \shownotes (enables the \note{...} pages below).
-% -----------------------------------------------
-\ifdefined\shownotes
-  \setbeameroption{show notes}
-\fi
-
-% -----------------------------------------------
-% Figures: colors, feature-space plots, hypothesis-space icons/panels.
-% Kept in a separate file so main.tex doesn't get swamped by TikZ code.
-% -----------------------------------------------
-\input{figures.tex}
-
-% -----------------------------------------------
-% Section dividers: show the outline at the start of every section with the
-% upcoming section highlighted (others shaded).
-% -----------------------------------------------
-\AtBeginSection[]{
-  \begin{frame}{Outline}
-    \tableofcontents[currentsection]
-  \end{frame}
-}
-
-% -----------------------------------------------
-% Metadata
-% -----------------------------------------------
-\title[Prior-Data Fitted Networks]{Prior-Data Fitted Networks}
-\subtitle{[s26] Theoretical Foundations of Amortization and Meta-, and In-Context Learning}
-\author{Egor Kashkarov}
-\institute{}
-\date{\today}
+% Full talk. Preamble (theme, packages, figures, metadata) lives in
+% preamble.tex so it can be shared with preview.tex (single-section builds).
+\input{preamble.tex}
 
 % -----------------------------------------------
 \begin{document}
@@ -72,5 +24,8 @@
 \input{sections/recent_sota.tex}
 \input{sections/connections.tex}
 \input{sections/conclusion.tex}
+
+% Backup slides after the talk's end (kept out of the main flow / TOC).
+\input{sections/appendix.tex}
 
 \end{document}

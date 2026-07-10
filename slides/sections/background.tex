@@ -202,12 +202,12 @@
   \end{center}
   }
 
-  \vspace{-0.5em}
-  \begin{align*}
-    \onslide<2->{\theta^{*}       &= \arg\max_{\theta}\; \mathbb{E}_{N \sim \mathbb{P}_N,\, {\color{blue}\varphi \sim \mathbb{P}_{\Phi}},\, {\color{teal}\mathcal{D}_n \cup (Y, X) \sim (\mathcal{D}_{n+1} \mid \varphi)}}\big[\log {\color{olive}q_{\theta}(Y \mid X, \mathcal{D}_N)}\big]} \\[0.25em]
-    \onslide<3->{                &\phantom{{}={}}\Downarrow\ \ \text{\footnotesize approximate in practice by Monte-Carlo}} \\[0.25em]
-    \onslide<3->{\widehat{\theta} &= \arg\max_{\theta}\; \sum_{j=1}^{m} \log q_{\theta}\big(Y_j \mid X_j, D^{(j)}\big)}
-  \end{align*}
+  \vspace{-1.5em}
+  \begin{gather*}
+    \onslide<2->{\theta^{*}       = \arg\max_{\theta}\; \mathbb{E}_{N \sim \mathbb{P}_N,\, {\color{blue}\varphi \sim \mathbb{P}_{\Phi}},\, {\color{teal}\mathcal{D}_n \cup (Y, X) \sim (\mathcal{D}_{n+1} \mid \varphi)}}\big[\log {\color{olive}q_{\theta}(Y \mid X, \mathcal{D}_N)}\big]} \\[0.25em]
+    \onslide<3->{\Downarrow\ \ \text{\footnotesize approximate in practice by Monte-Carlo}} \\[0.25em]
+    \onslide<3->{\widehat{\theta} = \arg\max_{\theta}\; \sum_{j=1}^{m} \log q_{\theta}\big(Y_j \mid X_j, D^{(j)}\big)}
+  \end{gather*}
 
   \note{The expectation in Theorem~2.2 follows the hierarchical data-generating mechanism: first draw the true model (data-generating process) $\varphi \sim \Phi$; then generate the training sample $D_n$ and the test pair $(Y, X)$ from that selected $\varphi$.}
 \end{frame}
