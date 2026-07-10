@@ -1,0 +1,18 @@
+% Single-section preview build. Compiles ONE section with the full shared
+% preamble, so you can iterate quickly on the file you just changed instead of
+% rebuilding the whole deck.
+%
+% Usage (compile just sections/tabicl.tex):
+%   pdflatex -jobname=preview "\def\previewsection{sections/tabicl}\input{preview.tex}"
+% or, more conveniently:
+%   make preview SEC=tabicl
+%
+% Cross-references / citations to other sections will be undefined here (this
+% file only knows about the one section) -- that's expected for a fast preview.
+\input{preamble.tex}
+
+\providecommand{\previewsection}{sections/tabicl}
+
+\begin{document}
+\input{\previewsection}
+\end{document}
