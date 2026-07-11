@@ -1,0 +1,241 @@
+/* =====================================================================
+   Deck theme — minimalistic metropolis (Beamer) look on white.
+   The metropolis dark-green frame-title BAR is intentionally dropped
+   (allowed by the migration spec); the title/subtitle keep their
+   position and hierarchy, separated from the body by a hairline rule.
+
+   Coordinate system: design grid 1280×720 px (Beamer 16×9 cm at 80 px/cm).
+   The slide canvas is resized to the viewport at scale 1; --deck-scale
+   proportionally scales every px length below.
+
+   HOW TO ADJUST:
+     - Colors: the :root block below (names follow metropolis).
+     - Global font scale: html { font-size } on .reveal (28px ~= the
+       Beamer body size); .small/.footnotesize mirror LaTeX switches.
+     - Frame title/subtitle size + spacing: .frame-head block.
+     - Block / alertblock styling: .block / .alertblock.
+===================================================================== */
+
+:root {
+  /* set by js/loader.js = fittedViewport width / 1280; scales layout px */
+  --deck-scale: 1;
+
+  /* metropolis palette */
+  --mDarkTeal:  #23373b;   /* titles, structure       */
+  --mAlert:     #eb811b;   /* alert / highlight       */
+  --body-fg:    #191919;   /* body text               */
+  --dim-fg:     #b9c2c4;   /* dimmed TOC entries      */
+  --block-bg:   #f3f4f5;   /* metroset block=fill body */
+  --block-title-bg: #e4e8e9; /* block=fill title strip  */
+  --rule:       rgba(35, 55, 59, 0.25);
+
+  /* semantic formula colors (LaTeX names used in the sources) */
+  --tex-blue:   #0000ff;   /* blue   */
+  --tex-teal:   #008080;   /* teal   */
+  --tex-olive:  #808000;   /* olive  */
+  --tex-red:    #ff0000;   /* red    */
+  --tex-blueolive: #0d0de6; /* blue!90!olive  */
+  --tex-redolive:  #d92600; /* red!70!olive   */
+}
+
+/* ---------- global type ---------- */
+.reveal {
+  font-family: 'LM Roman 10', 'Latin Modern Roman', 'Computer Modern', 'CMU Serif', Georgia, serif;
+  font-size: calc(28px * var(--deck-scale));
+  font-weight: 400;
+  color: var(--body-fg);
+  background: #ffffff;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.reveal-viewport { background: #ffffff; }
+
+.reveal .slides,
+.reveal .slides section,
+.reveal .katex {
+  text-rendering: geometricPrecision;
+}
+
+/* SHARPNESS: drop reveal's 3D compositing (transition is 'none'). */
+.reveal .slides { perspective: none !important; }
+
+.reveal .slides > section,
+.reveal .slides > section > section {
+  text-align: left;
+  padding: 0 calc(48px * var(--deck-scale));
+  height: 100%;
+  box-sizing: border-box;
+  flex-direction: column;
+  backface-visibility: visible !important;
+  transform-style: flat !important;
+}
+
+/* body area under the frame head; .vcenter = \vspace*{\fill} ... \vspace*{\fill} */
+.frame-body { flex: 1 1 auto; min-height: 0; }
+.frame-body.vcenter {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-bottom: calc(26px * var(--deck-scale));
+}
+
+.reveal strong { font-weight: 600; }
+.reveal em { font-style: italic; }
+.reveal sup { font-size: 0.62em; }
+
+.small        { font-size: calc(24px * var(--deck-scale)); }
+.footnotesize { font-size: calc(21px * var(--deck-scale)); }
+.scriptsize   { font-size: calc(18px * var(--deck-scale)); }
+
+.frame-head {
+  margin: 0 calc(-48px * var(--deck-scale)) calc(26px * var(--deck-scale));
+  padding: calc(26px * var(--deck-scale)) calc(48px * var(--deck-scale)) calc(12px * var(--deck-scale));
+  border-bottom: 1px solid var(--rule);
+}
+.frame-title {
+  font-size: calc(36px * var(--deck-scale));
+  font-weight: 500;
+  color: var(--mDarkTeal);
+  margin: 0;
+  line-height: 1.15;
+}
+.frame-subtitle {
+  font-size: calc(23px * var(--deck-scale));
+  font-weight: 400;
+  color: #5c7175;
+  margin: calc(6px * var(--deck-scale)) 0 0;
+}
+.frame-title .cite { font-weight: 400; }
+
+/* ---------- title page ---------- */
+.title-slide { justify-content: center; }
+.title-block { width: 100%; }
+.title-slide h1 {
+  font-size: calc(46px * var(--deck-scale));
+  font-weight: 500;
+  color: var(--mDarkTeal);
+  margin: 0 0 calc(10px * var(--deck-scale));
+}
+.title-rule {
+  width: 100%; height: 2px;
+  background: var(--mAlert);
+  margin-bottom: calc(18px * var(--deck-scale));
+}
+.title-subtitle { font-size: calc(26px * var(--deck-scale)); color: #45585c; margin: 0 0 calc(56px * var(--deck-scale)); }
+.title-author   { font-size: calc(26px * var(--deck-scale)); margin: 0 0 calc(10px * var(--deck-scale)); }
+.title-date     { font-size: calc(23px * var(--deck-scale)); color: #45585c; margin: 0; }
+
+.toc { list-style: none; margin: calc(20px * var(--deck-scale)) 0 0; padding: 0; }
+.toc li { margin: 0 0 calc(20px * var(--deck-scale)); font-size: calc(30px * var(--deck-scale)); color: var(--mDarkTeal); }
+.toc li.dimmed { color: var(--dim-fg); }   /* \tableofcontents[currentsection] shading */
+
+/* ---------- lists ---------- */
+.reveal ul, .reveal ol { margin: 0 0 0 1.1em; }
+.reveal ul { list-style: none; }
+.reveal ul > li { position: relative; padding-left: 0.35em; margin-bottom: 0.45em; }
+.reveal ul > li::before {      /* metropolis triangle bullet */
+  content: '\25B8';
+  position: absolute;
+  left: -0.85em;
+  color: var(--mDarkTeal);
+}
+.reveal ol { list-style: decimal; }
+.reveal ol > li { padding-left: 0.2em; margin-bottom: 0.45em; }
+
+/* ---------- blocks (metroset block=fill) ---------- */
+.block, .alertblock {
+  margin: 0.55em 0;
+  font-size: inherit;
+}
+.block .block-title, .alertblock .block-title {
+  background: var(--block-title-bg);
+  color: var(--mDarkTeal);
+  font-weight: 600;
+  padding: calc(8px * var(--deck-scale)) calc(16px * var(--deck-scale));
+}
+.alertblock .block-title { color: var(--mAlert); }
+.block .block-body, .alertblock .block-body {
+  background: var(--block-bg);
+  padding: calc(12px * var(--deck-scale)) calc(16px * var(--deck-scale));
+}
+.center { text-align: center; }
+
+/* alerted list items (\item<alert@n>) get this class via overlay CSS */
+.alerted { color: var(--mAlert) !important; }
+
+/* ---------- math ---------- */
+/* KaTeX defaults to 1.21em (tuned for serif body text); the LaTeX deck
+   renders math at the surrounding text size, so pin it to 1em to keep
+   formula widths proportional to the Beamer original. */
+.reveal .katex { font-size: 1em; }
+.reveal .katex-display { margin: 0.55em 0; }
+.formula-line { margin: 0.55em 0; }        /* generic display-formula wrapper */
+
+/* semantic color spans toggled by overlay state classes (see loader.js);
+   base state: plain. Recolor rules live with each slide's <style>. */
+
+/* ---------- speaker notes are invisible on-slide ---------- */
+.reveal aside.notes { display: none; }
+
+/* ---------- iframe slides (interactive visualizations) ---------- */
+.iframe-fill {
+  position: absolute;
+  left: calc(48px * var(--deck-scale));
+  right: calc(48px * var(--deck-scale));
+  top: calc(128px * var(--deck-scale));
+  bottom: calc(16px * var(--deck-scale));
+}
+.iframe-fill iframe {
+  width: 100%; height: 100%;
+  border: 0;
+  background: #ffffff;
+}
+
+/* ---------- references ---------- */
+.references { font-size: calc(21px * var(--deck-scale)); }
+.references .ref { display: flex; gap: calc(14px * var(--deck-scale)); margin-bottom: calc(16px * var(--deck-scale)); }
+.references .ref .no { flex: 0 0 2em; }
+
+/* ---------- Theorem 3.1 + interactive viz (sf-ppd-learn) ---------- */
+#sf-ppd-learn {
+  --viz-height: calc(210px * var(--deck-scale));
+}
+#sf-ppd-learn .frame-head-compact {
+  margin-bottom: calc(8px * var(--deck-scale));
+  padding: calc(16px * var(--deck-scale)) calc(48px * var(--deck-scale)) calc(6px * var(--deck-scale));
+}
+#sf-ppd-learn .theorem-viz-body {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8px * var(--deck-scale));
+  flex: 1 1 auto;
+  min-height: 0;
+}
+#sf-ppd-learn .theorem-viz-text { flex: 0 0 auto; }
+#sf-ppd-learn .theorem-support { margin: 0 0 0.3em; }
+#sf-ppd-learn .theorem-compact { margin: 0; }
+#sf-ppd-learn .theorem-compact .block-title {
+  padding: calc(6px * var(--deck-scale)) calc(12px * var(--deck-scale));
+}
+#sf-ppd-learn .theorem-compact .block-body {
+  padding: calc(8px * var(--deck-scale)) calc(12px * var(--deck-scale));
+}
+#sf-ppd-learn .theorem-compact .katex-display { margin: 0.3em 0; }
+#sf-ppd-learn .theorem-viz-frame {
+  flex: 0 0 var(--viz-height);
+  width: 100%;
+  min-height: 0;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+}
+#sf-ppd-learn .theorem-viz-frame iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+.reveal .progress { color: var(--mAlert); height: 4px; }

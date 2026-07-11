@@ -1,0 +1,153 @@
+<!-- ===================================================================
+  sections/statistical_foundations.html — port of
+  slides/sections/statistical_foundations.tex (10 frames).
+
+  Slides, in order:
+    1.  sf-questions   Studied Questions      (4 steps: alert@1..4 cycling)
+    2.  sf-ppd-learn   When PPDs can Learn    (INTERACTIVE iframe — theorem_3_1.html)
+    3.  sf-approx      PFN Approximation of the PPD          (placeholder)
+    4.  sf-biasvar     Bias-Variance Decomposition of PFNs   (placeholder)
+    5.  sf-variance    Variance and Diminishing Sensitivity  (placeholder)
+    6.  sf-bias        Bias and the Need for Locality        (placeholder)
+    7.  sf-transformer Transformer Networks                  (placeholder)
+    8.  sf-localized   Localized PFNs                        (placeholder)
+    9.  sf-numerical   Numerical Validation   (empty figure, caption only)
+    10. sf-discussion  Discussion                            (placeholder)
+
+  Placeholders reproduce the "% content" frames: title + subtitle only.
+=================================================================== -->
+
+<!-- ============================================================
+  Frame 1 — Studied Questions
+  \item<alert@n>: all four items are always visible; the ORANGE
+  highlight moves down one item per step (4 steps -> 3 fragments).
+  State classes s2/s3/s4 + the CSS at the end implement the cycle.
+============================================================ -->
+<section id="sf-questions">
+  <header class="frame-head">
+    <h2 class="frame-title">Statistical Foundations of PFNs</h2>
+    <p class="frame-subtitle">Studied Questions</p>
+  </header>
+  <div class="frame-body">
+    <ul>
+      <li class="q1">When PPDs can Learn?</li>
+      <li class="q2">How PFNs approximate PPDs?</li>
+      <li class="q3">Why PFNs can learn?</li>
+      <li class="q4">Which ICL properties do transformers (in particular TabPFN) have?</li>
+    </ul>
+    <!-- invisible steps driving the alert cycle -->
+    <span class="fragment" data-fragment-index="0" data-slide-class="s2"></span>
+    <span class="fragment" data-fragment-index="1" data-slide-class="s3"></span>
+    <span class="fragment" data-fragment-index="2" data-slide-class="s4"></span>
+  </div>
+  <aside class="notes">
+    (Step 1) Since PPDs are the main motivation behind PFNs, they first ask when
+    a PPD can learn from training data.
+    (Step 3) Why can a pre-trained network still learn in the inference phase?
+    Although we know now why a PPD does, a PFN is not a valid PPD, and it is
+    only trained to approximate the PPD for limited training sizes.
+  </aside>
+</section>
+
+<!-- ============================================================
+  Frame 2 — When PPDs can Learn  (INTERACTIVE)
+  Full-slide embed of slides/figures/statistical_foundations/theorem_3_1.html
+  (theorem box + 3D viz); slide keeps only the frame title.
+============================================================ -->
+<section id="sf-ppd-learn">
+  <header class="frame-head">
+    <h2 class="frame-title">Statistical Foundations of PFNs</h2>
+    <p class="frame-subtitle">When PPDs can Learn</p>
+  </header>
+  <div class="iframe-fill">
+    <iframe data-src="interactive/theorem_3_1.html" data-preload
+            title="Interactive KL projection / PPD convergence (Theorem 3.1)"></iframe>
+  </div>
+  <aside class="notes">
+    PPD trajectory does not generally lie within the prior support P for finite sample sizes:
+    If P is non-convex—such as a union of disjoint hypothesis classes, 
+    averaging candidate models produces a predictive function that resides outside P
+  </aside>
+</section>
+
+<!-- ============================================================
+  Frames 3-8 — empty placeholders ("% content" in the LaTeX source),
+  kept to preserve the exact deck structure.
+============================================================ -->
+<section id="sf-approx">
+  <header class="frame-head">
+    <h2 class="frame-title">Statistical Foundations of PFNs</h2>
+    <p class="frame-subtitle">PFN Approximation of the PPD</p>
+  </header>
+</section>
+
+<section id="sf-biasvar">
+  <header class="frame-head">
+    <h2 class="frame-title">Statistical Foundations of PFNs</h2>
+    <p class="frame-subtitle">Bias-Variance Decomposition of PFNs</p>
+  </header>
+</section>
+
+<section id="sf-variance">
+  <header class="frame-head">
+    <h2 class="frame-title">Statistical Foundations of PFNs</h2>
+    <p class="frame-subtitle">Variance and Diminishing Sensitivity</p>
+  </header>
+</section>
+
+<section id="sf-bias">
+  <header class="frame-head">
+    <h2 class="frame-title">Statistical Foundations of PFNs</h2>
+    <p class="frame-subtitle">Bias and the Need for Locality</p>
+  </header>
+</section>
+
+<section id="sf-transformer">
+  <header class="frame-head">
+    <h2 class="frame-title">Statistical Foundations of PFNs</h2>
+    <p class="frame-subtitle">Transformer Networks</p>
+  </header>
+</section>
+
+<section id="sf-localized">
+  <header class="frame-head">
+    <h2 class="frame-title">Statistical Foundations of PFNs</h2>
+    <p class="frame-subtitle">Localized PFNs</p>
+  </header>
+</section>
+
+<!-- ============================================================
+  Frame 9 — Numerical Validation: the LaTeX figure has its
+  \includegraphics commented out, so only the caption renders
+  ("Figure 1: Caption here." — beamer numbered it).
+============================================================ -->
+<section id="sf-numerical">
+  <header class="frame-head">
+    <h2 class="frame-title">Statistical Foundations of PFNs</h2>
+    <p class="frame-subtitle">Numerical Validation</p>
+  </header>
+  <div class="frame-body vcenter">
+    <p class="center small">Figure 1: Caption here.</p>
+  </div>
+</section>
+
+<!-- Frame 10 — Discussion (placeholder) -->
+<section id="sf-discussion">
+  <header class="frame-head">
+    <h2 class="frame-title">Statistical Foundations of PFNs</h2>
+    <p class="frame-subtitle">Discussion</p>
+  </header>
+</section>
+
+<!-- ============================================================
+  Overlay CSS: the alert@n cycle on sf-questions.
+  Page 1 (no state class): item 1 orange. Each later page moves the
+  highlight down (classes are cumulative: page n has s2..sn).
+============================================================ -->
+<style>
+  #sf-questions .q1 { color: var(--mAlert); }
+  #sf-questions.s2 .q1 { color: inherit; }
+  #sf-questions.s2:not(.s3) .q2 { color: var(--mAlert); }
+  #sf-questions.s3:not(.s4) .q3 { color: var(--mAlert); }
+  #sf-questions.s4 .q4 { color: var(--mAlert); }
+</style>
