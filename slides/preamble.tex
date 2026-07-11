@@ -44,19 +44,26 @@
 \usepackage{tikz}
 \usepackage{pgfpages}
 
-% \setbeameroption{show notes on second screen=right}
 \usetikzlibrary{arrows.meta, calc, decorations.pathmorphing, positioning}
 
 % -----------------------------------------------
-% Review build. The talk PDF stays clean; a separate PDF adds the
-% hidden (handout-only) slides and the speaker notes so they can be read.
-%   Talk:    make         -> main.pdf        (no notes, hidden slides skipped)
-%   Review:  make notes   -> main-notes.pdf  (hidden slides + speaker notes)
-% `make notes` passes the `handout` class option (reveals the hidden
-% slides) and defines \shownotes (enables the \note{...} pages below).
+% Speaker notes. Three builds, selected by which macro is defined:
+%   Talk:    make            -> main.pdf         clean slides, no notes
+%   Review:  make notes      -> main-notes.pdf   notes as extra pages you can
+%                                                read (\shownotes; also handout,
+%                                                so hidden slides are revealed)
+%   Present: make present    -> main-present.pdf each page is  slide | note ;
+%                                                pdfpc puts the slide on the
+%                                                projector and the note on your
+%                                                laptop (\notesonsecond, NO
+%                                                handout, so overlays stay live)
 % -----------------------------------------------
-\ifdefined\shownotes
-  \setbeameroption{show notes}
+\ifdefined\notesonsecond
+  \setbeameroption{show notes on second screen=right}
+\else
+  \ifdefined\shownotes
+    \setbeameroption{show notes}
+  \fi
 \fi
 
 % -----------------------------------------------
