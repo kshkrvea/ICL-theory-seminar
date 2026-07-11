@@ -2,6 +2,22 @@
 \section{Background}
 % -----------------------------------------------
 
+\begin{frame}{DL and Tabular Data before 2022 \cite{grinsztajnWhyTreebasedModels,borisovDeepNeuralNetworks2024,shwartz-zivTabularDataDeep2022}}
+  \framesubtitle{}
+  \def\imgwidth{1.1}   % fraction of text width (0..1)
+  \def\imgx{0cm}       % horizontal shift: + right, - left
+  \def\imgy{-0.2cm}       % vertical shift:   + up,    - down
+  \def\imglabel{}      % caption shown below the image (leave empty for none)
+  \begin{tikzpicture}[remember picture, overlay]
+    \node[anchor=center, xshift=\imgx, yshift=\imgy] (img)
+      at (current page.center)
+      {\includegraphics[width=\imgwidth\textwidth]{figures/background/tabular-dl-before-2022.png}};
+    \node[below=0.3cm of img] {\small\imglabel};
+  \end{tikzpicture}
+\end{frame}
+
+
+
 \begin{frame}{Background}
   \framesubtitle{Statistical Model}
 
