@@ -8,18 +8,41 @@
   of the PPD" list slide (sections/statistical_foundations.html
   #sf-approx) — not a dedicated slide.
 
-  CHANGES vs the standalone source (simulation logic untouched):
+  CHANGES vs the standalone source:
     - stripped page margins/scrolling: body fills the iframe box
       (height:100%, overflow:hidden) instead of a scrollable page;
-    - #viz-container flex-grows to fill the remaining height and the
-      svg switches from width:100%;height:auto to width/height:100%,
-      so it always fits the box (letterboxed by its own viewBox) no
-      matter how tall/short the iframe ends up;
-    - #controls-container padding trimmed to leave room for the plot.
+    - #controls-container padding trimmed to leave room for the plot;
+    - de-boxed: dropped the svg card border/shadow, the legend's
+      bordered/shadowed panel, and the controls' bordered/shadowed
+      panel, since nesting three framed boxes inside the slide's own
+      iframe box read as clutter. Legend is now a plain inline strip
+      above the plot; controls are separated from the plot by a single
+      hairline instead of a full box. No more max-width cap on the
+      three sections either, so the plot fills whatever width the
+      slide's iframe box actually gives it;
+    - the svg's viewBox is no longer a fixed 1000x500: computeGeometry()
+      measures #viz-container's real aspect ratio after layout and
+      picks a viewBox width to match (height pinned at 500 logical
+      units), so the plot uses the full available width instead of
+      being letterboxed down to whatever narrow strip a 2:1 viewBox
+      leaves inside this slide's much wider/shorter box;
+    - data reveal order is shuffled (see shuffle() below) so
+      increasing n scatters points across x instead of sweeping
+      left-to-right;
+    - sigma tuned up from 0.18 to 0.35 (was previously mis-tuned to a
+      hard n>=30 gate that literally froze the posterior below n=30 —
+      reverted, that's not real regularization). At 0.35 every n
+      still contributes to the likelihood, but each individual point's
+      evidence is weak enough relative to the prior's complexity
+      penalty that the posterior stays broad/near-constant for the
+      first ~10 points and only gradually sharpens into a tight fit
+      by n≈30-40.
 
   HOW TO ADJUST: simulation logic (candidate generation, posterior
-  weighting) is verbatim from the source file — tweak there and
-  re-copy if the two should stay in sync.
+  weighting) is verbatim from the source file except `sigma` — tweak
+  there and re-copy if the two should stay in sync, then re-check the
+  E[complexity]/RMSE-vs-n curve if you change sigma, since it controls
+  where the "still simple" -> "well-fit" transition lands.
 =================================================================== -->
 <html lang="en">
 <head>
@@ -32,7 +55,7 @@
         }
         body {
             margin: 0;
-            padding: 12px 20px;
+            padding: 8px 16px;
             box-sizing: border-box;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #ffffff;
@@ -41,41 +64,19 @@
             flex-direction: column;
             align-items: center;
         }
-        #viz-container {
-            width: 100%;
-            max-width: 1000px;
-            flex: 1 1 auto;
-            min-height: 0;
-            position: relative;
-            display: flex;
-        }
-        svg {
-            width: 100%;
-            height: 100%;
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        }
         #legend {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 12px 16px;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
+            width: 100%;
+            flex: 0 0 auto;
+            display: flex;
+            justify-content: center;
+            gap: 28px;
             font-size: 13px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            pointer-events: none;
+            color: #334155;
+            padding-bottom: 6px;
         }
         .legend-item {
             display: flex;
             align-items: center;
-            margin-bottom: 6px;
-        }
-        .legend-item:last-child {
-            margin-bottom: 0;
         }
         .legend-color {
             width: 16px;
@@ -89,15 +90,24 @@
             border-radius: 50%;
             margin-right: 8px;
         }
-        #controls-container {
+        #viz-container {
+            width: 80%;
+            flex: 1 1 auto;
+            min-height: 0;
+            position: relative;
+            display: flex;
+        }
+        svg {
             width: 100%;
-            max-width: 1000px;
+            height: 100%;
+            background: #ffffff;
+        }
+        #controls-container {
+            width: 60%;
             flex: 0 0 auto;
-            margin-top: 10px;
-            background: #f8fafc;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            padding: 10px 20px;
+            margin-top: 8px;
+            border-top: 1px solid #e2e8f0;
+            padding: 10px 4px 2px;
             box-sizing: border-box;
             display: grid;
             grid-template-columns: 1fr auto auto;
@@ -125,7 +135,7 @@
             flex-direction: column;
             justify-content: center;
             padding-left: 16px;
-            border-left: 1px solid #cbd5e1;
+            border-left: 1px solid #e2e8f0;
         }
         .metric-title {
             font-size: 12px;
@@ -143,22 +153,22 @@
 </head>
 <body>
 
-<div id="viz-container">
-    <div id="legend">
-        <div class="legend-item">
-            <div class="legend-color" style="background: #f97316; height: 4px;"></div>
-            <span>Posterior Predictive (Consensus)</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: #64748b; opacity: 0.4;"></div>
-            <span>Candidate Hypotheses (150 functions)</span>
-        </div>
-        <div class="legend-item">
-            <div class="dot" style="background: #ef4444;"></div>
-            <span>Observed Data Points</span>
-        </div>
+<div id="legend">
+    <div class="legend-item">
+        <div class="legend-color" style="background: #f97316; height: 4px;"></div>
+        <span>Posterior Predictive (Consensus)</span>
     </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background: #64748b; opacity: 0.4;"></div>
+        <span>Candidate Hypotheses (150 functions)</span>
+    </div>
+    <div class="legend-item">
+        <div class="dot" style="background: #ef4444;"></div>
+        <span>Observed Data Points</span>
+    </div>
+</div>
 
+<div id="viz-container">
     <svg id="vector-plot" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet">
         <g id="grid-lines"></g>
         <g id="candidates-layer"></g>
@@ -207,6 +217,17 @@
         dataPoints.push({ x, y });
     }
 
+    // Reveal order is randomized (not left-to-right by x) so that
+    // increasing n scatters observations across the whole domain.
+    function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+    shuffle(dataPoints);
+
     for (let i = 0; i < NUM_CANDIDATES; i++) {
         const complexity = Math.floor((i / NUM_CANDIDATES) * 18);
         const priorWeight = Math.exp(-0.2 * complexity);
@@ -240,6 +261,7 @@
     }
 
     const svg = document.getElementById('vector-plot');
+    const vizContainer = document.getElementById('viz-container');
     const gridLayer = document.getElementById('grid-lines');
     const candidatesLayer = document.getElementById('candidates-layer');
     const ppdLine = document.getElementById('ppd-line');
@@ -250,15 +272,30 @@
     const activeModelsDisplay = document.getElementById('active-models');
     const complexityDisplay = document.getElementById('complexity-val');
 
-    const width = 1000;
-    const height = 500;
-    const padX = 50;
-    const padY = 40;
-    const plotW = width - padX * 2;
-    const plotH = height - padY * 2;
+    // Logical viewBox is sized to match #viz-container's real aspect
+    // ratio (height pinned at 500 units) so the plot fills the whole
+    // available width instead of being letterboxed by a fixed 2:1 box.
+    let width = 1000;
+    let height = 500;
+    let padX = 50;
+    let padY = 40;
+    let plotW = width - padX * 2;
+    let plotH = height - padY * 2;
 
     const toScreenX = (val) => padX + val * plotW;
     const toScreenY = (val) => height - (padY + val * plotH);
+
+    function computeGeometry() {
+        const rect = vizContainer.getBoundingClientRect();
+        const aspect = (rect.width > 0 && rect.height > 0) ? rect.width / rect.height : 2;
+        height = 500;
+        width = Math.round(height * aspect);
+        padX = width * 0.05;
+        padY = height * 0.08;
+        plotW = width - padX * 2;
+        plotH = height - padY * 2;
+        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    }
 
     function buildGrid() {
         let gridHtml = '';
@@ -298,23 +335,26 @@
         return d;
     }
 
-    const candidatePathStrings = candidates.map(c => generatePathString(c.eval));
+    let candidatePathStrings = [];
+    function regenerateCandidatePaths() {
+        candidatePathStrings = candidates.map(c => generatePathString(c.eval));
+    }
 
     function update() {
         const n = parseInt(slider.value);
         nValDisplay.innerText = n;
 
         const activeData = dataPoints.slice(0, n);
-        const sigma = 0.18;
+        // Every point contributes to the likelihood from n=1; sigma
+        // controls how quickly the posterior sharpens (see file header).
+        const sigma = 0.35;
 
         let maxLogPost = -Infinity;
         const logPosts = candidates.map(c => {
             let logLikelihood = 0;
-            if (n > 1) {
-                for (let pt of activeData) {
-                    const diff = pt.y - c.eval(pt.x);
-                    logLikelihood -= (diff * diff) / (2 * sigma * sigma);
-                }
+            for (let pt of activeData) {
+                const diff = pt.y - c.eval(pt.x);
+                logLikelihood -= (diff * diff) / (2 * sigma * sigma);
             }
             const logPost = Math.log(c.priorWeight) + logLikelihood;
             if (logPost > maxLogPost) maxLogPost = logPost;
@@ -364,13 +404,9 @@
         for (let j = 0; j <= resolution; j++) {
             const x = j / resolution;
             let y = 0;
-            if (n === 1) {
-                y = 0.5;
-            } else {
-                candidates.forEach((c, idx) => {
-                    y += weights[idx] * c.eval(x);
-                });
-            }
+            candidates.forEach((c, idx) => {
+                y += weights[idx] * c.eval(x);
+            });
             const sx = toScreenX(x).toFixed(1);
             const sy = toScreenY(y).toFixed(1);
             ppdPathString += (j === 0 ? `M ${sx} ${sy}` : ` L ${sx} ${sy}`);
@@ -386,10 +422,22 @@
         pointsLayer.innerHTML = pointsHtml;
     }
 
+    function layout() {
+        computeGeometry();
+        buildGrid();
+        regenerateCandidatePaths();
+        update();
+    }
+
+    let resizeRaf = null;
+    window.addEventListener('resize', () => {
+        if (resizeRaf) cancelAnimationFrame(resizeRaf);
+        resizeRaf = requestAnimationFrame(layout);
+    });
+
     slider.addEventListener('input', update);
-    buildGrid();
     initCandidateDOM();
-    update();
+    layout();
 </script>
 </body>
 </html>

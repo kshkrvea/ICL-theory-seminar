@@ -121,29 +121,29 @@
   here as a plain <ul> (same pattern as sf-questions). Items 1-3 are
   the usual DL suspects (model capacity, hypothesis-space capacity, MC
   sample size); item 4 — the prior over context sizes P_N — has no
-  analogue outside PFNs, so its hint pops up
-  interactive/n-as-regulariser.html in an iframe overlay instead of
-  navigating anywhere (data-modal-src, see js/loader.js).
+  analogue outside PFNs, so it's paired with
+  interactive/n-as-regulariser.html embedded inline below the list
+  (.iframe-fill.below-text, preloaded via data-preload). The iframe
+  box itself carries class="fragment" so it only appears on the
+  slide's second click/step — first click shows the bare bullet list.
 ============================================================ -->
 <section id="sf-approx">
   <header class="frame-head">
     <h2 class="frame-title">Statistical Foundations of PFNs</h2>
     <p class="frame-subtitle">PFN Approximation of the PPD</p>
   </header>
+  
   <div class="frame-body">
-    <p>Four factors govern how well \(q_{\widehat\theta}\) approximates the family of PPDs
+    <p class="footnotesize">Four factors govern how well \(q_{\widehat\theta}\) approximates the family of PPDs
       \(\{\pi(\cdot \mid \cdot,\, D_n)\}_{n}\):</p>
-    <ul class="approx-list">
+    <ul class="approx-list footnotesize">
       <li><strong>Model capacity</strong> \(\{q_\theta : \theta \in \Theta\}\) must be
         expressive enough to represent \(\pi\);</li>
       <li><strong>Hypothesis space</strong> \(\Phi\) should be complex enough;</li>
       <li><strong>Monte-Carlo size:</strong> \(\widehat\theta\)  \(\rightarrow\) \(\theta^*\) at rate
         \(\sim m^{-1/2}\) \(\Rightarrow\) a large number of steps \(m\) is needed;</li>
       <li class="viz-item">
-        <strong>Prior over context sizes</strong>
-        <span class="viz-hint" data-modal-src="interactive/n-as-regulariser.html"
-              data-modal-title="Context size as an implicit complexity regularizer">&#9654; view
-          \(\mathbb{P}_N\) as PPD's complexity regularizer.</span>
+        <strong>Prior over context sizes</strong> serves as PPD's complexity regularizer.</span>
       </li>
     </ul>
     <span class="audience-qa audience-qa--bl">
@@ -160,6 +160,12 @@
            
     </template>
   </span>
+  </div>
+
+  <div class="iframe-fill below-text fragment" data-fragment-index="0"
+       style="--fill-top:330px; --fill-bottom:60px">
+    <iframe data-src="interactive/n-as-regulariser.html" data-preload
+            title="Context size as an implicit complexity regularizer"></iframe>
   </div>
   
   <aside class="notes">
