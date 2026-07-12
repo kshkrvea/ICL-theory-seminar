@@ -78,7 +78,7 @@
   </header>
   <div class="frame-body">
     <p class="footnotesize"> Let \(\mathcal{S} = \{\varphi \in \Phi : \mathbb{P}_{\Phi}(\varphi) > 0\}\) be the <em>support</em> of the prior.<br>
-    <strong>Theorem 3.1.</strong> Under <em>regularity conditions</em>, there exists \(\varphi^* \in \mathcal{S}\) such that for almost every \((y, x)\)</p>
+    <strong>Theorem 3.1. <span class="cite">[4]:</span></strong> Under <em>regularity conditions</em>, there exists \(\varphi^* \in \mathcal{S}\) such that for almost every \((y, x)\)</p>
     <p class="footnotesize center"><span class="cite"></span>  
         \[ \pi(y \mid x, \mathcal{D}_n) \xrightarrow[n \to \infty]{} \varphi^*(y \mid x) \quad \text{a.s.} \]
         and \(\varphi^*\) is the KL-optimal approximation of \(p_0\) in \(\mathcal{S}\): \(\quad \varphi^* = \arg\min_{\varphi \in \mathcal{S}} \text{KL}(\varphi \parallel p_0)\).</p>
@@ -247,13 +247,19 @@
     <p class="frame-subtitle">Variance and Diminishing Sensitivity</p>
   </header>
   <div class="frame-body">
-    <p><strong>Theorem 5.2 + Lemma 5.3</strong> <span class="cite">[4]</span>, intuitively:
-      if no single sample of a large context can sway the prediction much, the
-      <span class="c-teal">variance</span> is bounded by a vanishing ratio — and for sensitivity
-      fading faster than \(n^{-1/2}\) it dies out almost surely. For <em>free</em>, at
-      <em>every</em> \(n\): no pre-training on that size needed.</p>
+    <div class="variance-intro">
+    <p class="footnotesize"><strong>Diminishing sensitivity</strong>:
+        Let \(\exists \alpha > 0\), \(L < \infty\) s.t. for large \(n\) and almost
+        all data sets \(D_n,\, D_n'\) differing in <em>one</em> sample,
+        \[ \big|\, q_{\theta}(y \mid x, D_n) - q_{\theta}(y \mid x, D_n') \,\big|
+           \;\le\; L\, n^{-\alpha}. \tag{*} \]</p>
+    <p class="footnotesize"><strong>Theorem 5.2 + Lemma 5.3</strong> <span class="cite">[4]</span> (informal):</p>
+    <p class="center footnotesize"> 
+      If (*) holds, the <span class="c-teal">variance</span> is bounded by a ratio \(\sim n^{-1/2-\alpha}\). <br>
+      If (*) holds with \(\alpha \ge\ 1/2\), then the <span class="c-teal">variance</span> \(\xrightarrow{n \to \infty} 0\) </p>
+    </div>
   </div>
-  <div class="iframe-fill below-text" style="--fill-top:300px;">
+  <div class="iframe-fill below-text" style="--fill-top:330px; --fill-bottom:60px">
     <iframe data-src="interactive/diminishing-sensitivity.html" data-preload
             title="Diminishing sensitivity: swap one sample, watch the prediction (not) move"></iframe>
   </div>
@@ -263,31 +269,21 @@
       <span class="audience-qa-icon" aria-hidden="true">?</span>
     </button>
     <template class="audience-qa-body">
-      <p><strong>Diminishing sensitivity, eq. (5)</strong> <span class="cite">[4]</span>.
-        Suppose there are \(\alpha > 0\), \(L < \infty\) such that for large \(n\) and almost
-        all data sets \(D_n,\, D_n'\) differing in <em>one</em> sample,
-        \[ \big|\, q_{\theta}(y \mid x, D_n) - q_{\theta}(y \mid x, D_n') \,\big|
-           \;\le\; L\, n^{-\alpha}. \tag{5} \]</p>
-      <p><strong>Theorem 5.2</strong> <span class="cite">[4]</span>. If (5) holds, then with
+      <p><strong>Theorem 5.2</strong> <span class="cite">[4]</span>. If (*) holds, then with
         high probability
         \[ \big|\, q_{\theta}(y \mid x, \mathcal{D}_n) - \mathbb{E}\big[q_{\theta}(y \mid x, \mathcal{D}_n)\big] \,\big|
            \;\lesssim\; n^{1/2 - \alpha}. \]</p>
-      <p><strong>Lemma 5.3</strong> <span class="cite">[4]</span>. If (5) holds with
+      <p><strong>Lemma 5.3</strong> <span class="cite">[4]</span>. If (*) holds with
         \(\alpha > 1/2\), then
         \[ q_{\theta}(y \mid x, \mathcal{D}_n) - \mathbb{E}\big[q_{\theta}(y \mid x, \mathcal{D}_n)\big]
            \xrightarrow{\;n \to \infty\;} 0 \quad \text{almost surely}. \]</p>
     </template>
   </span>
   <aside class="notes">
-    Read (5) as a bounded-differences / stability condition: replacing one sample moves the
-    output by at most L n^-alpha. Theorem 5.2 is McDiarmid-style concentration: stability of
-    order n^-alpha gives deviations of order n^(1/2-alpha); for alpha > 1/2 (Lemma 5.3) the
-    deviation vanishes almost surely. Crucially this is a property of the ARCHITECTURE as a
-    function of D_n, valid at any n — this is the part of the error that keeps improving on
-    context sizes the network never saw. Foreshadow: transformers satisfy (5) by construction
-    (softmax weights sum to 1) — that's the Transformer Networks slide. Remaining error: the
-    bias (next slide). Viz: swap one sample of D_n, the two curves coincide as n grows; the
-    orange band is E[q] +/- 1 std over random D_n; log-log panel shows sup|dq| ~ 1/n.
+    -> Read (*) as a bounded-differences / stability condition: replacing one sample moves the
+    output by at most L n^-alpha. <br>
+    -> Crucially this is a property of the ARCHITECTURE \(q_\theta\) as a function of \(D_n\), valid at any \(n\) — this is the part of the error that keeps improving on context sizes the network never saw. <br>
+    -> Foreshadow: transformers satisfy (*) by construction.
   </aside>
 </section>
 
@@ -303,13 +299,13 @@
     <h2 class="frame-title">Statistical Foundations of PFNs</h2>
     <p class="frame-subtitle">Bias and the Need for Locality</p>
   </header>
-  <div class="frame-body">
+  <div class="footnotesize">
     <p><strong>Theorem 5.4</strong> <span class="cite">[4]</span>, intuitively: for a generic
       data distribution, the <span class="c-blue">bias</span> can vanish as \(n\) grows
       <em>only if</em> the predictor is <strong>local</strong> — asymptotically, only samples
       near \(x_{\text{test}}\) may matter.</p>
   </div>
-  <div class="iframe-fill below-text" style="--fill-top:265px;">
+  <div class="iframe-fill below-text" style="--fill-top:330px; --fill-bottom:60px">
     <iframe data-src="interactive/locality-bias.html" data-preload
             title="Locality: scramble far-away labels — local vs. global predictor"></iframe>
   </div>
@@ -556,6 +552,42 @@
   #sf-biasvar .biasvar-mid-q:not(.visible) {
     display: none;
     margin: 0;
+  }
+
+  /* --- #sf-variance layout knobs (design px; set on section, children inherit)
+     Slide chrome:
+       --fill-top/bottom/left/right   iframe box inset (larger = smaller viz)
+       --body-top                     margin above theorem text
+       --body-pad-top / --body-pad-bottom   padding inside text block
+       --qa-left / --qa-bottom        ? button corner inset
+     Viz internals (edit interactive/diminishing-sensitivity.html :root):
+       --viz-pad-x/y, --viz-row-gap, --legend-top/left,
+       --controls-margin-top, --main-panel-flex, --rate-panel-flex,
+       --fit-pad-x/y (main-plot inner margins) --- */
+  #sf-variance {
+    --fill-top: 350px;
+    --fill-bottom: 60px;
+    --fill-left: 48px;
+    --fill-right: 48px;
+    --body-top: 0px;
+    --body-pad-top: 0px;
+    --body-pad-bottom: 0px;
+    --qa-left: 48px;
+    --qa-bottom: 16px;
+  }
+  #sf-variance .variance-intro {
+    padding-left: calc(40px * var(--deck-scale));
+    padding-right: calc(40px * var(--deck-scale));
+    padding-bottom: calc(20px * var(--deck-scale));
+  }
+  #sf-variance .variance-intro p {
+    margin: 0 0 0.85em;
+  }
+  #sf-variance .variance-intro p:last-child {
+    margin-bottom: 0;
+  }
+  #sf-variance .variance-intro .katex-display {
+    margin: 0.75em 0;
   }
 
   /* --- pop-up hint (data-modal-src trigger) — only sf-approx still
