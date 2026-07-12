@@ -24,6 +24,10 @@
                 each slide state the original value.
      --cap-gap distance image-bottom -> caption (below=0.3cm -> 24px).
 
+   Set these on <figure class="page-fig" style="..."> OR on the parent
+   <section style="..."> — custom properties inherit, so one knob block
+   per slide scales every .page-fig inside it.
+
    The <figure> box is centered on the slide center and sized to the
    image only; the caption hangs below it (exactly like the TikZ
    "below=... of img" node) so it never shifts the image.

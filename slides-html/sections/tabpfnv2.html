@@ -1,19 +1,31 @@
 <!-- ===================================================================
-  sections/tabpfnv2.html — port of slides/sections/tabpfnv2.tex (3 frames).
+  sections/tabpfnv2.html — port of slides/sections/tabpfnv2.tex.
 
   Slides, in order:
-    1. v2-recap  Recap: v1 Architecture   (single SVG, converted from PDF)
-    2. v2-arch   Architecture             (4-step SVG swap)
-    3. v2-disc   Discussion               (placeholder)
+    1. v2-recap        Recap: v1 Architecture        (single SVG)
+    2. v2-arch         Architecture                  (4-step SVG swap)
+    3. v2-regression   Extension to Regression       (INTERACTIVE iframe)
+    4. v2-hard-tasks   Problematic for v1 Tasks      (hard-tasks.png)
+    5. v2-results      Results                       (tab-arena-v2.5.png)
+
+  Scale & position (per slide): set CSS knobs on the <section> — they
+  inherit into every .page-fig on that slide:
+    --img-w     width as fraction of text width (0..1.1; default 1)
+    --img-x     horizontal shift in px (+ right)
+    --img-y     vertical shift in px (+ down; LaTeX \imgy sign is flipped)
+    --cap-gap   px gap from image bottom to <figcaption>
+  Interactive iframe (slide 3): set --fill-top/left/right/bottom on
+  .iframe-fill (see css/theme.css) — larger values shrink the embed box.
 =================================================================== -->
 
-<!-- Frame 1 — Recap: v1 Architecture. \imgwidth=1.0 \imgy=0 -->
-<section id="v2-recap">
+<!-- Frame 1 — Recap: v1 Architecture
+  knobs: --img-w:1  --img-x:0  --img-y:0  --cap-gap:24 -->
+<section id="v2-recap" style="--img-w:1;">
   <header class="frame-head">
     <h2 class="frame-title">TabPFNv2</h2>
     <p class="frame-subtitle">Recap: v1 Architecture</p>
   </header>
-  <figure class="page-fig" style="--img-w:1;">
+  <figure class="page-fig">
     <img src="assets/tabpfn/architecture/tabpfn-v1-mlp.svg" alt="TabPFN v1 architecture (full)">
   </figure>
 </section>
@@ -21,14 +33,14 @@
 <!-- ============================================================
   Frame 2 — Architecture (4-step swap, converted tabpfn-v2 PDFs)
   \only<1>encode \only<2>within-rows \only<3>inter-rows \only<4>mlp
-  \imgwidth=1.0  \imgy=0
+  knobs: --img-w:1  --img-x:0  --img-y:0  --cap-gap:24
 ============================================================ -->
-<section id="v2-arch">
+<section id="v2-arch" style="--img-w:1;">
   <header class="frame-head">
     <h2 class="frame-title">TabPFNv2</h2>
     <p class="frame-subtitle">Architecture</p>
   </header>
-  <figure class="page-fig" style="--img-w:1;">
+  <figure class="page-fig">
     <div class="r-stack">
       <img class="fragment fade-out" data-fragment-index="0"
            src="assets/tabpfn-v2/tabpfn-v2-encode.svg" alt="TabPFN v2: encoding">
@@ -42,10 +54,44 @@
   </figure>
 </section>
 
-<!-- Frame 3 — Discussion (placeholder) -->
-<section id="v2-disc">
+<!-- Frame 3 — Extension to Regression (INTERACTIVE)
+  knobs: --fill-top:128  --fill-left:48  --fill-right:48  --fill-bottom:16 -->
+<section id="v2-regression">
   <header class="frame-head">
     <h2 class="frame-title">TabPFNv2</h2>
-    <p class="frame-subtitle">Discussion</p>
+    <p class="frame-subtitle">Extension to Regression</p>
   </header>
+  <div class="iframe-fill"
+       style="--fill-top:200px; --fill-left:48px; --fill-right:48px; --fill-bottom:16px;">
+    <iframe data-src="interactive/regression-with-bins.html" data-preload
+            title="TabPFN regression with binned outputs"></iframe>
+  </div>
+  <!-- label should go after fibure and be centered -->
+  <p> Discretisation of the target variable with bins. In <cite comment="whatever citation number tabpfnv2 has, need to resolve">[1]</cite> number of beans is 5k. </p>
+</section>
+
+<!-- Frame 4 — Problematic Tasks
+  knobs: --img-w:1  --img-x:0  --img-y:0  --cap-gap:24 -->
+<section id="v2-hard-tasks" style="--img-w:1;">
+  <header class="frame-head">
+    <h2 class="frame-title">TabPFNv2</h2>
+    <p class="frame-subtitle">Problematic for v1 Tasks</p>
+  </header>
+  <figure class="page-fig">
+    <img src="assets/tabpfn-v2/hard-tasks.png" alt="Tasks problematic for TabPFN v1">
+    <figcaption>Performance on datasets, divided by dataset characteristics.</figcaption>
+  </figure>
+</section>
+
+<!-- Frame 5 — Results
+  knobs: --img-w:1  --img-x:0  --img-y:0  --cap-gap:24 -->
+<section id="v2-results" style="--img-w:1;">
+  <header class="frame-head">
+    <h2 class="frame-title">TabPFNv2</h2>
+    <p class="frame-subtitle">Results</p>
+  </header>
+  <figure class="page-fig">
+    <img src="assets/tabpfn-v2/tab-arena-v2.5.png" alt="Tab Arena v2.5 benchmark results">
+    <figcaption>TabArena-Lite results on classification (left) and regression (right), evaluated on all datasets, going up to 100K training rows and 2K features.</figcaption>
+  </figure>
 </section>
