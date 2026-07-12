@@ -107,7 +107,22 @@
           \(\mathbb{P}_N\) as PPD's complexity regularizer.</span>
       </li>
     </ul>
+    <span class="audience-qa audience-qa--bl">
+    <button type="button" class="audience-qa-btn" data-audience-qa
+            aria-label="Show answer" aria-expanded="false">
+      <span class="audience-qa-icon" aria-hidden="true">?</span>
+    </button>
+    <template class="audience-qa-body">
+    
+      \[ \theta^{*} = \arg\max_{\theta}\;
+           \mathbb{E}_{N \sim \mathbb{P}_N,\, {\color{blue}\varphi \sim \mathbb{P}_{\Phi}},\,
+                       {\color{teal}\mathcal{D}_n \cup (Y, X) \sim (\mathcal{D}_{n+1} \mid \varphi)}}
+           \big[\log {\color{olive}q_{\theta}(Y \mid X, \mathcal{D}_N)}\big] \]
+           
+    </template>
+  </span>
   </div>
+  
   <aside class="notes">
     Mechanism: sampling N_j ~ P_N during pre-training means theta-hat averages theta*_{N_j} over
     many context sizes. At n = 1 the PPD is close to the prior average (nearly constant); as n
@@ -379,8 +394,7 @@
       <span class="audience-qa-icon" aria-hidden="true">?</span>
     </button>
     <template class="audience-qa-body">
-      
-
+    
       <ul>
         <li>\(p_0(1 \mid X) = \tfrac{1}{2} + \sin(\mathbf{1}^\top X)/2,\quad
           X \sim \mathcal{N}(0, I_5)\)</li>
