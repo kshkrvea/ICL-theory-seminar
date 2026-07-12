@@ -184,22 +184,33 @@
   bg-ppd-2 recipe (\textcolor{teal/blue}{\underbrace{\textcolor{black}
   {...}}}); the same teal=variance / blue=bias coding is reused on
   the following slides (.c-teal / .c-blue in the <style> below).
+  Step 2 (fragment 0): asymptotic question between the two terms.
 ============================================================ -->
 <section id="sf-biasvar">
   <header class="frame-head">
     <h2 class="frame-title">Statistical Foundations of PFNs</h2>
     <p class="frame-subtitle">Bias-Variance Decomposition of PFNs</p>
   </header>
-  <div class="frame-body vcenter">
+  <div class="frame-body footnotesize">
     <div class="formula-line">
       \[\begin{aligned}
         q_{\theta}(y \mid x, \mathcal{D}_n) - p_0(y \mid x)
-        \;=\;& \textcolor{teal}{\underbrace{\textcolor{black}{q_{\theta}(y \mid x, \mathcal{D}_n)
-            - \mathbb{E}_{\mathcal{D}_n \sim p_0^n}\big[q_{\theta}(y \mid x, \mathcal{D}_n)\big]}}_{\textstyle\text{variance}}} \\[0.2em]
-        &+\; \textcolor{blue}{\underbrace{\textcolor{black}{\mathbb{E}_{\mathcal{D}_n \sim p_0^n}\big[q_{\theta}(y \mid x, \mathcal{D}_n)\big]
+        \;=
+      \end{aligned}\]
+    </div>
+    
+    <div class="formula-line">
+      \[\begin{aligned}
+        & \textcolor{teal}{\underbrace{\textcolor{black}{q_{\theta}(y \mid x, \mathcal{D}_n)
+            - \mathbb{E}_{\mathcal{D}_n \sim p_0^n}\big[q_{\theta}(y \mid x, \mathcal{D}_n)\big]}}_{\textstyle\text{variance}}} &+\; \;\;
+            
+            \textcolor{blue}{\underbrace{\textcolor{black}{\mathbb{E}_{\mathcal{D}_n \sim p_0^n}\big[q_{\theta}(y \mid x, \mathcal{D}_n)\big]
             - p_0(y \mid x)}}_{\textstyle\text{bias}}}
       \end{aligned}\]
     </div>
+    <p class="biasvar-mid-q center fragment" data-fragment-index="0" >
+      How does each term behave asymptotically as \(n\) grows?
+    </p>
   </div>
   <span class="audience-qa audience-qa--bl">
     <button type="button" class="audience-qa-btn" data-audience-qa
@@ -207,25 +218,21 @@
       <span class="audience-qa-icon" aria-hidden="true">?</span>
     </button>
     <template class="audience-qa-body">
-      <p>Beyond pre-training sizes the Bayesian view says nothing about \(q_{\widehat\theta}\).
-        Frequentist view instead (&sect;5.1 of [4]): treat \(q_{\widehat\theta}(y \mid x,\, \cdot)\)
-        as an <strong>untrained predictor</strong> \(D_n \mapsto q_{\widehat\theta}(y \mid x, D_n)\)
-        with tuning parameters \(\widehat\theta\) fixed by meta-learning, and decompose its
-        estimation error under \(\mathcal{D}_n \sim p_0^n\).</p>
-      <p>Empirically the error keeps decreasing with \(n\) — even for \(n\) never seen in
-        pre-training. The next slides ask which structural features of \(q_\theta\) explain
-        each term: the <span class="c-teal">variance</span> dies by architecture, the
-        <span class="c-blue">bias</span> only dies with locality.</p>
+    
+      \[ \theta^{*} = \arg\max_{\theta}\;
+           \mathbb{E}_{N \sim \mathbb{P}_N,\, {\color{blue}\varphi \sim \mathbb{P}_{\Phi}},\,
+                       {\color{teal}\mathcal{D}_n \cup (Y, X) \sim (\mathcal{D}_{n+1} \mid \varphi)}}
+           \big[\log {\color{olive}q_{\theta}(Y \mid X, \mathcal{D}_N)}\big] \]
+           
     </template>
   </span>
   <aside class="notes">
-    The variance term: scatter of the prediction around its average over training sets drawn
-    from p_0. The bias term: offset of that average from the truth. Framing (in the ? pop-up):
-    beyond pre-training sizes the Bayesian view says nothing, so treat the pre-tuned network
-    as an untrained predictor D_n -> q(y|x, D_n) — theta-hat is just a tuning parameter chosen
-    by meta-learning. Empirically the error keeps decreasing with n even for sizes never seen
-    in pre-training; the next three slides explain why: variance dies by architecture
-    (diminishing sensitivity), bias only dies with locality.
+    -> variance term: scatter of the prediction around its average over training sets drawn from p_0. <br>
+    -> bias term: offset of that average from the truth. 
+    
+    -> empirically the error keeps decreasing with n even for sizes never seen in pre-training; <br>
+    
+    -> next three slides explain why: variance dies by architecture, bias only dies with locality.
   </aside>
 </section>
 
@@ -537,6 +544,19 @@
 
   /* --- sf-approx: extra space above the 4-factor list --- */
   #sf-approx .approx-list { margin-top: 0.9em; }
+
+  /* --- sf-biasvar: top-aligned decomposition; step-2 question --- */
+  #sf-biasvar .frame-body { padding-top: 0.15em; }
+  #sf-biasvar .formula-line { margin: 0.35em 0; }
+  #sf-biasvar .biasvar-mid-q {
+    margin: 5.15em 0 0.55em;
+    color: var(--mAlert);
+    font-weight: 500;
+  }
+  #sf-biasvar .biasvar-mid-q:not(.visible) {
+    display: none;
+    margin: 0;
+  }
 
   /* --- pop-up hint (data-modal-src trigger) — only sf-approx still
          uses it; the theorem slides embed their viz inline --- */
