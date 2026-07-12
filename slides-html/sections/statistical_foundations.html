@@ -369,15 +369,16 @@
     <p class="frame-subtitle">Transformer Networks</p>
   </header>
   <div class="frame-body footnotesize">
-    <p><strong>Theorems 6.2 and 6.3</strong> <span class="cite">[4]</span> (informal): 
-      A one-layer transformer \(q_{\theta}\)'s <br>
-      <ul>
-        <li><span class="c-teal">variance</span> vanishes with rate \(\sim n^{-1/2}\) for <em>any</em> parameters \(\theta\). </li>
-        <li> <span class="c-blue">bias</span> converges to a non-zero value and depends on parameters \(\theta\).</li>
-      </ul>
-    </p>
+    <!-- <ul> may not sit inside <p>: the parser closes the <p> before it, which
+         is why the list could not be spaced from the lead-in. Siblings + CSS. -->
+    <p class="transformer-lead"><strong>Theorems 6.2 and 6.3</strong> <span class="cite">[4]</span> (informal):
+      A one-layer transformer \(q_{\theta}\)'s</p>
+    <ul class="transformer-list">
+      <li><span class="c-teal">variance</span> vanishes with rate \(\sim n^{-1/2}\) for <em>any</em> parameters \(\theta\). </li>
+      <li><span class="c-blue">bias</span> converges to a non-zero value and depends on parameters \(\theta\).</li>
+    </ul>
   </div>
-  <div class="iframe-fill below-text" style="--fill-top:250px; --fill-bottom:55px">
+  <div class="iframe-fill below-text" style="--fill-top:270px; --fill-bottom:55px">
     <iframe data-src="interactive/attention-weights.html" data-preload
             title="Attention weights flatten as n grows"></iframe>
   </div>
@@ -387,18 +388,48 @@
       <span class="audience-qa-icon" aria-hidden="true">?</span>
     </button>
     <template class="audience-qa-body">
-      <p>One-layer transformer: context \(V_i = (Y^{(i)}, X^{(i)})\), query \(v = (0, x)\).
-        Attention head \(h\) weighs the samples by
-        \[ a_j^{(h)} = \operatorname{softmax}\big( v^\top W_q^{(h)} V_1, \dots, v^\top W_q^{(h)} V_n \big)_j,
-           \qquad \sum_{j=1}^{n} a_j^{(h)} = 1. \]</p>
-      <p><strong>Theorem 6.2</strong> <span class="cite">[4]</span>.
-        For bounded features \(\|x\| \le K\) and bounded weight matrices
+      <p><strong>One-layer transformer.</strong> Context tokens
+        \(V^{(i)} = (Y^{(i)}, X^{(i)}) \in \{0,1\} \times \mathbb{R}^d\), query token
+        \(v = (0, x)\), \(H\) heads:
+        \[ \begin{aligned}
+             a_j^{(h)} &= \operatorname{softmax}\big( v^\top W_q^{(h)} V^{(1)}, \dots,
+                          v^\top W_q^{(h)} V^{(n)} \big)_j,
+                       &&\textstyle\sum_{j=1}^{n} a_j^{(h)} = 1, \\
+             u' &= \sum_{h=1}^{H} \sum_{j=1}^{n} a_j^{(h)} W_v^{(h)} V^{(j)},
+                       &&u = \operatorname{LN}(v + u';\, \gamma), \\
+             z' &= W_{r,2}\, \operatorname{ReLU}\big(W_{r,1} u;\, \gamma\big),
+                       &&z = \operatorname{LN}(u + z';\, \gamma), \\
+             q_{\theta}(\cdot \mid x, \mathcal{D}_n) &= \operatorname{softmax}(W_o z). &&
+           \end{aligned} \]</p>
+
+      <p><strong>Theorem 6.2</strong> <span class="cite">[4]</span>
+        (<span style="color:var(--tex-teal)">variance</span>).
+        For bounded features \(\mathcal{X} = \{x : \|x\| \le K\}\) and bounded matrices
         \(\|W_q^{(h)}\|, \|W_v^{(h)}\|, \|W_{r,1}\|, \|W_{r,2}\|, \|W_o\| < \infty\),
-        \[ \big|\, q_{\theta}(y \mid x, \mathcal{D}_n) - \mathbb{E}\big[q_{\theta}(y \mid x, \mathcal{D}_n)\big] \,\big|
-           \;\lesssim\; n^{-1/2} \quad \text{with high probability}. \]</p>
-      <p>Mechanism: softmax normalization \(\Rightarrow\) each sample's weight is \(\sim 1/n\)
-        \(\Rightarrow\) diminishing sensitivity (5) with \(\alpha = 1\), and Theorem 5.2 gives
-        the \(n^{-1/2}\) bound.</p>
+        with high probability
+        \[ \big|\, q_{\theta}(y \mid x, \mathcal{D}_n)
+                 - \mathbb{E}\big[q_{\theta}(y \mid x, \mathcal{D}_n)\big] \,\big|
+           \;\lesssim\; n^{-1/2}. \]
+        Any \(\theta\): a head's weights sum to one \(\Rightarrow\) each sample carries
+        \(\sim 1/n\) \(\Rightarrow\) \((*)\) with \(\alpha = 1\) \(\Rightarrow\) Thm 5.2.</p>
+
+      <p><strong>Theorem 6.3</strong> <span class="cite">[4]</span>
+        (<span style="color:var(--tex-blue)">bias</span>).
+        Under the same assumptions,
+        \(\;\mathbb{E}\big[q_{\theta}(\cdot \mid x, \mathcal{D}_n)\big]
+           \xrightarrow{\;n \to \infty\;} \bar{q}_{\theta}(\cdot \mid x)\),
+        where \(\bar{q}_{\theta}\) is \(q_{\theta}\) with \(u'\) replaced by
+        \[ \bar{u}' = \sum_{h=1}^{H} W_v^{(h)}\, \mathbb{E}_{V \sim g_h}[V],
+           \qquad
+           g_h(s) = \frac{\exp\big(v^\top W_q^{(h)} s\big)}
+                         {\mathbb{E}_{V \sim p_0}\big[\exp\big(v^\top W_q^{(h)} V\big)\big]}\, p_0(s). \]</p>
+
+      <p>\(g_h\) is an <em>exponentially tilted</em> \(p_0\): head \(h\) lifts the samples similar
+        to \(v\) and discounts the rest — but never to zero. The network localizes <em>softly</em>,
+        never in the sense of Thm 5.4, so the limiting
+        <span style="color:var(--tex-blue)">bias</span>
+        \(\bar{q}_{\theta}(y \mid x) - p_0(y \mid x)\) does not vanish — and depends entirely
+        on \(\theta\).</p>
     </template>
   </span>
   <aside class="notes">    
@@ -488,11 +519,13 @@
     </template>
   </span>
   <aside class="notes">
-    -> test dataset: p_0(1|X) = 1/2 + sin(1^T X)/2, X ~ N(0, I_5);
+    -> test dataset: p_0(1|X) = 1/2 + sin(1^T X)/2, X ~ N(0, I_5); <br>
     
-    -> FEATURES_DIM = 5; NUM_DATASETS = 100; TEST_SIZE = 100
+    -> FEATURES_DIM = 5; NUM_DATASETS = 100; TEST_SIZE = 100 <br>
 
-    -> localized TabPFN uses the k_n nearest neighbours of x as context.
+    -> localized TabPFN uses the k_n nearest neighbours of x as context. <br>
+
+    -> DO NOT FORGET TO TELL THAT LOCALIZATION TAKES MUUUUCH MORE TIME (SINCE ATTENTION IS NOT CACHED).
 
   </aside>
 </section>
@@ -508,23 +541,14 @@
   <div class="frame-body">
 
     <ul style="margin-top:0.8em;">
-      <li>with enough model capacity, a rich enough \(\Phi\) and enough Monte-Carlo steps,
-        pre-training makes \(q_{\widehat\theta} \approx \pi\) — for context sizes from \(\mathbb{P}_N\);</li>
-      <li>the fourth ingredient, \(\mathbb{P}_N\), is necessarily limited
-        (TabPFN: \(N \le 1023\)) — yet predictions keep improving on larger \(n\);</li>
-      <li>reason: attention forces the <span class="c-teal">variance</span> to vanish
-        (\(\sim 1/n\)) for <em>any</em> \(\widehat\theta\) — generalization to unseen context
-        sizes comes from the architecture;</li>
-      <li>the <span class="c-blue">bias</span> does <em>not</em> vanish — localization
-        (e.g. nearest-neighbour contexts) is the remaining lever.</li>
+      <li>With enough model capacity, a rich enough \(\Phi\) and enough Monte-Carlo steps,<br>
+        pre-training makes \(q_{\widehat\theta} \approx \pi\) for context sizes from \(\mathbb{P}_N\);</li>
+      <li>In practice \(\mathbb{P}_N\) is necessarily limited yet predictions keep improving on larger \(n\);</li>
+      <li>That happens since attention forces the <span class="c-teal">variance</span> to vanish
+        (\(\sim n^{-1/2}\)) for <em>any</em> \(\widehat\theta\);</li>
+      <li>The <span class="c-blue">bias</span> does <em>not</em> vanish though; localization is a possible solution.</li>
     </ul>
   </div>
-  <aside class="notes">
-    Wrap-up of the section's story: PPDs can learn (Thm 3.1); PFNs approximate PPDs when the
-    four factors are right (S4); beyond pre-trained context sizes the Bayesian story ends, but
-    the frequentist decomposition shows the variance dies by architecture (Thms 5.2/6.2), and
-    the bias needs locality (Thm 5.4) — confirmed numerically by localized TabPFN.
-  </aside>
 </section>
 
 <!-- ============================================================
@@ -601,6 +625,11 @@
   }
   #sf-bias .bias-intro p:last-child {
     margin-bottom: 0;
+  }
+
+  /* --- sf-transformer: gap between the theorem lead-in and the two bullets --- */
+  #sf-transformer .transformer-list {
+    margin-top: calc(16px * var(--deck-scale));
   }
 
   /* --- pop-up hint (data-modal-src trigger) — only sf-approx still

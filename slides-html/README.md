@@ -12,9 +12,16 @@ server (opening `index.html` via `file://` will not work):
 
 ```bash
 cd slides-html
-python -m http.server 8000
+python3 serve.py 8000
 # open http://localhost:8000
 ```
+
+`serve.py` is `http.server` with `Cache-Control: no-store` added to every
+response. Plain `python -m http.server` sends `Last-Modified` but no
+`Cache-Control`/`ETag`, so browsers heuristically cache the section
+fragments `loader.js` fetches at runtime — edits to `sections/*.html` can
+stop showing up even after a hard reload. Use `serve.py` during editing so
+every reload is guaranteed fresh.
 
 Internet access is required at presentation time (reveal.js, KaTeX,
 Fira Sans and three.js are pinned CDN builds).

@@ -12,7 +12,10 @@
      - Colors: the :root block below (names follow metropolis).
      - Global font scale: html { font-size } on .reveal (28px ~= the
        Beamer body size); .small/.footnotesize mirror LaTeX switches.
-     - Iframe inset: --fill-top/left/right/bottom on .iframe-fill.
+     - Iframe inset: --fill-top/left/right/bottom on .iframe-fill (inherited
+       from parent <section>).
+     - Body text inset: --body-top/pad-top/pad-bottom on <section>.
+     - ? button inset: --qa-left/bottom on <section>.
      - Frame title/subtitle size + spacing: .frame-head block.
      - Block / alertblock styling: .block / .alertblock.
 ===================================================================== */
@@ -72,8 +75,16 @@
   transform-style: flat !important;
 }
 
-/* body area under the frame head; .vcenter = \vspace*{\fill} ... \vspace*{\fill} */
-.frame-body { flex: 1 1 auto; min-height: 0; }
+/* body area under the frame head; .vcenter = \vspace*{\fill} ... \vspace*{\fill}
+   Optional per-slide inset (design px, inherit from <section>):
+     --body-top, --body-pad-top, --body-pad-bottom */
+.frame-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: calc(var(--body-top, 0px) * var(--deck-scale));
+  padding-top: calc(var(--body-pad-top, 0px) * var(--deck-scale));
+  padding-bottom: calc(var(--body-pad-bottom, 0px) * var(--deck-scale));
+}
 .frame-body.vcenter {
   display: flex;
   flex-direction: column;
@@ -251,7 +262,9 @@
    audience questions (distinct from speaker <aside class="notes">).
    Reusable: copy the .audience-qa block onto any slide; put HTML/LaTeX
    in the nested <template class="audience-qa-body">. Add
-   .audience-qa--bl to pin the ? to the bottom-left corner. ---- */
+   .audience-qa--bl to pin the ? to the bottom-left corner.
+   Optional per-slide inset (design px, inherit from <section>):
+     --qa-left, --qa-bottom ---- */
 .audience-qa {
   display: inline-block;
   vertical-align: middle;
@@ -264,8 +277,8 @@
    slide out of the deck (it renders blank). */
 .audience-qa--bl {
   position: absolute;
-  left: calc(48px * var(--deck-scale));
-  bottom: calc(16px * var(--deck-scale));
+  left: calc(var(--qa-left, 48px) * var(--deck-scale));
+  bottom: calc(var(--qa-bottom, 16px) * var(--deck-scale));
   margin-left: 0;
   z-index: 2;
 }

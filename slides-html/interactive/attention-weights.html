@@ -1,23 +1,37 @@
 <!DOCTYPE html>
 <!-- ===================================================================
-  interactive/attention-weights.html — companion pop-up for the
+  interactive/attention-weights.html — inline visualization for the
   "Transformer Networks" slide (sections/statistical_foundations.html
-  #sf-transformer; opened via data-modal-src, see js/loader.js).
+  #sf-transformer; embedded via .iframe-fill.below-text).
 
-  What it shows — why Theorem 6.2 in [4] needs no training: attention
-  scores s_j = v^T W_q V_j are FIXED per sample (some samples are more
-  "similar" to the query than others), but the softmax normalizes the
-  weights to sum to 1. Growing n therefore squashes every individual
-  weight: max_j a_j trends to 0 (no single sample dominates), so
-  swapping one sample can only move the output by ~max_j a_j -> 0. That
-  is diminishing sensitivity (5), hence deviations ~ n^(-1/2),
-  irrespective of the parameters theta.
-  A few strongly-similar samples sit at spread indices (2, 45, 130),
-  each stronger than the last, so the most-attended sample (orange bar)
-  JUMPS to a LATER sample as n grows past each — later samples can
-  out-attend earlier ones, yet max_j a_j still decays overall.
+  What it shows — why Theorem 6.2 in [4] needs no training. The bars are
+  a REAL attention head, computed from the definition in \S6.3:
 
-  Style/layout conventions follow interactive/n-as-regulariser.html.
+      V^(j) = (Y^(j), X^(j)) in {0,1} x R^d      context tokens
+      v     = (0, x)                             query token
+      s_j   = v^T W_q V^(j)                      similarity score
+      a_j   = exp(s_j) / sum_k exp(s_k)          softmax over the context
+
+  W_q is a fixed random matrix, X^(j) are fixed bounded features
+  (||x|| <= K, the theorem's assumption) and the query x is fixed, so the
+  SCORES s_j never change — some samples genuinely are more "similar" to
+  the query than others. The only thing the n-slider changes is how many
+  samples the softmax normalizes over.
+
+  Because sum_j a_j = 1 always, growing n squashes every individual
+  weight: max_j a_j -> 0, no single sample can dominate. Swapping one
+  sample therefore moves the output by at most ~max_j a_j -> 0 — that is
+  diminishing sensitivity (*) with alpha = 1, hence deviations ~n^(-1/2)
+  (Thm 6.2), irrespective of the parameters theta.
+
+  The y-axis AUTOSCALES to the weights on screen, so the decay is read off
+  the TICK LABELS and the dashed 1/n line rather than off the bar heights
+  (a fixed axis leaves the bars a few pixels tall at n = 200). Measured:
+  max_j a_j = 0.34 at n = 8, 0.043 at n = 100, 0.025 at n = 200, while
+  1/n = 0.005 — i.e. n * max_j a_j stays bounded (~2-5), so max_j a_j
+  really does decay like ~1/n, which is what Thm 6.2 rests on.
+
+  Style/layout conventions follow interactive/locality-bias.html.
 =================================================================== -->
 <html lang="en">
 <head>
@@ -27,7 +41,7 @@
         html, body { height: 100%; overflow: hidden; }
         body {
             margin: 0;
-            padding: 12px 20px;
+            padding: 6px 10px;
             box-sizing: border-box;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #ffffff;
@@ -38,10 +52,8 @@
         }
         #viz-container {
             width: 100%;
-            max-width: 1000px;
             flex: 1 1 auto;
             min-height: 0;
-            position: relative;
             display: flex;
         }
         svg {
@@ -52,132 +64,189 @@
             border-radius: 8px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
-        #legend {
-            position: absolute;
-            top: 12px;
-            right: 14px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 10px 14px;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            font-size: 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            pointer-events: none;
-        }
-        .legend-item { display: flex; align-items: center; margin-bottom: 4px; }
-        .legend-item:last-child { margin-bottom: 0; }
-        .legend-swatch { width: 14px; height: 10px; margin-right: 8px; border-radius: 2px; flex: 0 0 auto; }
-        .legend-line { width: 16px; height: 0; margin-right: 8px; border-top: 2px dashed #94a3b8; flex: 0 0 auto; }
         #controls-container {
             width: 100%;
-            max-width: 1000px;
             flex: 0 0 auto;
-            margin-top: 10px;
+            margin-top: 6px;
             background: #f8fafc;
             border: 1px solid #cbd5e1;
             border-radius: 8px;
-            padding: 10px 20px;
+            padding: 7px 12px;
             box-sizing: border-box;
-            display: grid;
-            grid-template-columns: 1fr auto auto auto;
-            gap: 20px;
+            display: flex;
             align-items: center;
+            gap: 22px;
         }
-        .control-group { display: flex; flex-direction: column; gap: 8px; }
-        .control-label {
-            font-size: 14px; font-weight: 600; color: #1e293b;
-            display: flex; justify-content: space-between;
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1 1 auto;
+            min-width: 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: #1e293b;
+            white-space: nowrap;
         }
-        input[type=range] { width: 100%; cursor: pointer; }
-        .metric-box {
-            display: flex; flex-direction: column; justify-content: center;
-            padding-left: 16px; border-left: 1px solid #cbd5e1;
+        .control-group .val {
+            font-variant-numeric: tabular-nums;
+            min-width: 34px;
+            text-align: right;
+            color: #475569;
         }
-        .metric-title {
-            font-size: 12px; color: #64748b; text-transform: uppercase;
-            letter-spacing: 0.5px; margin-bottom: 4px;
-        }
-        .metric-value { font-size: 16px; font-weight: 700; color: #0f172a; }
+        input[type=range] { flex: 1 1 auto; min-width: 0; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div id="viz-container">
-    <svg id="bars-plot" viewBox="0 0 1000 470" preserveAspectRatio="xMidYMid meet">
+    <svg id="bars-plot" viewBox="0 0 1160 330" preserveAspectRatio="xMidYMid meet">
+        <g id="legend"></g>
         <g id="grid-lines"></g>
         <g id="bars-layer"></g>
         <line id="uniform-line" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6,4"></line>
         <text id="uniform-label" font-size="12" fill="#64748b"></text>
         <text id="axis-label" font-size="13" fill="#334155" text-anchor="middle"></text>
     </svg>
-    <div id="legend">
-        <div class="legend-item"><div class="legend-swatch" style="background:#64748b;"></div>
-            <span>attention weight a<sub>j</sub> of sample j</span></div>
-        <div class="legend-item"><div class="legend-swatch" style="background:#f97316;"></div>
-            <span>most-attended sample (max<sub>j</sub> a<sub>j</sub>)</span></div>
-        <div class="legend-item"><div class="legend-line"></div>
-            <span>uniform level 1/n</span></div>
-    </div>
 </div>
 
 <div id="controls-container">
     <div class="control-group">
-        <div class="control-label">
-            <span>Context Size (n)</span>
-            <span id="n-val">10</span>
-        </div>
-        <input type="range" id="n-slider" min="1" max="200" value="10">
-    </div>
-    <div class="metric-box">
-        <span class="metric-title">&Sigma;<sub>j</sub> a<sub>j</sub> (softmax)</span>
-        <span class="metric-value">1 &mdash; always</span>
-    </div>
-    <div class="metric-box">
-        <span class="metric-title">max<sub>j</sub> a<sub>j</sub> (&darr; to 0)</span>
-        <span id="max-val" class="metric-value">&ndash;</span>
-    </div>
-    <div class="metric-box">
-        <span class="metric-title">most-attended sample (jumps later)</span>
-        <span id="argmax-val" class="metric-value">j = &ndash;</span>
+        <span>Context size n</span>
+        <input type="range" id="n-slider" min="8" max="200" step="1" value="12">
+        <span class="val" id="n-val">10</span>
     </div>
 </div>
 
 <script>
-    const N_MAX = 200;
+    const N_MIN = 8, N_MAX = 200;
+    const DIM = 3;          /* feature dimension d */
+    const K = 1.6;          /* ||X|| <= K — the boundedness assumption of Thm 6.2 */
+    /* indices of context samples whose FEATURES are close to the query x. They
+       are what a head is supposed to find ("emphasis is put on those V_j that
+       are similar to v"), and they are what gives the softmax its peaks. Spread
+       across the pool so a peak is on screen at every n. */
+    const SIMILAR = [1, 4, 9, 21, 44, 87, 152];
 
-    let seed = 512;
-    function random() {
-        let x = Math.sin(seed++) * 10000;
-        return x - Math.floor(x);
+    /* mulberry32 — a real PRNG */
+    function mulberry32(a) {
+        return function () {
+            a |= 0; a = (a + 0x6D2B79F5) | 0;
+            let t = Math.imul(a ^ (a >>> 15), 1 | a);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
     }
+    const random = mulberry32(8712345);
+    const gauss = () => {
+        const u = Math.max(random(), 1e-12);
+        return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * random());
+    };
 
-    /* fixed attention scores s_j = v^T W_q V_j: bounded (the theorem's
-       condition), most samples mildly similar to the query. The scores
-       never change — only the softmax normalization over more of them
-       does. A few strongly-similar samples are placed at SPREAD indices
-       (early, middle, late), each stronger than the last: as n grows
-       past one, it becomes the new most-attended sample, so the orange
-       "max" bar JUMPS to a later sample. max_j a_j still trends to 0 —
-       no single sample dominates once n is large. */
-    const scores = [];
-    for (let i = 0; i < N_MAX; i++) {
-        scores.push((random() + random() + random() - 1.5) * 1.4);   /* bounded, ~ N(0, ~1) */
+    /* ---- one real attention head, exactly as defined in \S6.3 of [4] ----
+       query token v = (0, x), fixed. */
+    const query = [0];                               /* v = (0, x) */
+    const xDir = [0.72, -0.55, 0.42];                /* unit-ish direction of x */
+    for (let k = 0; k < DIM; k++) query.push(K * 0.62 * xDir[k]);
+
+    /* context tokens V^(j) = (Y^(j), X^(j)), features bounded by ||X|| <= K */
+    const Vs = [];
+    for (let j = 0; j < N_MAX; j++) {
+        const V = [random() < 0.5 ? 1 : 0];          /* Y^(j) */
+        let nrm = 0;
+        const X = [];
+        for (let k = 0; k < DIM; k++) { const g = gauss(); X.push(g); nrm += g * g; }
+        nrm = Math.sqrt(nrm);
+        const r = K * Math.pow(random(), 1 / DIM) / (nrm || 1);
+        for (let k = 0; k < DIM; k++) V.push(X[k] * r);
+        Vs.push(V);
     }
-    const STRONG = { 2: 2.4, 45: 3.0, 130: 3.6 };   /* later ones more similar */
-    for (const idx in STRONG) scores[idx] = STRONG[idx];
+    /* the SIMILAR samples: features near the query's, i.e. genuine near-duplicates
+       of the test point sitting in the context. Nothing is done to their WEIGHTS —
+       the softmax discovers them because their scores are high. */
+    SIMILAR.forEach((j, t) => {
+        const align = 0.80 + 0.03 * t;               /* later ones slightly closer */
+        for (let k = 0; k < DIM; k++) {
+            Vs[j][k + 1] = K * align * xDir[k] + 0.10 * gauss();
+        }
+    });
 
-    function weights(n) {
+    /* W_q = I: the head measures plain feature similarity v^T V^(j) = x . X^(j)
+       (the label coordinate of v is 0, so labels do not steer attention). Fixed
+       and structured, NOT random — a random W_q measures a meaningless direction
+       and the weights come out looking like noise. */
+    const Wq = [];
+    for (let a = 0; a <= DIM; a++) {
+        const row = [];
+        for (let b = 0; b <= DIM; b++) row.push(a === b ? 1 : 0);
+        Wq.push(row);
+    }
+    /* v^T W_q is a fixed row vector c, so s_j = c . V^(j) */
+    const c = [];
+    for (let b = 0; b <= DIM; b++) {
+        let s = 0;
+        for (let a = 0; a <= DIM; a++) s += query[a] * Wq[a][b];
+        c.push(s);
+    }
+    /* scores s_j = v^T W_q V^(j) — FIXED, independent of n.
+       Rescaled to a fixed spread (SCORE_SD), which is what the 1/sqrt(d) factor
+       of scaled dot-product attention does: without it the raw scores of a random
+       W_q are spread over several units, the softmax saturates, and one sample
+       takes almost all the weight. The shift/scale is a reparametrization of
+       W_q, so this is still exactly the head defined in \S6.3. */
+    const SCORE_SD = 1.25;
+    const raw = Vs.map(V => {
+        let s = 0;
+        for (let b = 0; b <= DIM; b++) s += c[b] * V[b];
+        return s;
+    });
+    const mean = raw.reduce((s, v) => s + v, 0) / raw.length;
+    const sd = Math.sqrt(raw.reduce((s, v) => s + (v - mean) * (v - mean), 0) / raw.length);
+    const scores = raw.map(v => (v - mean) / (sd || 1) * SCORE_SD);
+
+    /* a_j = softmax(s_1, ..., s_n)_j — the genuine softmax, over the FIRST n
+       scores only. Shifted by the max for numerical stability; the shift
+       cancels in the ratio. */
+    function attention(n) {
         let m = -Infinity;
-        for (let i = 0; i < n; i++) m = Math.max(m, scores[i]);
+        for (let j = 0; j < n; j++) if (scores[j] > m) m = scores[j];
         let sum = 0;
-        const w = [];
-        for (let i = 0; i < n; i++) { const e = Math.exp(scores[i] - m); w.push(e); sum += e; }
-        return w.map(v => v / sum);
+        const a = new Float64Array(n);
+        for (let j = 0; j < n; j++) { a[j] = Math.exp(scores[j] - m); sum += a[j]; }
+        for (let j = 0; j < n; j++) a[j] /= sum;
+        return a;
     }
 
     /* ---- geometry ---- */
-    const W = 1000, H = 470, PX = 56, PY = 42;
-    const plotW = W - 2 * PX, plotH = H - 2 * PY;
+    const W = 1160, H = 330, PL = 62, PR = 20, PT = 44, PB = 42;
+    const plotW = W - PL - PR, plotH = H - PT - PB;
+
+    /* y-axis AUTOSCALES to the weights actually on screen (a fixed axis pinned to
+       the n = 8 maximum left the bars a few pixels tall at n = 200, since
+       max_j a_j falls like ~1/n). The decay is therefore read off the TICK
+       LABELS and the 1/n line, not off the bar heights: the axis top runs
+       ~0.38 at n = 8 down to ~0.03 at n = 200. */
+    const barY = (v, yTop) => H - PB - (v / yTop) * plotH;
+
+    function legend() {
+        const items = [
+            { w: 300, sw: c0 => `<rect x="${c0}" y="-6" width="14" height="11" rx="2" fill="#64748b" opacity="0.85"/>`,
+              t: 'attention weight aⱼ = softmax(v⊤W_q V⁽ʲ⁾)ⱼ' },
+            { w: 210, sw: c0 => `<rect x="${c0}" y="-6" width="14" height="11" rx="2" fill="#f97316" opacity="0.9"/>`,
+              t: 'most-attended sample' },
+            { w: 150, sw: c0 => `<line x1="${c0}" y1="0" x2="${c0 + 18}" y2="0" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6,4"/>`,
+              t: 'uniform level 1/n' },
+        ];
+        const total = items.reduce((s, it) => s + it.w, 0);
+        let cur = PL + (plotW - total) / 2;
+        let h = '';
+        items.forEach(it => {
+            h += `<g transform="translate(0, 22)">${it.sw(cur)}` +
+                 `<text x="${cur + 24}" y="4" font-size="12.5" fill="#334155">${it.t}</text></g>`;
+            cur += it.w;
+        });
+        document.getElementById('legend').innerHTML = h;
+    }
 
     const slider = document.getElementById('n-slider');
 
@@ -185,20 +254,19 @@
         const n = parseInt(slider.value);
         document.getElementById('n-val').innerText = n;
 
-        const w = weights(n);
-        const wMax = Math.max(...w);
-        /* y scale: fixed headroom above the current max, so bars visibly
-           sink as n grows rather than being re-normalized out of view */
-        const yTop = Math.min(1, wMax * 1.25);
-        const barY = v => H - PY - (v / yTop) * plotH;
+        const a = attention(n);
 
-        /* grid + y labels */
+        let argmax = 0;
+        for (let j = 1; j < n; j++) if (a[j] > a[argmax]) argmax = j;
+        const yTop = a[argmax] * 1.15;
+
+        /* grid + y labels (autoscaled) */
         let g = '';
-        for (let i = 0; i <= 5; i++) {
-            const v = yTop * i / 5;
-            const y = barY(v);
-            g += `<line x1="${PX}" y1="${y}" x2="${W - PX}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>` +
-                 `<text x="${PX - 8}" y="${y + 4}" font-size="11" fill="#64748b" text-anchor="end">${v.toFixed(3)}</text>`;
+        for (let i = 0; i <= 4; i++) {
+            const v = yTop * i / 4;
+            const y = barY(v, yTop);
+            g += `<line x1="${PL}" y1="${y}" x2="${W - PR}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>` +
+                 `<text x="${PL - 8}" y="${y + 4}" font-size="11" fill="#64748b" text-anchor="end">${v.toFixed(3)}</text>`;
         }
         document.getElementById('grid-lines').innerHTML = g;
 
@@ -206,37 +274,32 @@
         const gap = n > 60 ? 0 : 2;
         const bw = Math.max(1, plotW / n - gap);
         let bars = '';
-        let argmax = 0;
-        for (let j = 1; j < n; j++) if (w[j] > w[argmax]) argmax = j;
         for (let j = 0; j < n; j++) {
-            const x = PX + j * plotW / n;
-            const y = barY(w[j]);
+            const x = PL + j * plotW / n;
+            const y = barY(a[j], yTop);
             const fill = j === argmax ? '#f97316' : '#64748b';
             bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}"
-                           height="${(H - PY - y).toFixed(1)}" fill="${fill}" opacity="0.85"/>`;
+                           height="${(H - PB - y).toFixed(1)}" fill="${fill}" opacity="0.85"/>`;
         }
         document.getElementById('bars-layer').innerHTML = bars;
 
         /* uniform 1/n reference */
-        const uy = barY(1 / n);
+        const uy = barY(1 / n, yTop);
         const ul = document.getElementById('uniform-line');
-        ul.setAttribute('x1', PX); ul.setAttribute('y1', uy);
-        ul.setAttribute('x2', W - PX); ul.setAttribute('y2', uy);
+        ul.setAttribute('x1', PL); ul.setAttribute('y1', uy);
+        ul.setAttribute('x2', W - PR); ul.setAttribute('y2', uy);
         const lbl = document.getElementById('uniform-label');
-        lbl.setAttribute('x', PX + 6);
+        lbl.setAttribute('x', PL + 6);
         lbl.setAttribute('y', uy - 6);
         lbl.textContent = `1/n = ${(1 / n).toFixed(3)}`;
 
         const ax = document.getElementById('axis-label');
-        ax.setAttribute('x', W / 2);
+        ax.setAttribute('x', PL + plotW / 2);
         ax.setAttribute('y', H - 12);
         ax.textContent = `context samples j = 1 … ${n}`;
-
-        document.getElementById('max-val').innerText = wMax.toFixed(4);
-        /* +1: show the sample as a 1-based index, matching the axis label */
-        document.getElementById('argmax-val').innerText = `j = ${argmax + 1}`;
     }
 
+    legend();
     slider.addEventListener('input', update);
     update();
 </script>
