@@ -290,24 +290,30 @@
 <!-- ============================================================
   Frame 6 — Bias and the Need for Locality  (\S5.4 of [4])
   Intuitive statement on the slide; raw Theorem 5.4 (label-resampling
-  formulation) in the "?" pop-up; locality-bias.html inline: scramble
-  far-away labels, the local predictor stands still, the global
-  (attention-like) one moves.
+  formulation) in the "?" pop-up; locality-bias.html inline. The viz
+  illustrates the Definition/eq (5) POSITIVELY: ONE (unbiased,
+  attention-like) model on TWO datasets — teal on D_n, orange on the
+  scrambled D~_n — and the gap between the traces, which IS the
+  quantity |q(y|x,D_n) - q(y|x,D~_n)| of the Definition, closes as n
+  grows. Both converge to p0, hence to each other.
 ============================================================ -->
 <section id="sf-bias">
   <header class="frame-head">
     <h2 class="frame-title">Statistical Foundations of PFNs</h2>
     <p class="frame-subtitle">Bias and the Need for Locality</p>
   </header>
-  <div class="footnotesize">
-    <p><strong>Theorem 5.4</strong> <span class="cite">[4]</span>, intuitively: for a generic
-      data distribution, the <span class="c-blue">bias</span> can vanish as \(n\) grows
-      <em>only if</em> the predictor is <strong>local</strong> — asymptotically, only samples
-      near \(x_{\text{test}}\) may matter.</p>
+  <div class="footnotesize bias-intro">
+    <p><strong>Theorem 5.4</strong> <span class="cite">[4]</span> (informal):<br>
+      If <span class="c-blue">bias</span> \(\mathbb{E}_{\mathcal{D}_n \sim \varphi^n}\big[q_{\theta}(y \mid x, \mathcal{D}_n)\big] - \varphi(y \mid x) \xrightarrow{\;n \to \infty\;} 0\)  for every truth \(\varphi \in \Phi\),
+      predictor \(q_{\theta}\) with diminishing sensitivity \((*)\) must be <em>local</em>.</p>
+    <p><strong>Definition:</strong> \(q_{\theta}\) is <em>local</em> if there is a sequence
+      \({\color{#f97316}\epsilon_n} \to 0\) such that arbitrarily resampling the labels of far points
+      \(\big(\|X^{(i)} - x\| > {\color{#f97316}\epsilon_n}\big)\) leaves the prediction unchanged in the limit:
+      \(\;\big|\, q_{\theta}(y \mid x, \mathcal{D}_n) - q_{\theta}(y \mid x, \widetilde{\mathcal{D}}_n) \,\big| \xrightarrow{\;n \to \infty\;} 0\) a.s.</p>
   </div>
-  <div class="iframe-fill below-text" style="--fill-top:330px; --fill-bottom:60px">
+  <div class="iframe-fill below-text" style="--fill-top:305px; --fill-bottom:60px">
     <iframe data-src="interactive/locality-bias.html" data-preload
-            title="Locality: scramble far-away labels — local vs. global predictor"></iframe>
+            title="Locality: the same model on the original vs. the far-label-scrambled data set"></iframe>
   </div>
   <span class="audience-qa audience-qa--bl">
     <button type="button" class="audience-qa-btn" data-audience-qa
@@ -315,33 +321,38 @@
       <span class="audience-qa-icon" aria-hidden="true">?</span>
     </button>
     <template class="audience-qa-body">
+      <p><strong>Diminishing sensitivity</strong>:
+        Let \(\exists \alpha > 0\), \(L < \infty\) s.t. for large \(n\) and almost
+        all data sets \(D_n,\, D_n'\) differing in <em>one</em> sample,
+        \[ \big|\, q_{\theta}(y \mid x, D_n) - q_{\theta}(y \mid x, D_n') \,\big|
+           \;\le\; L\, n^{-\alpha}. \tag{*} \]<br></p>
+
       <p><strong>Theorem 5.4</strong> <span class="cite">[4]</span>.
-        Let \(\mathcal{P}\) be a set of distributions with
-        \(\mathbb{E}_{\mathcal{D}_n \sim p^n}\big[q_{\theta}(y \mid x, \mathcal{D}_n)\big]
-          \xrightarrow{\;n \to \infty\;} p(y \mid x)\) for every \(p \in \mathcal{P}\)
-        (vanishing bias). If (5) holds, there is \(\epsilon_n \to 0\) such that for every
-        \(\tilde p \in \mathcal{P}\), almost surely
+        Let the hypothesis space \(\Phi\) be the class of candidate truths, i.e. suppose
+        \[ \mathbb{E}_{\mathcal{D}_n \sim \varphi^n}\big[q_{\theta}(y \mid x, \mathcal{D}_n)\big]
+          \xrightarrow{\;n \to \infty\;} \varphi(y \mid x)
+          \qquad \text{for every } \varphi \in \Phi \]
+        (vanishing bias). If \((*)\) holds, there is \(\epsilon_n \to 0\) such that for every
+        \(\widetilde{\varphi} \in \Phi\), almost surely
         \[ \big|\, q_{\theta}(y \mid x, \mathcal{D}_n) - q_{\theta}(y \mid x, \widetilde{\mathcal{D}}_n) \,\big|
            \xrightarrow{\;n \to \infty\;} 0, \]
-        where \(\widetilde{\mathcal{D}}_n\) keeps the features but resamples far-away labels:
+        where \(\widetilde{\mathcal{D}}_n\) keeps the features but resamples the far-away labels
+        from \(\widetilde{\varphi}\):
         \[ Y^{(i)\prime} \begin{cases}
              = Y^{(i)}, & \text{if } \|X^{(i)} - x\| \le \epsilon_n, \\
-             \sim \tilde p(\cdot \mid X^{(i)}), & \text{if } \|X^{(i)} - x\| > \epsilon_n.
+             \sim \widetilde{\varphi}(\cdot \mid X^{(i)}), & \text{if } \|X^{(i)} - x\| > \epsilon_n.
            \end{cases} \]</p>
-      <p>Reading: unbiased on a rich \(\mathcal{P}\) \(\Rightarrow\) labels far from \(x\) can
-        be scrambled arbitrarily without changing the prediction (asymptotically).</p>
     </template>
   </span>
   <aside class="notes">
-    Intuition: if the predictor is to be asymptotically unbiased for EVERY plausible truth p,
-    it cannot rely on far-away samples — under a different truth p-tilde those labels would be
-    different, yet the predictor must converge to the right answer at x either way. So
-    asymptotically only an epsilon_n-neighbourhood of x may contribute. Caveats (paper): this
-    is only a necessary condition (the constant predictor is local but biased), and locality
-    means the effective sample count is o(n) — a bias-variance trade-off: you cannot have
-    (5) with alpha = 1 AND vanishing bias. Viz: the shaded band is the epsilon-window around
-    x*; "Scramble far labels" redraws outside labels from an adversarial p-tilde — the local
-    (window) predictor's value at x* is exactly unchanged, the global attention-like one jumps.
+    -> if the predictor is to be asymptotically unbiased for EVERY plausible truth p,
+    it has to not rely on far-away samples <br>
+    
+    -> So asymptotically only an epsilon_n-neighbourhood of x may contribute. <br>
+    
+    -> !!! This is only a necessary condition (the constant predictor is local but biased) <br>
+    
+    -> locality means the effective sample count is o(n)
   </aside>
 </section>
 
@@ -357,13 +368,16 @@
     <h2 class="frame-title">Statistical Foundations of PFNs</h2>
     <p class="frame-subtitle">Transformer Networks</p>
   </header>
-  <div class="frame-body">
-    <p><strong>Theorem 6.2</strong> <span class="cite">[4]</span>, intuitively: a one-layer
-      transformer's <span class="c-teal">variance</span> vanishes <em>for free</em> — deviations
-      \(\lesssim n^{-1/2}\) (variance \(\sim 1/n\)) for <em>any</em> parameters \(\theta\).
-      It is the architecture, not the training.</p>
+  <div class="frame-body footnotesize">
+    <p><strong>Theorems 6.2 and 6.3</strong> <span class="cite">[4]</span> (informal): 
+      A one-layer transformer \(q_{\theta}\)'s <br>
+      <ul>
+        <li><span class="c-teal">variance</span> vanishes with rate \(\sim n^{-1/2}\) for <em>any</em> parameters \(\theta\). </li>
+        <li> <span class="c-blue">bias</span> converges to a non-zero value and depends on parameters \(\theta\).</li>
+      </ul>
+    </p>
   </div>
-  <div class="iframe-fill below-text" style="--fill-top:270px;">
+  <div class="iframe-fill below-text" style="--fill-top:250px; --fill-bottom:55px">
     <iframe data-src="interactive/attention-weights.html" data-preload
             title="Attention weights flatten as n grows"></iframe>
   </div>
@@ -387,16 +401,9 @@
         the \(n^{-1/2}\) bound.</p>
     </template>
   </span>
-  <aside class="notes">
-    The attention weights of each head sum to one over the n context samples, so swapping one
-    sample can move the attention summary by at most ~1/n — condition (5) with alpha = 1, and
-    Theorem 5.2 turns that into the n^(-1/2) deviation bound. This holds irrespective of the
-    tuned parameters theta-hat. The bias (Theorem 6.3) is the opposite: it depends entirely on
-    theta, converges to a limit given by an exponentially tilted version of p_0 — attention
-    localizes "softly" but never fully, so the bias does NOT vanish. Viz: bars are one head's
-    softmax weights over j = 1..n; scores are fixed, growing n squashes every bar toward the
-    dashed 1/n line; the most-attended sample (orange) can jump to a LATER sample, yet its
-    weight still decays.
+  <aside class="notes">    
+    -> Theorem 5.2 turns that into the n^(-1/2) deviation bound. This holds irrespective of the tuned parameters theta-hat.<br>
+    -> The bias depends entirely on theta, converges to a limit != 0 <br>
   </aside>
 </section>
 
@@ -496,15 +503,9 @@
 <section id="sf-discussion">
   <header class="frame-head">
     <h2 class="frame-title">Statistical Foundations of PFNs</h2>
-    <p class="frame-subtitle">Discussion</p>
+    <p class="frame-subtitle">Main insights</p>
   </header>
   <div class="frame-body">
-    <div class="alertblock">
-      <div class="block-title">Main insight</div>
-      <div class="block-body center">
-        Transformers approximate the PPD — and keep learning beyond it.
-      </div>
-    </div>
 
     <ul style="margin-top:0.8em;">
       <li>with enough model capacity, a rich enough \(\Phi\) and enough Monte-Carlo steps,
@@ -588,6 +589,18 @@
   }
   #sf-variance .variance-intro .katex-display {
     margin: 0.75em 0;
+  }
+
+  /* --- sf-bias: reveal's reset zeroes every <p> margin, so the theorem and
+         the definition sat flush against each other (and the definition ran
+         under the iframe box). Space them, and the .iframe-fill --fill-top
+         on the section must clear the taller text block: header ends at 144,
+         theorem ~91px, gap 26px, definition ~61px -> text bottom ~322px. --- */
+  #sf-bias .bias-intro p {
+    margin: 0 0 calc(26px * var(--deck-scale));
+  }
+  #sf-bias .bias-intro p:last-child {
+    margin-bottom: 0;
   }
 
   /* --- pop-up hint (data-modal-src trigger) — only sf-approx still
