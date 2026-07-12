@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <title>KL Projection and PPD Convergence</title>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <!-- raw Theorem 3.1 now lives in the slide's "?" pop-up
+         (sections/statistical_foundations.html #sf-ppd-learn), so the
+         in-page theorem box and its MathJax dependency were removed —
+         the remaining labels use plain unicode. -->
+
     <style>
         body {
             margin: 0;
@@ -22,8 +26,8 @@
         }
         #ui-container {
             position: absolute;
-            top: 20px;
-            left: 20px;
+            bottom: 20px;
+            right: 20px;
             z-index: 10;
             background: rgba(255, 255, 255, 0.96);
             padding: 14px 18px;
@@ -94,45 +98,8 @@
             border-radius: 20px;
             border: 1px solid #cbd5e1;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            transform: translate(-50%, -50%);
+            transform: translate(-65%, -145%);
             letter-spacing: 0.3px;
-        }
-        #theorem-box {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10;
-            background: #f8fafc;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            width: 680px;
-            font-family: "Times New Roman", Times, serif;
-            font-size: 15px;
-            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
-        .theorem-intro {
-            padding: 8px 16px;
-            background: #ffffff;
-            border-bottom: 1px solid #e2e8f0;
-            color: #334155;
-        }
-        .theorem-header {
-            background: #e2e8f0;
-            padding: 6px 16px;
-            font-weight: bold;
-            color: #1e293b;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            font-size: 13px;
-        }
-        .theorem-header .cite {
-            font-weight: 400;
-        }
-        .theorem-body {
-            padding: 12px 16px;
-            line-height: 1.5;
-            color: #0f172a;
         }
     </style>
 </head>
@@ -166,20 +133,6 @@
     <svg viewBox="0 0 100 40">
         <path id="ppd-curve" d="M 10 32 Q 40 32 50 18 T 90 32" fill="none" stroke="#f97316" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
     </svg>
-</div>
-
-<div id="theorem-box">
-    <div class="theorem-intro">
-        Let \(\mathcal{S} = \{\varphi \in \Phi : \mathbb{P}_{\Phi}(\varphi) > 0\}\) be the <i>support</i> of the prior.
-    </div>
-    <div class="theorem-header">
-        Theorem 3.1 (Posterior consistency). <span class="cite">[4]</span>
-    </div>
-    <div class="theorem-body">
-        Under <i>some</i> assumptions, there exists \(\varphi^* \in \mathcal{S}\) such that for almost every \((y, x)\),
-        \[ \pi(y \mid x, \mathcal{D}_n) \xrightarrow[n \to \infty]{} \varphi^*(y \mid x) \quad \text{a.s.} \]
-        and \(\varphi^*\) is the KL-optimal approximation of \(p_0\) in \(\mathcal{S}\): \(\quad \varphi^* = \arg\min_{\varphi \in \mathcal{S}} \text{KL}(\varphi \parallel p_0)\).
-    </div>
 </div>
 
 <div id="canvas-container"></div>
@@ -244,7 +197,7 @@
     const posP0 = new THREE.Vector3(5, 3.5, -4);       
     const posPhi = new THREE.Vector3(4, 0.05, -2);   
     const posStart = new THREE.Vector3(-6, -2.8, 5); 
-    const posSupportLabel = new THREE.Vector3(-3, 0.1, -3);
+    const posSupportLabel = new THREE.Vector3(-3.8, 0.7, -4.2);
     const N_MAX = 499;
 
     function convergenceT(n) {
@@ -337,16 +290,23 @@
     const slider = document.getElementById('n-slider');
     const nValDisplay = document.getElementById('n-val');
 
+    function updatePpdCurve(t) {
+        // t=1 at n=1, t→0 as n→max; match φ* bezier at convergence
+        const u = 1 - t;
+        const cpX = 40 + (30 - 40) * u;
+        const cpY = 32;
+        const endX = 50;
+        const endY = 18 + (8 - 18) * u;
+        ppdCurve.setAttribute('d', `M 10 32 Q ${cpX} ${cpY} ${endX} ${endY} T 90 32`);
+    }
+
     slider.addEventListener('input', (e) => {
         const n = parseInt(e.target.value);
         nValDisplay.innerText = n;
         
         const t = convergenceT(n);
         ppdMesh.position.copy(trajectoryPoint(t));
-
-        const peakX = 35 - (35 - 50) * (1 - t);
-        const peakY = 22 - (22 - 8) * (1 - t);
-        ppdCurve.setAttribute('d', `M 10 32 Q ${peakX} ${peakY} 50 ${peakY} T 90 32`);
+        updatePpdCurve(t);
     });
 
     window.addEventListener('resize', () => {

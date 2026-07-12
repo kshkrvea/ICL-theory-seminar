@@ -12,6 +12,7 @@
      - Colors: the :root block below (names follow metropolis).
      - Global font scale: html { font-size } on .reveal (28px ~= the
        Beamer body size); .small/.footnotesize mirror LaTeX switches.
+     - Iframe inset: --fill-top/left/right/bottom on .iframe-fill.
      - Frame title/subtitle size + spacing: .frame-head block.
      - Block / alertblock styling: .block / .alertblock.
 ===================================================================== */
@@ -183,13 +184,19 @@
 /* ---------- speaker notes are invisible on-slide ---------- */
 .reveal aside.notes { display: none; }
 
-/* ---------- iframe slides (interactive visualizations) ---------- */
+/* ---------- iframe slides (interactive visualizations) ----------
+   Inset the iframe box with design-px custom properties (scaled by
+   --deck-scale). Defaults match the original 48 / 128 / 16 px margins.
+   Usage on any .iframe-fill:
+     style="--fill-left:96px; --fill-right:96px;
+            --fill-top:200px; --fill-bottom:60px"
+   Larger values shrink the box toward the center on that edge. ---- */
 .iframe-fill {
   position: absolute;
-  left: calc(48px * var(--deck-scale));
-  right: calc(48px * var(--deck-scale));
-  top: calc(128px * var(--deck-scale));
-  bottom: calc(16px * var(--deck-scale));
+  left: calc(var(--fill-left, 48px) * var(--deck-scale));
+  right: calc(var(--fill-right, 48px) * var(--deck-scale));
+  top: calc(var(--fill-top, 128px) * var(--deck-scale));
+  bottom: calc(var(--fill-bottom, 16px) * var(--deck-scale));
 }
 .iframe-fill iframe {
   width: 100%; height: 100%;
@@ -250,7 +257,11 @@
   vertical-align: middle;
   margin-left: 0.35em;
 }
-.reveal .slides section:has(> .audience-qa--bl) { position: relative; }
+/* NB: do NOT set `position: relative` on the slide <section> here — reveal
+   already positions every `.slides > section` as `position: absolute`, so
+   the absolute .audience-qa--bl below already anchors to it. Forcing the
+   section to `relative` overrides reveal's absolute stacking and drops the
+   slide out of the deck (it renders blank). */
 .audience-qa--bl {
   position: absolute;
   left: calc(48px * var(--deck-scale));
@@ -338,45 +349,21 @@
 .references .ref { display: flex; gap: calc(14px * var(--deck-scale)); margin-bottom: calc(16px * var(--deck-scale)); }
 .references .ref .no { flex: 0 0 2em; }
 
-/* ---------- Theorem 3.1 + interactive viz (sf-ppd-learn) ---------- */
-#sf-ppd-learn {
-  --viz-height: calc(210px * var(--deck-scale));
+/* ---------- partial-height inline viz (theorem slides) ----------
+   .iframe-fill variant for slides that keep a short intuitive text
+   block above the visualization: --fill-top defaults to 260px (clears
+   the text) instead of 128px under the frame head. Combine with
+   --fill-bottom / --fill-left / --fill-right to shrink from any edge.
+   Usage:
+     <div class="iframe-fill below-text"
+          style="--fill-top:250px; --fill-bottom:48px; --fill-left:80px;"> */
+.iframe-fill.below-text {
+  top: calc(var(--fill-top, 260px) * var(--deck-scale));
 }
-#sf-ppd-learn .frame-head-compact {
-  margin-bottom: calc(8px * var(--deck-scale));
-  padding: calc(16px * var(--deck-scale)) calc(48px * var(--deck-scale)) calc(6px * var(--deck-scale));
-}
-#sf-ppd-learn .theorem-viz-body {
-  display: flex;
-  flex-direction: column;
-  gap: calc(8px * var(--deck-scale));
-  flex: 1 1 auto;
-  min-height: 0;
-}
-#sf-ppd-learn .theorem-viz-text { flex: 0 0 auto; }
-#sf-ppd-learn .theorem-support { margin: 0 0 0.3em; }
-#sf-ppd-learn .theorem-compact { margin: 0; }
-#sf-ppd-learn .theorem-compact .block-title {
-  padding: calc(6px * var(--deck-scale)) calc(12px * var(--deck-scale));
-}
-#sf-ppd-learn .theorem-compact .block-body {
-  padding: calc(8px * var(--deck-scale)) calc(12px * var(--deck-scale));
-}
-#sf-ppd-learn .theorem-compact .katex-display { margin: 0.3em 0; }
-#sf-ppd-learn .theorem-viz-frame {
-  flex: 0 0 var(--viz-height);
-  width: 100%;
-  min-height: 0;
+.iframe-fill.below-text iframe {
   border: 1px solid var(--rule);
-  border-radius: 4px;
-  overflow: hidden;
-  background: #fff;
-}
-#sf-ppd-learn .theorem-viz-frame iframe {
-  width: 100%;
-  height: 100%;
-  border: 0;
-  display: block;
+  border-radius: 6px;
+  box-sizing: border-box;
 }
 
 .reveal .progress { color: var(--mAlert); height: 4px; }
