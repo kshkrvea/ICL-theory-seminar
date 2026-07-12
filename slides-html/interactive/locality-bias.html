@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<!-- ===================================================================
+  interactive/locality-bias.html — inline visualization for the "Bias
+  and the Need for Locality" slide
+  (sections/statistical_foundations.html #sf-bias; embedded via
+  .iframe-fill.below-text, box ~1184x371 design px — hence the wide,
+  short SVG viewBox and the single-row control bar).
+
+  Illustrates conclusion (5) of Theorem 5.4 POSITIVELY: it shows what it
+  LOOKS LIKE for a predictor to satisfy the theorem's conclusion, i.e.
+  to be local.
+
+  ONE model, TWO datasets (this is the whole idea — do not "fix" it into
+  two models):
+    - TEAL   q_theta(. | x, D_n)      — the original labels.
+    - ORANGE q_theta(. | x, D~_n)     — the SAME model, same features, but
+                                        every label with |X_i - x| > eps_n
+                                        resampled from an adversarial
+                                        constant phi~(1|x) = 0.9.
+  The theorem says an unbiased predictor must be local: the two must
+  coincide asymptotically. So both traces converge to p0 — and therefore
+  to each other. The visible gap between them at small n IS the quantity
+  |q(y|x, D_n) - q(y|x, D~_n)| from eq (5); watch it go to zero.
+
+  The model q_theta is attention-like: a softmax over the n samples with
+  scores -|X_i - x|^2 / (2 h_n^2), i.e. a GAUSSIAN-kernel weighted average
+  over ALL n samples (no hard cutoff — every sample keeps a nonzero
+  weight). It is unbiased (h_n -> 0 kills the smoothing bias, n*h_n -> inf
+  kills the noise) and it satisfies diminishing sensitivity (*).
+
+  The two rates are what make the picture work, and they pull against
+  each other:
+
+      h_n   ~ n^{-1/5}    the statistically OPTIMAL 1-D bandwidth: it is
+                          what makes the model actually hit p0. Its
+                          effective sample count is ~ n*h_n, so a faster
+                          decay would leave the trace visibly noisy even
+                          at large n.
+      eps_n ~ n^{-1/10}   the locality window of the Definition. It only
+                          has to go to zero — the rate is free — so it is
+                          chosen to decay SLOWLY, which keeps
+                          h_n = o(eps_n), i.e. eps_n / h_n ~ n^{1/10} -> inf.
+
+  A Gaussian tail then sends the share of weight the model puts on the
+  scrambled far samples, erfc(eps_n / (h_n * sqrt 2)), to zero fast:
+  0.19 at n = 40, 0.11 at n = 300, 0.02 at n = 10000. That decaying leak
+  is exactly what "asymptotically local" means. (An EXPONENTIAL kernel
+  has tails too heavy for this: its leak ~ exp(-eps_n/h_n) only dies if
+  h_n shrinks much faster than eps_n, which starves the average and
+  leaves the noisy trace this file previously had.)
+
+  (A model with h_n of the SAME order as eps_n — or larger — would keep a
+  constant share of far labels forever, never be local, and by Thm 5.4
+  could not be unbiased. That is the failure case; this file shows the
+  success case.)
+
+  TRACES ARE STATIC. Each point of a trace is the prediction AT that test
+  point, with the scramble cutoff measured from THAT test point — so the
+  curves are functions of x alone and do not move when the x* slider
+  moves. Only the x* marker, the eps_n band and the near/far shading of
+  the sample dots follow the slider.
+
+  Constants (N_REF, EPS0, H0 and the two exponents) are tunable; the ONLY
+  structural requirement is 1/5 > 1/10, i.e. h_n / eps_n -> 0.
+
+  Style/layout conventions follow interactive/n-as-regulariser.html.
+=================================================================== -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Locality: the Same Model on Scrambled vs. Original Labels</title>
+    <style>
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            margin: 0;
+            padding: 6px 10px;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #ffffff;
+            color: #0f172a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #viz-container {
+            width: 100%;
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+        }
+        svg {
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        #controls-container {
+            width: 100%;
+            flex: 0 0 auto;
+            margin-top: 6px;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 7px 12px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            gap: 22px;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1 1 0;
+            min-width: 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: #1e293b;
+            white-space: nowrap;
+        }
+        .control-group .val {
+            font-variant-numeric: tabular-nums;
+            min-width: 34px;
+            text-align: right;
+            color: #475569;
+        }
+        input[type=range] { flex: 1 1 auto; min-width: 0; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div id="viz-container">
+    <svg id="plot" viewBox="0 0 1160 300" preserveAspectRatio="xMidYMid meet">
+        <g id="legend"></g>
+        <g id="grid-lines"></g>
+        <rect id="window-band" fill="rgba(249, 115, 22, 0.10)" stroke="rgba(249, 115, 22, 0.45)"
+              stroke-width="1" stroke-dasharray="4,3"></rect>
+        <path id="p0-line" fill="none" stroke="#94a3b8" stroke-width="2.5"></path>
+        <!-- the two traces: SAME model, original vs. scrambled labels. The teal
+             one is a wide halo and the orange one a thin line on top, so that
+             once they coincide (large n) BOTH stay visible — an orange core in
+             a teal sheath — instead of orange simply hiding teal. -->
+        <path id="orig-trace" fill="none" stroke="#0d9488" stroke-width="6" opacity="0.35"
+              stroke-linecap="round" stroke-linejoin="round"></path>
+        <path id="scr-trace" fill="none" stroke="#f97316" stroke-width="2.5" opacity="0.95"
+              stroke-linecap="round" stroke-linejoin="round"></path>
+        <g id="points-layer"></g>
+        <line id="test-line" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,3"></line>
+        <g id="gap-marker"></g>
+        <g id="pred-markers"></g>
+        <text id="test-star" font-size="20" fill="#ef4444" text-anchor="middle">&#9733;</text>
+    </svg>
+</div>
+
+<div id="controls-container">
+    <div class="control-group">
+        <span>Test point x*</span>
+        <input type="range" id="x-slider" min="0.05" max="0.95" step="0.01" value="0.75">
+        <span class="val" id="x-val">0.75</span>
+    </div>
+    <div class="control-group">
+        <span>Context size n</span>
+        <input type="range" id="n-slider" min="0" max="1000" step="1" value="112">
+        <span class="val" id="n-val">40</span>
+    </div>
+</div>
+
+<script>
+    /* ---- asymptotic scales (see header comment) ---- */
+    const N_MIN = 20, N_MAX = 10000;  /* fixed pool; the n-slider uses the first n */
+    const N_REF = 40;                 /* eps_n = EPS0 and h_n = H0 at n = N_REF */
+    const P_TILDE = 0.9;              /* adversarial constant phi~(1 | x) */
+    const EPS0 = 0.13, EPS_MIN = 0.02, EPS_MAX = 0.35;
+    const H0 = 0.10;
+    const KERNEL_CUT = 6;             /* ignore samples beyond KERNEL_CUT * h_n:
+                                         a Gaussian puts erfc(6/sqrt2) ~ 2e-9 of its
+                                         weight out there, so this is exact to the
+                                         pixel and keeps the n-slider responsive at
+                                         n = 10000 */
+    const TRACE_PTS = 200;            /* query grid for the two traces */
+    const DRAW_CAP = 420;             /* max sample dots drawn (stride-subsampled) */
+
+    /* mulberry32 — a real PRNG. The sin(seed)*10000 hack correlates, and this
+       viz leans on the law of large numbers, so the noise has to be honest. */
+    function mulberry32(a) {
+        return function () {
+            a |= 0; a = (a + 0x6D2B79F5) | 0;
+            let t = Math.imul(a ^ (a >>> 15), 1 | a);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+    const random = mulberry32(20240733);
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const p0 = x => 0.5 + 0.4 * Math.sin(2 * Math.PI * x);
+
+    /* eps_n: the locality window of the Definition — here it is the far/near
+       CUTOFF FOR THE SCRAMBLE, i.e. it defines D~_n, not the model. The
+       Definition only asks for eps_n -> 0, so it may decay as slowly as we
+       like; n^{-1/10} is slow enough to stay well above h_n. */
+    const epsN = n => clamp(EPS0 * Math.pow(N_REF / n, 1 / 10), EPS_MIN, EPS_MAX);
+    /* h_n: the model's attention bandwidth, at the optimal 1-D rate n^{-1/5}
+       (h_n -> 0 kills the smoothing bias ~ p0'' h_n^2, n*h_n -> infinity kills
+       the noise ~ 1/sqrt(n h_n)) — so the model really does converge to p0.
+       And h_n = o(eps_n), so the Gaussian weight it puts on scrambled far
+       labels, erfc(eps_n / (h_n sqrt 2)), vanishes: it is asymptotically LOCAL,
+       exactly as Thm 5.4 requires of an unbiased predictor. */
+    const hN = n => H0 * Math.pow(N_REF / n, 1 / 5);
+
+    const nOfSlider = t => Math.round(N_MIN * Math.pow(N_MAX / N_MIN, t / 1000));
+
+    /* fixed pool; the n-slider uses the first n. Original labels ~ p0;
+       alternative labels ~ adversarial CONSTANT phi~ = 0.9 (a pointwise flip
+       1 - p0 averages back to 0.5 and hides the effect). */
+    const poolX = new Float64Array(N_MAX);
+    const poolY = new Float64Array(N_MAX);
+    const poolAlt = new Float64Array(N_MAX);
+    const poolJit = new Float64Array(N_MAX);
+    for (let i = 0; i < N_MAX; i++) {
+        const x = random();
+        poolX[i] = x;
+        poolY[i] = random() < p0(x) ? 1 : 0;
+        poolAlt[i] = random() < P_TILDE ? 1 : 0;
+        poolJit[i] = (random() - 0.5) * 0.07;
+    }
+
+    let nSamples = 40;
+
+    /* the first n samples sorted by x, so a prediction can binary-search its
+       KERNEL_CUT * h_n neighbourhood instead of sweeping all 10000. Rebuilt
+       only when n changes. */
+    const sortX = new Float64Array(N_MAX);
+    const sortY = new Float64Array(N_MAX);
+    const sortAlt = new Float64Array(N_MAX);
+    let sortedN = -1;
+
+    function sortPrefix(n) {
+        if (n === sortedN) return;
+        sortedN = n;
+        const idx = Array.from({ length: n }, (_, i) => i)
+            .sort((a, b) => poolX[a] - poolX[b]);
+        for (let j = 0; j < n; j++) {
+            sortX[j] = poolX[idx[j]];
+            sortY[j] = poolY[idx[j]];
+            sortAlt[j] = poolAlt[idx[j]];
+        }
+    }
+    /* first index with sortX[i] >= v, within [0, n) */
+    function lowerBound(v, n) {
+        let lo = 0, hi = n;
+        while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (sortX[mid] < v) lo = mid + 1; else hi = mid;
+        }
+        return lo;
+    }
+
+    /* THE model, evaluated at test point q. Attention-like: a softmax over the
+       samples with scores -d^2 / (2 h_n^2) — a Gaussian kernel average over the
+       whole context, no hard cutoff. `scramble` picks the dataset:
+         false -> D_n   (original labels)
+         true  -> D~_n  (labels farther than eps_n FROM q resampled from phi~)
+       The cutoff is measured from q — the test point of this very prediction —
+       which is what makes the traces functions of x alone, hence static. */
+    function predict(q, n, eps, h, scramble) {
+        sortPrefix(n);
+        const cut = KERNEL_CUT * h;
+        const lo = lowerBound(q - cut, n), hi = lowerBound(q + cut, n);
+        const twoHH = 2 * h * h;
+        let num = 0, den = 0;
+        for (let i = lo; i < hi; i++) {
+            const d = sortX[i] - q;
+            const w = Math.exp(-d * d / twoHH);
+            const y = (scramble && Math.abs(d) > eps) ? sortAlt[i] : sortY[i];
+            num += w * y;
+            den += w;
+        }
+        return den > 0 ? num / den : 0.5;
+    }
+
+    /* ---- geometry: wide/short box, legend strip along the top ---- */
+    const W = 1160, H = 300;
+    const PL = 44, PR = 18, PT = 44, PB = 34;
+    const gx = v => PL + v * (W - PL - PR);
+    const gy = v => H - PB - (v + 0.14) / 1.28 * (H - PT - PB);   /* y in [-0.14, 1.14] */
+
+    /* traces: one prediction per query point, cached per n (they do NOT depend
+       on x*, so the x* slider must never rebuild them) */
+    let traceN = -1;
+    const traceOrig = new Float64Array(TRACE_PTS + 1);
+    const traceScr = new Float64Array(TRACE_PTS + 1);
+
+    function buildTraces(n, eps, h) {
+        if (n === traceN) return;
+        traceN = n;
+        for (let j = 0; j <= TRACE_PTS; j++) {
+            const q = j / TRACE_PTS;
+            traceOrig[j] = predict(q, n, eps, h, false);
+            traceScr[j] = predict(q, n, eps, h, true);
+        }
+        const path = arr => {
+            let d = '';
+            for (let j = 0; j <= TRACE_PTS; j++) {
+                d += `${j === 0 ? 'M' : 'L'} ${gx(j / TRACE_PTS).toFixed(1)} ${gy(arr[j]).toFixed(1)} `;
+            }
+            return d;
+        };
+        document.getElementById('orig-trace').setAttribute('d', path(traceOrig));
+        document.getElementById('scr-trace').setAttribute('d', path(traceScr));
+    }
+
+    function grid() {
+        let h = '';
+        [0, 0.5, 1].forEach(v => {
+            const y = gy(v);
+            h += `<line x1="${PL}" y1="${y}" x2="${W - PR}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>` +
+                 `<text x="${PL - 8}" y="${y + 4}" font-size="12" fill="#64748b" text-anchor="end">${v}</text>`;
+        });
+        for (let i = 0; i <= 10; i++) {
+            const x = gx(i / 10);
+            h += `<line x1="${x}" y1="${PT}" x2="${x}" y2="${H - PB}" stroke="#f1f5f9" stroke-width="1"/>`;
+        }
+        [0, 0.25, 0.5, 0.75, 1].forEach(v => {
+            h += `<text x="${gx(v)}" y="${H - PB + 26}" font-size="12" fill="#64748b" ` +
+                 `text-anchor="middle">${v}</text>`;
+        });
+        document.getElementById('grid-lines').innerHTML = h;
+    }
+
+    /* legend as an SVG strip in the reserved top band (the box is far too short
+       for a stacked HTML legend overlay) */
+    /* An accent tilde is drawn as its own tspan lifted ABOVE the preceding
+       glyph (dx pulls it back over the letter, dy lifts it over the cap) and
+       every shift is undone by a following zero-width tspan so the pen returns
+       to the baseline — otherwise dx/dy carry over to the rest of the string. */
+    function legendMathDn(scrambled) {
+        const d = '<tspan font-style="italic">D</tspan>';
+        const tilde = '<tspan dx="-7.5" dy="-9" font-size="75%">~</tspan>';
+        if (!scrambled) {
+            return `${d}<tspan dy="4" font-size="70%" font-style="italic">n</tspan>` +
+                   `<tspan dy="-4"></tspan>`;
+        }
+        return `${d}${tilde}` +
+               `<tspan dx="2.5" dy="12" font-size="70%" font-style="italic">n</tspan>` +
+               `<tspan dy="-3"></tspan>`;
+    }
+    function legendMathPhiTilde() {
+        return '&#x3C6;<tspan dx="-7.5" dy="-9" font-size="75%">~</tspan>' +
+               '<tspan dx="2.5" dy="9"></tspan>';
+    }
+
+    function legend() {
+        const fs = 14;
+        const items = [
+            { w: 124, sw: c => `<line x1="${c}" y1="0" x2="${c + 20}" y2="0" stroke="#94a3b8" stroke-width="2.5"/>`,
+              t: 'true p₀(1|x)' },
+            { w: 94, sw: c => `<circle cx="${c + 10}" cy="0" r="4" fill="#ef4444"/>`,
+              t: 'samples' },
+            { w: 297, sw: c => `<circle cx="${c + 10}" cy="0" r="4.5" fill="none" stroke="#7c3aed" stroke-width="2"/>`,
+              t: `far labels, resampled from other ${legendMathPhiTilde()}` },
+            { w: 193, sw: c => `<line x1="${c}" y1="0" x2="${c + 20}" y2="0" stroke="#0d9488" stroke-width="3" opacity="0.55"/>` +
+                               `<rect x="${c + 5}" y="-5" width="10" height="10" rx="2" fill="#0d9488"/>`,
+              t: `same model on ${legendMathDn(false)}` },
+            { w: 248, sw: c => `<line x1="${c}" y1="0" x2="${c + 20}" y2="0" stroke="#f97316" stroke-width="3" opacity="0.55"/>` +
+                               `<rect x="${c + 5}" y="-5" width="10" height="10" rx="2" fill="#f97316"/>`,
+              t: `same model on ${legendMathDn(true)}` },
+        ];
+        const total = items.reduce((s, it) => s + it.w, 0);
+        let cur = PL + (W - PL - PR - total) / 2;
+        let h = '';
+        items.forEach(it => {
+            h += `<g transform="translate(0, 20)">${it.sw(cur)}` +
+                 `<text x="${cur + 26}" y="4" font-size="${fs}" fill="#334155">${it.t}</text></g>`;
+            cur += it.w;
+        });
+        document.getElementById('legend').innerHTML = h;
+    }
+
+    function p0Path() {
+        let d = '';
+        for (let j = 0; j <= 200; j++) {
+            const x = j / 200;
+            d += `${j === 0 ? 'M' : 'L'} ${gx(x).toFixed(1)} ${gy(p0(x)).toFixed(1)} `;
+        }
+        document.getElementById('p0-line').setAttribute('d', d);
+    }
+
+    const xSlider = document.getElementById('x-slider');
+    const nSlider = document.getElementById('n-slider');
+
+    function update() {
+        const xq = parseFloat(xSlider.value);
+        nSamples = nOfSlider(parseInt(nSlider.value));
+        document.getElementById('x-val').innerText = xq.toFixed(2);
+        document.getElementById('n-val').innerText = nSamples;
+
+        const eps = epsN(nSamples), h = hN(nSamples);
+        buildTraces(nSamples, eps, h);
+
+        const op = predict(xq, nSamples, eps, h, false);
+        const sp = predict(xq, nSamples, eps, h, true);
+
+        /* eps_n band around x*: inside it labels are untouched, outside they are
+           resampled from phi~ (shrinks with n) */
+        const band = document.getElementById('window-band');
+        const bx0 = gx(Math.max(0, xq - eps)), bx1 = gx(Math.min(1, xq + eps));
+        band.setAttribute('x', bx0);
+        band.setAttribute('width', bx1 - bx0);
+        band.setAttribute('y', PT);
+        band.setAttribute('height', H - PT - PB);
+
+        /* samples: first n, rows at y = 0 / y = 1 (+ jitter). Dots outside the
+           band show the label D~_n gives them (hollow violet); inside the band
+           the two datasets agree, so they show the original label.
+           Stride-subsampled past DRAW_CAP — 3000 circles per slider tick is
+           neither fast nor readable. */
+        const stride = Math.max(1, Math.ceil(nSamples / DRAW_CAP));
+        const r = nSamples > 800 ? 3 : 4;
+        let h2 = '';
+        for (let i = 0; i < nSamples; i += stride) {
+            const far = Math.abs(poolX[i] - xq) > eps;
+            const y = far ? poolAlt[i] : poolY[i];
+            const cx = gx(poolX[i]).toFixed(1), cy = gy(y + poolJit[i]).toFixed(1);
+            if (far) {
+                h2 += `<circle cx="${cx}" cy="${cy}" r="${r + 0.5}" fill="none" stroke="#7c3aed" stroke-width="1.8"/>`;
+            } else {
+                h2 += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#ef4444" stroke="#ffffff" stroke-width="1"/>`;
+            }
+        }
+        document.getElementById('points-layer').innerHTML = h2;
+
+        /* test point */
+        const tx = gx(xq);
+        const tl = document.getElementById('test-line');
+        tl.setAttribute('x1', tx); tl.setAttribute('y1', PT);
+        tl.setAttribute('x2', tx); tl.setAttribute('y2', H - PB);
+        const star = document.getElementById('test-star');
+        star.setAttribute('x', tx); star.setAttribute('y', H - PB + 20);
+
+        /* the gap |q(y|x*, D_n) - q(y|x*, D~_n)| — the quantity eq (5) sends to
+           zero. Drawn as the segment between the two squares: it closes as n grows. */
+        document.getElementById('gap-marker').innerHTML =
+            `<line x1="${tx}" y1="${gy(op)}" x2="${tx}" y2="${gy(sp)}"
+                   stroke="#0f172a" stroke-width="3" opacity="0.55"/>`;
+
+        /* markers at x*: gray diamond = truth p0(x*); teal/orange squares = the
+           same model on the two datasets. As n grows both slide onto the diamond
+           — and therefore onto each other. */
+        const diamond = (cx, cy, fill) =>
+            `<path d="M ${cx.toFixed(1)} ${(cy - 7).toFixed(1)} L ${(cx + 7).toFixed(1)} ${cy.toFixed(1)} ` +
+            `L ${cx.toFixed(1)} ${(cy + 7).toFixed(1)} L ${(cx - 7).toFixed(1)} ${cy.toFixed(1)} Z" ` +
+            `fill="${fill}" stroke="#ffffff" stroke-width="1.5"/>`;
+        document.getElementById('pred-markers').innerHTML =
+            diamond(tx, gy(p0(xq)), '#94a3b8') +
+            `<rect x="${tx - 6}" y="${gy(op) - 6}" width="12" height="12" rx="2"
+                   fill="#0d9488" stroke="#ffffff" stroke-width="1.5"/>` +
+            `<rect x="${tx - 6}" y="${gy(sp) - 6}" width="12" height="12" rx="2"
+                   fill="#f97316" stroke="#ffffff" stroke-width="1.5"/>`;
+    }
+
+    xSlider.addEventListener('input', update);
+    nSlider.addEventListener('input', update);
+
+    grid();
+    legend();
+    p0Path();
+    update();
+</script>
+</body>
+</html>

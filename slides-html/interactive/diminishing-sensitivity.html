@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<!-- ===================================================================
+  interactive/diminishing-sensitivity.html — inline visualization for
+  the "Variance and Diminishing Sensitivity" slide
+  (sections/statistical_foundations.html #sf-variance; embedded via
+  .iframe-fill.below-text).
+
+  What it shows — condition (5) of [4] AND its consequence:
+    a fixed "pre-trained" predictor (Nadaraya-Watson smoother, bandwidth
+    frozen = the tuned theta) is fed D_n and a copy D_n' in which ONE
+    sample's label is pushed far off. LEFT: both prediction curves —
+    they visibly coincide as n grows (condition (5)). RIGHT: exactly
+    condition (5)'s quantity, sup_x |q(D_n)-q(D_n')|, vs n — the y-axis
+    is literally that difference (see the rotated axis title). A dashed
+    "ref-line" traces the theorem's bound L n^{-alpha} (alpha=1 here) as
+    a guide; L isn't a guessed constant — computeRefConstant() fits it
+    as an UPPER bound (max of n*sup(n) over the grid, +12% margin) so
+    the guide sits strictly above the measured curve everywhere,
+    matching the inequality's direction, rather than a least-squares
+    best fit that would cross it. #scale-toggle switches the right
+    panel's axes between natural ("n scale") and log-log ("log scale",
+    where the guide reads as a straight line) — scaleMode drives
+    drawRatePanel()'s tick/gridline/mapping branch. RPX (left margin)
+    is sized to keep the rotated axis title clear of the y-tick labels
+    — widen it if tick text ever grows past ~5 chars.
+
+  Style/layout conventions follow interactive/n-as-regulariser.html
+  (white bg, orange primary, teal secondary, red data points; body
+  fills the iframe, overflow hidden). Kept minimal on request: no
+  var band on the left plot, no panel titles, no metric readouts below
+  the plots — just the n-slider and the scale toggle.
+=================================================================== -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Diminishing Sensitivity: Swap One Sample</title>
+    <style>
+        :root {
+            /* layout knobs — edit to reposition panels, legend, controls */
+            --viz-pad-y: 10px;
+            --viz-pad-x: 0px;
+            --viz-row-gap: 8px;
+            --viz-max-width: 1440px;
+            --legend-top: 30px;
+            --legend-left: 14px;
+            --controls-margin-top: 8px;
+            --controls-pad-y: 4px;
+            --controls-pad-x: 14px;
+            --controls-gap: 16px;
+            --controls-inner-gap: 3px;
+            --main-panel-flex: 68%;
+            --rate-panel-flex: 32%;
+            --fit-pad-x: 28px;
+            --fit-pad-y: 18px;
+        }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            margin: 0;
+            padding: var(--viz-pad-y) var(--viz-pad-x);
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #ffffff;
+            color: #0f172a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #viz-row {
+            width: 100%;
+            max-width: var(--viz-max-width);
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            gap: var(--viz-row-gap);
+        }
+        .panel {
+            position: relative;
+            min-width: 0;
+            display: flex;
+        }
+        #main-panel { flex: 1 1 var(--main-panel-flex); }
+        #rate-panel { flex: 1 1 var(--rate-panel-flex); }
+        svg {
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        #legend {
+            position: absolute;
+            top: var(--legend-top);
+            left: var(--legend-left);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 8px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            pointer-events: none;
+        }
+        .legend-item { display: flex; align-items: center; margin-bottom: 4px; }
+        .legend-item:last-child { margin-bottom: 0; }
+        .legend-color { width: 16px; height: 3px; margin-right: 8px; border-radius: 2px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
+        #controls-container {
+            width: 100%;
+            max-width: var(--viz-max-width);
+            flex: 0 0 auto;
+            margin-top: var(--controls-margin-top);
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: var(--controls-pad-y) var(--controls-pad-x);
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            gap: var(--controls-gap);
+        }
+        .control-group {
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            gap: var(--controls-inner-gap);
+            min-width: 0;
+        }
+        .control-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            justify-content: space-between;
+            line-height: 1.2;
+        }
+        input[type=range] {
+            width: 100%;
+            cursor: pointer;
+            margin: 0;
+            height: 16px;
+        }
+        #scale-toggle {
+            flex: 0 0 auto;
+            display: flex;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        #scale-toggle button {
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            background: #ffffff;
+            border: none;
+            cursor: pointer;
+        }
+        #scale-toggle button + button { border-left: 1px solid #cbd5e1; }
+        #scale-toggle button.active { background: #f97316; color: #ffffff; }
+    </style>
+</head>
+<body>
+
+<div id="viz-row">
+    <div class="panel" id="main-panel">
+        <svg id="fit-plot" viewBox="0 0 620 430" preserveAspectRatio="xMidYMid meet">
+            <g id="fit-grid"></g>
+            <line id="swap-arrow" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="3,3"></line>
+            <path id="q-line" fill="none" stroke="#f97316" stroke-width="4"
+                  stroke-linecap="round" stroke-linejoin="round"></path>
+            <path id="q-prime-line" fill="none" stroke="#0d9488" stroke-width="2.5"
+                  stroke-dasharray="7,5" stroke-linecap="round" stroke-linejoin="round"></path>
+            <g id="fit-points"></g>
+        </svg>
+        <div id="legend">
+            <div class="legend-item"><div class="legend-color" style="background:#f97316; height:4px;"></div>
+                <span>prediction on D<sub>n</sub></span></div>
+            <div class="legend-item"><div class="legend-color" style="background:#0d9488;"></div>
+                <span>prediction on D&prime;<sub>n</sub></span></div>
+            <div class="legend-item"><div class="dot" style="background:#ef4444;"></div>
+                <span>samples&nbsp;&middot;&nbsp;<span style="color:#7c3aed;">&#9679;</span> swapped one</span></div>
+        </div>
+    </div>
+    <div class="panel" id="rate-panel">
+        <svg id="rate-plot" viewBox="0 0 400 430" preserveAspectRatio="xMidYMid meet">
+            <g id="rate-grid"></g>
+            <path id="ref-line" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6,4"></path>
+            <path id="rate-line" fill="none" stroke="#64748b" stroke-width="2.5"
+                  stroke-linecap="round" stroke-linejoin="round"></path>
+            <g id="rate-marks"></g>
+            <circle id="rate-current" r="6" fill="#f97316" stroke="#ffffff" stroke-width="2"></circle>
+            <text id="ref-label" font-size="10" fill="#94a3b8"></text>
+            <text x="200" y="424" font-size="13" font-weight="600" fill="#334155"
+                  text-anchor="middle">n</text>
+            <text x="14" y="215" font-size="13" font-weight="600" fill="#334155"
+                  text-anchor="middle" transform="rotate(-90 14 215)">|q(D&#8345;) &#8722; q(D&#8242;&#8345;)|</text>
+        </svg>
+    </div>
+</div>
+
+<div id="controls-container">
+    <div class="control-group">
+        <div class="control-label">
+            <span>Context Size (n)</span>
+            <span id="n-val">20</span>
+        </div>
+        <input type="range" id="n-slider" min="5" max="300" value="5">
+    </div>
+    <div id="scale-toggle" role="group" aria-label="Right plot axis scale">
+        <button type="button" class="active" data-scale="linear">n scale</button>
+        <button type="button" data-scale="log">log scale</button>
+    </div>
+</div>
+
+<script>
+    /* ---- data: fixed sequence, so growing n only ADDS samples ---- */
+    const N_MAX = 300;
+    const BANDWIDTH = 0.10;      /* the frozen "pre-trained" theta */
+    const SWAP_SHIFT = 0.7;      /* how far the swapped label is pushed */
+
+    let seed = 271;
+    function random() {
+        let x = Math.sin(seed++) * 10000;
+        return x - Math.floor(x);
+    }
+    function targetFunction(x) {
+        return 0.5 + 0.22 * Math.sin(2 * Math.PI * x) + 0.12 * Math.cos(6 * Math.PI * x);
+    }
+
+    const pts = [];
+    for (let i = 0; i < N_MAX; i++) {
+        const x = random();
+        const y = targetFunction(x) + (random() - 0.5) * 0.08;
+        pts.push({ x, y });
+    }
+
+    /* swapped sample: index < 5 so it is present for every n >= 5 */
+    const swapIdx = 0;
+    const swappedY = i => pts[i].y > 0.5 ? pts[i].y - SWAP_SHIFT : pts[i].y + SWAP_SHIFT;
+
+    /* ---- Nadaraya-Watson smoother ---- */
+    function predict(n, xq, useSwap) {
+        let num = 0, den = 0;
+        for (let i = 0; i < n; i++) {
+            const yi = (useSwap && i === swapIdx) ? swappedY(i) : pts[i].y;
+            const u = (xq - pts[i].x) / BANDWIDTH;
+            const w = Math.exp(-0.5 * u * u);
+            num += w * yi;
+            den += w;
+        }
+        return den > 1e-12 ? num / den : 0.5;
+    }
+
+    const RES = 160;
+    function curves(n) {
+        const q = [], qp = [];
+        let sup = 0;
+        for (let j = 0; j <= RES; j++) {
+            const x = j / RES;
+            const a = predict(n, x, false);
+            const b = predict(n, x, true);
+            q.push([x, a]); qp.push([x, b]);
+            sup = Math.max(sup, Math.abs(a - b));
+        }
+        return { q, qp, sup };
+    }
+
+    /* ---- left panel geometry ---- */
+    const css = getComputedStyle(document.documentElement);
+    const FW = 620, FH = 430;
+    const FPX = parseFloat(css.getPropertyValue('--fit-pad-x')) || 28;
+    const FPY = parseFloat(css.getPropertyValue('--fit-pad-y')) || 18;
+    const YMIN = -0.45, YMAX = 1.25;   /* room for the swapped label */
+    const fx = v => FPX + v * (FW - 2 * FPX);
+    const fy = v => FH - FPY - (v - YMIN) / (YMAX - YMIN) * (FH - 2 * FPY);
+
+    function fitGrid() {
+        let h = '';
+        for (let i = 0; i <= 8; i++) {
+            const y = FPY + i * (FH - 2 * FPY) / 8;
+            h += `<line x1="${FPX}" y1="${y}" x2="${FW - FPX}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>`;
+        }
+        for (let i = 0; i <= 10; i++) {
+            const x = fx(i / 10);
+            h += `<line x1="${x}" y1="${FPY}" x2="${x}" y2="${FH - FPY}" stroke="#f1f5f9" stroke-width="1"/>`;
+        }
+        document.getElementById('fit-grid').innerHTML = h;
+    }
+
+    const pathOf = c => c.map(([x, y], j) =>
+        `${j === 0 ? 'M' : 'L'} ${fx(x).toFixed(1)} ${fy(y).toFixed(1)}`).join(' ');
+
+    /* ---- right panel: sup_x |q(D_n)-q(D_n')| vs n, togglable linear
+       ("n scale") vs log-log ("log scale") axes (#scale-toggle) ---- */
+    /* fine grid (every n) so the line has no gaps; a coarser subset
+       (markGrid) is used just for the dot markers, so they don't turn
+       into a solid smear */
+    const nGrid = [];
+    for (let n = 5; n <= N_MAX; n++) nGrid.push(n);
+    const markGrid = [1];
+    for (let n = 10; n <= N_MAX; n += 10) markGrid.push(n);
+    if (markGrid[markGrid.length - 1] !== N_MAX) markGrid.push(N_MAX);
+
+    const RW = 400, RH = 430, RPX = 64, RPY = 34;
+    let rateData = [];      /* [n, sup_x |q(D_n) - q(D_n')|], one per nGrid entry */
+    let rateByN = new Map();
+    let scaleMode = 'linear';
+
+    function computeRateData() {
+        rateData = nGrid.map(n => [n, curves(n).sup]);
+        rateByN = new Map(rateData);
+    }
+
+    /* Condition (5)'s bound is |q(D_n)-q(D_n')| <= L n^{-alpha} (alpha=1
+       here); L is a property of THIS predictor/DGP, so it's fit from the
+       actual simulated curve above rather than guessed — and fit as an
+       UPPER bound (max of n * sup(n) over the grid, plus a small margin)
+       so the dashed guide sits strictly above the measured curve
+       everywhere, matching the inequality's direction. */
+    let refConstant = 0;
+    function computeRefConstant() {
+        const maxProd = Math.max(...rateData.map(([n, v]) => n * v));
+        refConstant = maxProd * 1.12;
+    }
+
+    function drawRatePanel(nCurrent, supCurrent) {
+        const isLog = scaleMode === 'log';
+        const EPS = 1e-6;
+        const guidePeak = refConstant / nGrid[0];   /* guide's highest value, at the smallest n */
+        let x0, x1, y0, y1, rx, ry;
+
+        if (isLog) {
+            const lx = v => Math.log10(v), ly = v => Math.log10(Math.max(v, EPS));
+            x0 = lx(nGrid[0]); x1 = lx(N_MAX);
+            const ys = rateData.map(d => ly(d[1])).concat(ly(supCurrent), ly(guidePeak));
+            y0 = Math.min(...ys) - 0.15; y1 = Math.max(...ys) + 0.15;
+            rx = v => RPX + (lx(v) - x0) / (x1 - x0) * (RW - 2 * RPX);
+            ry = v => RH - RPY - (ly(v) - y0) / (y1 - y0) * (RH - 2 * RPY);
+        } else {
+            x0 = 0; x1 = N_MAX;
+            y0 = 0; y1 = Math.max(...rateData.map(d => d[1]), supCurrent, guidePeak) * 1.05;
+            rx = v => RPX + (v - x0) / (x1 - x0) * (RW - 2 * RPX);
+            ry = v => RH - RPY - (v - y0) / (y1 - y0) * (RH - 2 * RPY);
+        }
+
+        let g = '';
+        if (isLog) {
+            const loDec = Math.floor(y0), hiDec = Math.ceil(y1);
+            for (let d = loDec; d <= hiDec; d++) {
+                const v = Math.pow(10, d);
+                const y = ry(v);
+                g += `<line x1="${RPX}" y1="${y}" x2="${RW - RPX}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>` +
+                     `<text x="${RPX - 8}" y="${y + 4}" font-size="10" fill="#64748b" text-anchor="end">${v.toFixed(Math.max(0, -d))}</text>`;
+            }
+        } else {
+            for (let i = 0; i <= 4; i++) {
+                const v = y0 + i * (y1 - y0) / 4;
+                const y = ry(v);
+                g += `<line x1="${RPX}" y1="${y}" x2="${RW - RPX}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>` +
+                     `<text x="${RPX - 8}" y="${y + 4}" font-size="10" fill="#64748b" text-anchor="end">${v.toFixed(3)}</text>`;
+            }
+        }
+        (isLog ? [10, 30, 100, 300] : [0, 100, 200, 300]).forEach(n => {
+            const x = rx(n);
+            g += `<line x1="${x}" y1="${RPY}" x2="${x}" y2="${RH - RPY}" stroke="#f1f5f9" stroke-width="1"/>` +
+                 `<text x="${x}" y="${RH - RPY + 16}" font-size="11" fill="#64748b" text-anchor="middle">${n}</text>`;
+        });
+        document.getElementById('rate-grid').innerHTML = g;
+
+        document.getElementById('rate-line').setAttribute('d',
+            rateData.map((d, j) => `${j === 0 ? 'M' : 'L'} ${rx(d[0]).toFixed(1)} ${ry(d[1]).toFixed(1)}`).join(' '));
+
+        document.getElementById('rate-marks').innerHTML = markGrid.map(n =>
+            `<circle cx="${rx(n).toFixed(1)}" cy="${ry(rateByN.get(n)).toFixed(1)}" r="3.5" fill="#64748b"/>`).join('');
+
+        /* dashed guide: condition (5)'s upper bound L / n, strictly above the measured curve */
+        const REF_PTS = 40;
+        let refD = '';
+        for (let j = 0; j <= REF_PTS; j++) {
+            const n = nGrid[0] + j * (N_MAX - nGrid[0]) / REF_PTS;
+            const sx = rx(n).toFixed(1), sy = ry(refConstant / n).toFixed(1);
+            refD += (j === 0 ? 'M' : ' L') + ` ${sx} ${sy}`;
+        }
+        document.getElementById('ref-line').setAttribute('d', refD);
+        const refLbl = document.getElementById('ref-label');
+        const labelN = nGrid[0] * 2;
+        refLbl.setAttribute('x', rx(labelN));
+        refLbl.setAttribute('y', ry(refConstant / labelN) - 8);
+        refLbl.textContent = 'L / n';
+
+        const cur = document.getElementById('rate-current');
+        cur.setAttribute('cx', rx(nCurrent));
+        cur.setAttribute('cy', ry(supCurrent));
+    }
+
+    /* ---- update ---- */
+    const slider = document.getElementById('n-slider');
+
+    function update() {
+        const n = parseInt(slider.value);
+        document.getElementById('n-val').innerText = n;
+
+        const { q, qp, sup } = curves(n);
+        document.getElementById('q-line').setAttribute('d', pathOf(q));
+        document.getElementById('q-prime-line').setAttribute('d', pathOf(qp));
+
+        let h = '';
+        for (let i = 0; i < n; i++) {
+            if (i === swapIdx) continue;
+            h += `<circle cx="${fx(pts[i].x).toFixed(1)}" cy="${fy(pts[i].y).toFixed(1)}" r="4"
+                          fill="#ef4444" stroke="#ffffff" stroke-width="1.2"/>`;
+        }
+        /* the swapped sample: hollow ring at the original label, filled
+           violet dot at the pushed-off label, dashed connector */
+        const sx = fx(pts[swapIdx].x), sy0 = fy(pts[swapIdx].y), sy1 = fy(swappedY(swapIdx));
+        h += `<circle cx="${sx.toFixed(1)}" cy="${sy0.toFixed(1)}" r="5.5"
+                      fill="none" stroke="#7c3aed" stroke-width="2"/>` +
+             `<circle cx="${sx.toFixed(1)}" cy="${sy1.toFixed(1)}" r="5.5"
+                      fill="#7c3aed" stroke="#ffffff" stroke-width="1.5"/>`;
+        document.getElementById('fit-points').innerHTML = h;
+        const arrow = document.getElementById('swap-arrow');
+        arrow.setAttribute('x1', sx); arrow.setAttribute('y1', sy0);
+        arrow.setAttribute('x2', sx); arrow.setAttribute('y2', sy1);
+
+        drawRatePanel(n, sup);
+    }
+
+    slider.addEventListener('input', update);
+
+    document.querySelectorAll('#scale-toggle button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (btn.dataset.scale === scaleMode) return;
+            scaleMode = btn.dataset.scale;
+            document.querySelectorAll('#scale-toggle button').forEach(b => b.classList.toggle('active', b === btn));
+            update();
+        });
+    });
+
+    fitGrid();
+    computeRateData();
+    computeRefConstant();
+    update();
+</script>
+</body>
+</html>

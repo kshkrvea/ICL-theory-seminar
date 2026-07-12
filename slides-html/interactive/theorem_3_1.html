@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>KL Projection and PPD Convergence</title>
+    <!-- raw Theorem 3.1 now lives in the slide's "?" pop-up
+         (sections/statistical_foundations.html #sf-ppd-learn), so the
+         in-page theorem box and its MathJax dependency were removed —
+         the remaining labels use plain unicode. -->
+
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #ffffff;
+            color: #0f172a;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        #ui-container {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.96);
+            padding: 14px 18px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            width: 250px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        .slider-group {
+            margin-top: 10px;
+        }
+        input[type=range] {
+            width: 100%;
+            cursor: pointer;
+            accent-color: #f97316;
+        }
+        .label-card {
+            position: absolute;
+            z-index: 5;
+            background: rgba(255, 255, 255, 0.96);
+            color: #0f172a;
+            padding: 6px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+            pointer-events: none;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100px;
+            transition: transform 0.05s ease-out;
+        }
+        .label-card span {
+            margin-bottom: 4px;
+            white-space: nowrap;
+        }
+        .label-card svg {
+            width: 90px;
+            height: 32px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 3px;
+        }
+        #label-p0 { 
+            border-left: 3px solid #ef4444; 
+            transform: translate(15%, -110%); 
+        }
+        #label-phi { 
+            border-left: 3px solid #22c55e; 
+            transform: translate(-50%, 30%);
+        }
+        #label-ppd { 
+            border-left: 3px solid #f97316; 
+            transform: translate(-50%, -130%);
+        }
+        #label-support {
+            position: absolute;
+            z-index: 4;
+            color: #475569;
+            font-size: 12px;
+            font-weight: 600;
+            pointer-events: none;
+            background: rgba(248, 250, 252, 0.92);
+            padding: 5px 12px;
+            border-radius: 20px;
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            transform: translate(-65%, -145%);
+            letter-spacing: 0.3px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="ui-container">
+    <div style="font-size: 13px; font-weight: 600; color: #334155;">Dataset Size (n): <span id="n-val" style="color: #0f172a; font-weight: bold;">1</span></div>
+    <div class="slider-group">
+        <input type="range" id="n-slider" min="1" max="500" value="1">
+    </div>
+</div>
+
+<div id="label-support">Hypothesis Space Support 𝒮</div>
+
+<div id="label-p0" class="label-card">
+    <span>p₀ (True)</span>
+    <svg viewBox="0 0 100 40">
+        <path d="M 10 32 Q 22 8 35 22 T 65 14 T 90 32" fill="none" stroke="#ef4444" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+</div>
+
+<div id="label-phi" class="label-card">
+    <span>φ* (KL Projection)</span>
+    <svg viewBox="0 0 100 40">
+        <path d="M 10 32 Q 30 32 50 8 T 90 32" fill="none" stroke="#22c55e" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+</div>
+
+<div id="label-ppd" class="label-card">
+    <span>PPD (Current)</span>
+    <svg viewBox="0 0 100 40">
+        <path id="ppd-curve" d="M 10 32 Q 40 32 50 18 T 90 32" fill="none" stroke="#f97316" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+</div>
+
+<div id="canvas-container"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xffffff);
+    
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(16, 8, 18);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.target.set(0, -1.0, 0);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambientLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    dirLight.position.set(10, 20, 10);
+    scene.add(dirLight);
+
+    const shape = new THREE.Shape();
+    shape.moveTo(-6, -3);
+    shape.bezierCurveTo(-7, 2, -4, 6, 0, 7);
+    shape.bezierCurveTo(5, 8, 8, 4, 7, 0);
+    shape.bezierCurveTo(6, -4, 3, -7, -2, -6);
+    shape.bezierCurveTo(-4, -5.5, -5, -6, -6, -3);
+
+    const extrudeSettings = { depth: 0.1, bevelEnabled: false };
+    const supportGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+    supportGeo.rotateX(Math.PI / 2);
+    
+    const supportMat = new THREE.MeshPhongMaterial({ 
+        color: 0xe2e8f0, 
+        transparent: true, 
+        opacity: 0.75,
+        side: THREE.DoubleSide,
+        depthWrite: false
+    });
+    const supportMesh = new THREE.Mesh(supportGeo, supportMat);
+    supportMesh.position.set(0, 0, 0);
+    scene.add(supportMesh);
+
+    const edgesGeo = new THREE.EdgesGeometry(supportGeo);
+    const edgesMat = new THREE.LineBasicMaterial({ color: 0x64748b, linewidth: 2 });
+    const supportOutline = new THREE.LineSegments(edgesGeo, edgesMat);
+    scene.add(supportOutline);
+
+    const gridHelper = new THREE.GridHelper(18, 18, 0x94a3b8, 0xcbd5e1);
+    gridHelper.position.y = -0.05;
+    scene.add(gridHelper);
+
+    const posP0 = new THREE.Vector3(5, 3.5, -4);       
+    const posPhi = new THREE.Vector3(4, 0.05, -2);   
+    const posStart = new THREE.Vector3(-6, -2.8, 5); 
+    const posSupportLabel = new THREE.Vector3(-3.8, 0.7, -4.2);
+    const N_MAX = 499;
+
+    function convergenceT(n) {
+        const u = (n - 1) / N_MAX;
+        return Math.pow(1 - u, 2.6);
+    }
+
+    function trajectoryPoint(t) {
+        const u = 1 - t; 
+        const linear = new THREE.Vector3().lerpVectors(posStart, posPhi, u);
+
+        const seg = new THREE.Vector3().subVectors(posPhi, posStart);
+        const len = seg.length();
+        const tangent = seg.clone().normalize();
+
+        const perpX = new THREE.Vector3(-tangent.z, 0, tangent.x);
+        if (perpX.lengthSq() < 1e-6) perpX.set(1, 0, 0);
+        else perpX.normalize();
+
+        const up = new THREE.Vector3(0, 1, 0);
+
+        const verticalArch = Math.sin(u * Math.PI) * 2.6;
+        
+        const lateralEnvelope = Math.sin(u * Math.PI) * Math.pow(1 - u, 0.9);
+        const w1 = Math.sin(u * Math.PI * 3.8) * lateralEnvelope * len * 0.22;
+        const w3 = Math.cos(u * Math.PI * 5.2) * lateralEnvelope * len * 0.12;
+
+        return linear
+            .add(up.clone().multiplyScalar(verticalArch))
+            .add(perpX.clone().multiplyScalar(w1))
+            .add(new THREE.Vector3().crossVectors(tangent, up).normalize().multiplyScalar(w3));
+    } 
+
+    const p0Geo = new THREE.SphereGeometry(0.28, 32, 32);
+    const p0Mat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+    const p0Mesh = new THREE.Mesh(p0Geo, p0Mat);
+    p0Mesh.position.copy(posP0);
+    scene.add(p0Mesh);
+
+    const phiGeo = new THREE.SphereGeometry(0.28, 32, 32);
+    const phiMat = new THREE.MeshBasicMaterial({ color: 0x22c55e });
+    const phiMesh = new THREE.Mesh(phiGeo, phiMat);
+    phiMesh.position.copy(posPhi);
+    scene.add(phiMesh);
+
+    const ppdGeo = new THREE.SphereGeometry(0.32, 32, 32);
+    const ppdMat = new THREE.MeshBasicMaterial({ color: 0xf97316 });
+    const ppdMesh = new THREE.Mesh(ppdGeo, ppdMat);
+    ppdMesh.position.copy(posStart);
+    scene.add(ppdMesh);
+
+    const projLineGeo = new THREE.BufferGeometry().setFromPoints([posP0, posPhi]);
+    const projLineMat = new THREE.LineDashedMaterial({ 
+        color: 0x64748b, 
+        dashSize: 0.3, 
+        gapSize: 0.15, 
+        linewidth: 2 
+    });
+    const projLine = new THREE.Line(projLineGeo, projLineMat);
+    projLine.computeLineDistances();
+    scene.add(projLine);
+
+    const trajPoints = [];
+    const segments = 200;
+    for (let i = 0; i <= segments; i++) {
+        const nStep = 1 + (i / segments) * N_MAX;
+        const t = convergenceT(nStep);
+        trajPoints.push(trajectoryPoint(t));
+    }
+    const trajGeo = new THREE.BufferGeometry().setFromPoints(trajPoints);
+    const trajMat = new THREE.LineBasicMaterial({ color: 0xf97316, linewidth: 2 });
+    const trajLine = new THREE.Line(trajGeo, trajMat);
+    scene.add(trajLine);
+
+    const labelP0 = document.getElementById('label-p0');
+    const labelPhi = document.getElementById('label-phi');
+    const labelPpd = document.getElementById('label-ppd');
+    const labelSupport = document.getElementById('label-support');
+    const ppdCurve = document.getElementById('ppd-curve');
+
+    function updateLabelPosition(vector3D, domElement) {
+        const vector = vector3D.clone();
+        vector.project(camera);
+        const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (-(vector.y * 0.5) + 0.5) * window.innerHeight;
+        domElement.style.left = `${x}px`;
+        domElement.style.top = `${y}px`;
+    }
+
+    const slider = document.getElementById('n-slider');
+    const nValDisplay = document.getElementById('n-val');
+
+    function updatePpdCurve(t) {
+        // t=1 at n=1, t→0 as n→max; match φ* bezier at convergence
+        const u = 1 - t;
+        const cpX = 40 + (30 - 40) * u;
+        const cpY = 32;
+        const endX = 50;
+        const endY = 18 + (8 - 18) * u;
+        ppdCurve.setAttribute('d', `M 10 32 Q ${cpX} ${cpY} ${endX} ${endY} T 90 32`);
+    }
+
+    slider.addEventListener('input', (e) => {
+        const n = parseInt(e.target.value);
+        nValDisplay.innerText = n;
+        
+        const t = convergenceT(n);
+        ppdMesh.position.copy(trajectoryPoint(t));
+        updatePpdCurve(t);
+    });
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        
+        updateLabelPosition(p0Mesh.position, labelP0);
+        updateLabelPosition(phiMesh.position, labelPhi);
+        updateLabelPosition(ppdMesh.position, labelPpd);
+        updateLabelPosition(posSupportLabel, labelSupport);
+        
+        renderer.render(scene, camera);
+    }
+
+    animate();
+</script>
+</body>
+</html>

@@ -1,0 +1,382 @@
+/* =====================================================================
+   Deck theme — minimalistic metropolis (Beamer) look on white.
+   The metropolis dark-green frame-title BAR is intentionally dropped
+   (allowed by the migration spec); the title/subtitle keep their
+   position and hierarchy, separated from the body by a hairline rule.
+
+   Coordinate system: design grid 1280×720 px (Beamer 16×9 cm at 80 px/cm).
+   The slide canvas is resized to the viewport at scale 1; --deck-scale
+   proportionally scales every px length below.
+
+   HOW TO ADJUST:
+     - Colors: the :root block below (names follow metropolis).
+     - Global font scale: html { font-size } on .reveal (28px ~= the
+       Beamer body size); .small/.footnotesize mirror LaTeX switches.
+     - Iframe inset: --fill-top/left/right/bottom on .iframe-fill (inherited
+       from parent <section>).
+     - Body text inset: --body-top/pad-top/pad-bottom on <section>.
+     - ? button inset: --qa-left/bottom on <section>.
+     - Frame title/subtitle size + spacing: .frame-head block.
+     - Block / alertblock styling: .block / .alertblock.
+===================================================================== */
+
+:root {
+  /* set by js/loader.js = fittedViewport width / 1280; scales layout px */
+  --deck-scale: 1;
+
+  /* metropolis palette */
+  --mDarkTeal:  #23373b;   /* titles, structure       */
+  --mAlert:     #eb811b;   /* alert / highlight       */
+  --body-fg:    #191919;   /* body text               */
+  --dim-fg:     #b9c2c4;   /* dimmed TOC entries      */
+  --block-bg:   #f3f4f5;   /* metroset block=fill body */
+  --block-title-bg: #e4e8e9; /* block=fill title strip  */
+  --rule:       rgba(35, 55, 59, 0.25);
+
+  /* semantic formula colors (LaTeX names used in the sources) */
+  --tex-blue:   #0000ff;   /* blue   */
+  --tex-teal:   #008080;   /* teal   */
+  --tex-olive:  #808000;   /* olive  */
+  --tex-red:    #ff0000;   /* red    */
+  --tex-blueolive: #0d0de6; /* blue!90!olive  */
+  --tex-redolive:  #d92600; /* red!70!olive   */
+}
+
+/* ---------- global type ---------- */
+.reveal {
+  font-family: 'LM Roman 10', 'Latin Modern Roman', 'Computer Modern', 'CMU Serif', Georgia, serif;
+  font-size: calc(28px * var(--deck-scale));
+  font-weight: 400;
+  color: var(--body-fg);
+  background: #ffffff;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.reveal-viewport { background: #ffffff; }
+
+.reveal .slides,
+.reveal .slides section,
+.reveal .katex {
+  text-rendering: geometricPrecision;
+}
+
+/* SHARPNESS: drop reveal's 3D compositing (transition is 'none'). */
+.reveal .slides { perspective: none !important; }
+
+.reveal .slides > section,
+.reveal .slides > section > section {
+  text-align: left;
+  padding: 0 calc(48px * var(--deck-scale));
+  height: 100%;
+  box-sizing: border-box;
+  flex-direction: column;
+  backface-visibility: visible !important;
+  transform-style: flat !important;
+}
+
+/* body area under the frame head; .vcenter = \vspace*{\fill} ... \vspace*{\fill}
+   Optional per-slide inset (design px, inherit from <section>):
+     --body-top, --body-pad-top, --body-pad-bottom */
+.frame-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: calc(var(--body-top, 0px) * var(--deck-scale));
+  padding-top: calc(var(--body-pad-top, 0px) * var(--deck-scale));
+  padding-bottom: calc(var(--body-pad-bottom, 0px) * var(--deck-scale));
+}
+.frame-body.vcenter {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-bottom: calc(26px * var(--deck-scale));
+}
+
+.reveal strong { font-weight: 600; }
+.reveal em { font-style: italic; }
+.reveal sup { font-size: 0.62em; }
+
+.small        { font-size: calc(24px * var(--deck-scale)); }
+.footnotesize { font-size: calc(21px * var(--deck-scale)); }
+.scriptsize   { font-size: calc(18px * var(--deck-scale)); }
+
+.frame-head {
+  margin: 0 calc(-48px * var(--deck-scale)) calc(26px * var(--deck-scale));
+  padding: calc(26px * var(--deck-scale)) calc(48px * var(--deck-scale)) calc(12px * var(--deck-scale));
+  border-bottom: 1px solid var(--rule);
+}
+.frame-title {
+  font-size: calc(36px * var(--deck-scale));
+  font-weight: 500;
+  color: var(--mDarkTeal);
+  margin: 0;
+  line-height: 1.15;
+}
+.frame-subtitle {
+  font-size: calc(23px * var(--deck-scale));
+  font-weight: 400;
+  color: #5c7175;
+  margin: calc(6px * var(--deck-scale)) 0 0;
+}
+.frame-title .cite { font-weight: 400; }
+
+/* ---------- title page ---------- */
+.title-slide { justify-content: center; }
+.title-block { width: 100%; }
+.title-slide h1 {
+  font-size: calc(46px * var(--deck-scale));
+  font-weight: 500;
+  color: var(--mDarkTeal);
+  margin: 0 0 calc(10px * var(--deck-scale));
+}
+.title-rule {
+  width: 100%; height: 2px;
+  background: var(--mAlert);
+  margin-bottom: calc(18px * var(--deck-scale));
+}
+.title-subtitle { font-size: calc(26px * var(--deck-scale)); color: #45585c; margin: 0 0 calc(56px * var(--deck-scale)); }
+.title-author   { font-size: calc(26px * var(--deck-scale)); margin: 0 0 calc(10px * var(--deck-scale)); }
+.title-date     { font-size: calc(23px * var(--deck-scale)); color: #45585c; margin: 0; }
+
+.toc { list-style: none; margin: calc(20px * var(--deck-scale)) 0 0; padding: 0; }
+.toc li { margin: 0 0 calc(20px * var(--deck-scale)); font-size: calc(30px * var(--deck-scale)); color: var(--mDarkTeal); }
+.toc li.dimmed { color: var(--dim-fg); }   /* \tableofcontents[currentsection] shading */
+/* click-to-navigate (js/loader.js gotoSlideById): every <li> targets a
+   section divider slide by id. */
+.toc li[data-goto-id] { cursor: pointer; transition: color 0.15s; }
+.toc li[data-goto-id]:hover { color: var(--mAlert); }
+.toc li.dimmed[data-goto-id]:hover { color: var(--mDarkTeal); }
+
+/* ---------- lists ---------- */
+.reveal ul, .reveal ol { margin: 0 0 0 1.1em; }
+.reveal ul { list-style: none; }
+.reveal ul > li { position: relative; padding-left: 0.35em; margin-bottom: 0.45em; }
+.reveal ul > li::before {      /* metropolis triangle bullet */
+  content: '\25B8';
+  position: absolute;
+  left: -0.85em;
+  color: var(--mDarkTeal);
+}
+.reveal ol { list-style: decimal; }
+.reveal ol > li { padding-left: 0.2em; margin-bottom: 0.45em; }
+
+/* ---------- blocks (metroset block=fill) ---------- */
+.block, .alertblock {
+  margin: 0.55em 0;
+  font-size: inherit;
+}
+.block .block-title, .alertblock .block-title {
+  background: var(--block-title-bg);
+  color: var(--mDarkTeal);
+  font-weight: 600;
+  padding: calc(8px * var(--deck-scale)) calc(16px * var(--deck-scale));
+}
+.alertblock .block-title { color: var(--mAlert); }
+.block .block-body, .alertblock .block-body {
+  background: var(--block-bg);
+  padding: calc(12px * var(--deck-scale)) calc(16px * var(--deck-scale));
+}
+.center { text-align: center; }
+
+/* alerted list items (\item<alert@n>) get this class via overlay CSS */
+.alerted { color: var(--mAlert) !important; }
+
+/* ---------- math ---------- */
+/* KaTeX defaults to 1.21em (tuned for serif body text); the LaTeX deck
+   renders math at the surrounding text size, so pin it to 1em to keep
+   formula widths proportional to the Beamer original. */
+.reveal .katex { font-size: 1em; }
+.reveal .katex-display { margin: 0.55em 0; }
+.formula-line { margin: 0.55em 0; }        /* generic display-formula wrapper */
+
+/* semantic color spans toggled by overlay state classes (see loader.js);
+   base state: plain. Recolor rules live with each slide's <style>. */
+
+/* ---------- speaker notes are invisible on-slide ---------- */
+.reveal aside.notes { display: none; }
+
+/* ---------- iframe slides (interactive visualizations) ----------
+   Inset the iframe box with design-px custom properties (scaled by
+   --deck-scale). Defaults match the original 48 / 128 / 16 px margins.
+   Usage on any .iframe-fill:
+     style="--fill-left:96px; --fill-right:96px;
+            --fill-top:200px; --fill-bottom:60px"
+   Larger values shrink the box toward the center on that edge. ---- */
+.iframe-fill {
+  position: absolute;
+  left: calc(var(--fill-left, 48px) * var(--deck-scale));
+  right: calc(var(--fill-right, 48px) * var(--deck-scale));
+  top: calc(var(--fill-top, 128px) * var(--deck-scale));
+  bottom: calc(var(--fill-bottom, 16px) * var(--deck-scale));
+}
+.iframe-fill iframe {
+  width: 100%; height: 100%;
+  border: 0;
+  background: #ffffff;
+}
+
+/* ---------- click-to-open iframe pop-up (js/loader.js: data-modal-src) --
+   Viewport-fixed, so it ignores --deck-scale/the reveal canvas entirely
+   and just centers over whatever the browser window actually is. ---- */
+.viz-modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 41, 0.55);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.viz-modal-backdrop.open { display: flex; }
+.viz-modal {
+  position: relative;
+  width: min(1100px, 92vw);
+  height: min(640px, 86vh);
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.viz-modal-frame {
+  width: 100%; height: 100%;
+  border: 0;
+  display: block;
+}
+.viz-modal-close {
+  position: absolute;
+  top: 8px; right: 10px;
+  width: 32px; height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(15, 23, 41, 0.08);
+  color: var(--mDarkTeal);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 1;
+}
+.viz-modal-close:hover { background: rgba(15, 23, 41, 0.16); }
+
+/* ---------- audience Q&A pop-up (js/loader.js: .audience-qa) ----------
+   Click the circled ? to show a text/math answer for spontaneous
+   audience questions (distinct from speaker <aside class="notes">).
+   Reusable: copy the .audience-qa block onto any slide; put HTML/LaTeX
+   in the nested <template class="audience-qa-body">. Add
+   .audience-qa--bl to pin the ? to the bottom-left corner.
+   Optional per-slide inset (design px, inherit from <section>):
+     --qa-left, --qa-bottom ---- */
+.audience-qa {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 0.35em;
+}
+/* NB: do NOT set `position: relative` on the slide <section> here — reveal
+   already positions every `.slides > section` as `position: absolute`, so
+   the absolute .audience-qa--bl below already anchors to it. Forcing the
+   section to `relative` overrides reveal's absolute stacking and drops the
+   slide out of the deck (it renders blank). */
+.audience-qa--bl {
+  position: absolute;
+  left: calc(var(--qa-left, 48px) * var(--deck-scale));
+  bottom: calc(var(--qa-bottom, 16px) * var(--deck-scale));
+  margin-left: 0;
+  z-index: 2;
+}
+.audience-qa-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(26px * var(--deck-scale));
+  height: calc(26px * var(--deck-scale));
+  padding: 0;
+  border: 1.5px solid var(--mDarkTeal);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--mDarkTeal);
+  font-size: calc(15px * var(--deck-scale));
+  font-weight: 600;
+  font-family: inherit;
+  line-height: 1;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.audience-qa-btn:hover {
+  background: rgba(35, 55, 59, 0.08);
+  border-color: var(--mAlert);
+  color: var(--mAlert);
+}
+.qa-modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 41, 0.55);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.qa-modal-backdrop.open { display: flex; }
+.qa-modal {
+  position: relative;
+  width: min(720px, 88vw);
+  max-height: min(480px, 80vh);
+  padding: calc(36px * var(--deck-scale)) calc(40px * var(--deck-scale))
+           calc(32px * var(--deck-scale));
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  overflow: auto;
+  font-size: calc(14px * var(--deck-scale));
+  line-height: 1.45;
+}
+.qa-modal-body { margin: 0; }
+.qa-modal-body .katex-display { margin: 0.4em 0; }
+.qa-modal-body .qa-table {
+  margin: 0.25em 0 0;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.qa-modal-body .qa-table th,
+.qa-modal-body .qa-table td {
+  padding: 0.2em 1.2em 0.2em 0;
+  text-align: right;
+}
+.qa-modal-body .qa-table th:first-child,
+.qa-modal-body .qa-table td:first-child { padding-left: 0; }
+.qa-modal-body .qa-table th { font-weight: 600; border-bottom: 1px solid rgba(15, 23, 41, 0.2); }
+.qa-modal-close {
+  position: absolute;
+  top: 8px; right: 10px;
+  width: 32px; height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(15, 23, 41, 0.08);
+  color: var(--mDarkTeal);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.qa-modal-close:hover { background: rgba(15, 23, 41, 0.16); }
+
+/* ---------- references ---------- */
+.references { font-size: calc(21px * var(--deck-scale)); }
+.references .ref { display: flex; gap: calc(14px * var(--deck-scale)); margin-bottom: calc(16px * var(--deck-scale)); }
+.references .ref .no { flex: 0 0 2em; }
+
+/* ---------- partial-height inline viz (theorem slides) ----------
+   .iframe-fill variant for slides that keep a short intuitive text
+   block above the visualization: --fill-top defaults to 260px (clears
+   the text) instead of 128px under the frame head. Combine with
+   --fill-bottom / --fill-left / --fill-right to shrink from any edge.
+   Usage:
+     <div class="iframe-fill below-text"
+          style="--fill-top:250px; --fill-bottom:48px; --fill-left:80px;"> */
+.iframe-fill.below-text {
+  top: calc(var(--fill-top, 260px) * var(--deck-scale));
+}
+.iframe-fill.below-text iframe {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.reveal .progress { color: var(--mAlert); height: 4px; }

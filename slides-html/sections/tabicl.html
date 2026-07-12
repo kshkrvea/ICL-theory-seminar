@@ -1,0 +1,55 @@
+<!-- ===================================================================
+  sections/tabicl.html — port of slides/sections/tabicl.tex (3 frames).
+
+  Slides, in order:
+    1. icl-arch  Architecture      (5-step PNG swap)
+    2. icl-vs    (no subtitle)     (comparison image)
+    3. icl-disc  Discussion        (placeholder)
+=================================================================== -->
+
+<!-- ============================================================
+  Frame 1 — Architecture (5-step swap)
+  \only<1>encode \only<2>within-rows \only<3>fusion
+  \only<4>inter-rows \only<5>mlp;  \imgwidth=1.0  \imgy=0
+============================================================ -->
+<section id="icl-arch">
+  <header class="frame-head">
+    <h2 class="frame-title">TabICL</h2>
+    <p class="frame-subtitle">Architecture</p>
+  </header>
+  <figure class="page-fig" style="--img-w:1;">
+    <div class="r-stack">
+      <img class="fragment fade-out" data-fragment-index="0"
+           src="assets/tabicl/tabicl-encode.png" alt="TabICL: encoding">
+      <img class="fragment current-visible" data-fragment-index="0"
+           src="assets/tabicl/tabicl-within-rows-attention.png" alt="TabICL: within-rows attention">
+      <img class="fragment current-visible" data-fragment-index="1"
+           src="assets/tabicl/tabicl-fusion.png" alt="TabICL: fusion">
+      <img class="fragment current-visible" data-fragment-index="2"
+           src="assets/tabicl/tabicl-inter-rows-attention.png" alt="TabICL: inter-rows attention">
+      <img class="fragment" data-fragment-index="3"
+           src="assets/tabicl/tabicl-mlp.png" alt="TabICL: MLP head">
+    </div>
+  </figure>
+</section>
+
+<!-- ============================================================
+  Frame 2 — (empty \framesubtitle{}) TabICL vs TabPFNv2
+  \imgwidth=1  \imgy=-0.7cm  ->  --img-y:+56px
+============================================================ -->
+<section id="icl-vs">
+  <header class="frame-head">
+    <h2 class="frame-title">TabICL</h2>
+  </header>
+  <figure class="page-fig" style="--img-w:1; --img-y:56px;">
+    <img src="assets/tabicl/tabicl-vs-tabpfnv2.png" alt="TabICL vs TabPFNv2">
+  </figure>
+</section>
+
+<!-- Frame 3 — Discussion (placeholder) -->
+<section id="icl-disc">
+  <header class="frame-head">
+    <h2 class="frame-title">TabICL</h2>
+    <p class="frame-subtitle">Discussion</p>
+  </header>
+</section>

@@ -1,0 +1,51 @@
+<!-- ===================================================================
+  sections/tabpfnv2.html — port of slides/sections/tabpfnv2.tex (3 frames).
+
+  Slides, in order:
+    1. v2-recap  Recap: v1 Architecture   (single SVG, converted from PDF)
+    2. v2-arch   Architecture             (4-step SVG swap)
+    3. v2-disc   Discussion               (placeholder)
+=================================================================== -->
+
+<!-- Frame 1 — Recap: v1 Architecture. \imgwidth=1.0 \imgy=0 -->
+<section id="v2-recap">
+  <header class="frame-head">
+    <h2 class="frame-title">TabPFNv2</h2>
+    <p class="frame-subtitle">Recap: v1 Architecture</p>
+  </header>
+  <figure class="page-fig" style="--img-w:1;">
+    <img src="assets/tabpfn/architecture/tabpfn-v1-mlp.svg" alt="TabPFN v1 architecture (full)">
+  </figure>
+</section>
+
+<!-- ============================================================
+  Frame 2 — Architecture (4-step swap, converted tabpfn-v2 PDFs)
+  \only<1>encode \only<2>within-rows \only<3>inter-rows \only<4>mlp
+  \imgwidth=1.0  \imgy=0
+============================================================ -->
+<section id="v2-arch">
+  <header class="frame-head">
+    <h2 class="frame-title">TabPFNv2</h2>
+    <p class="frame-subtitle">Architecture</p>
+  </header>
+  <figure class="page-fig" style="--img-w:1;">
+    <div class="r-stack">
+      <img class="fragment fade-out" data-fragment-index="0"
+           src="assets/tabpfn-v2/tabpfn-v2-encode.svg" alt="TabPFN v2: encoding">
+      <img class="fragment current-visible" data-fragment-index="0"
+           src="assets/tabpfn-v2/tabpfn-v2-within-rows-attention.svg" alt="TabPFN v2: within-rows attention">
+      <img class="fragment current-visible" data-fragment-index="1"
+           src="assets/tabpfn-v2/tabpfn-v2-inter-rows-attention.svg" alt="TabPFN v2: inter-rows attention">
+      <img class="fragment" data-fragment-index="2"
+           src="assets/tabpfn-v2/tabpfn-v2-mlp.svg" alt="TabPFN v2: MLP head">
+    </div>
+  </figure>
+</section>
+
+<!-- Frame 3 — Discussion (placeholder) -->
+<section id="v2-disc">
+  <header class="frame-head">
+    <h2 class="frame-title">TabPFNv2</h2>
+    <p class="frame-subtitle">Discussion</p>
+  </header>
+</section>
