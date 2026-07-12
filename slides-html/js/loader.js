@@ -45,21 +45,154 @@
     { file: 'sections/appendix.html',                toc: null },
   ];
 
-  /* ---- outline list, optionally with one section highlighted ---- */
+  /* ---- outline list, optionally with one section highlighted ----
+     Every <li> carries data-goto-id pointing at that section's divider
+     slide's id ("divider-N") — clicking it teleports there (see
+     gotoSlideById / the delegated click listener below). This powers
+     both the main Outline slide and every per-section divider's own
+     outline list, so a click always jumps regardless of which one
+     you're looking at. */
   function outlineHTML(currentIdx) {
     return SECTIONS.filter(s => s.toc !== null).map((s, i) =>
-      `<li class="${currentIdx != null && i !== currentIdx ? 'dimmed' : ''}">${s.toc}</li>`
+      `<li class="${currentIdx != null && i !== currentIdx ? 'dimmed' : ''}" data-goto-id="divider-${i}">${s.toc}</li>`
     ).join('');
   }
 
   function dividerSlide(idx) {
     const sec = document.createElement('section');
+    sec.id = `divider-${idx}`;
     sec.className = 'toc-slide section-divider';
     sec.innerHTML = `
       <header class="frame-head"><h2 class="frame-title">Outline</h2></header>
       <ul class="toc">${outlineHTML(idx)}</ul>`;
     return sec;
   }
+
+  /* ---- outline click-to-navigate ----
+     Delegated (survives the outline HTML being (re)written) so it
+     works for the main Outline slide (data-outline) and every
+     per-section divider alike. */
+  function gotoSlideById(id) {
+    if (!Reveal.isReady()) return;
+    const target = document.getElementById(id);
+    if (!target) return;
+    const idx = Reveal.getSlides().indexOf(target);
+    if (idx !== -1) Reveal.slide(idx);
+  }
+
+  document.addEventListener('click', e => {
+    const li = e.target.closest('[data-goto-id]');
+    if (li) gotoSlideById(li.dataset.gotoId);
+  });
+
+  /* ---- generic click-to-open iframe pop-up (data-modal-src) ----
+     Any element carrying data-modal-src opens that URL in a centered
+     iframe overlay instead of navigating slides — used for inline
+     "explore this" hints (see sections/statistical_foundations.html
+     #sf-approx). One backdrop element is lazily created and reused.
+     Reveal's keyboard nav is disabled while open so arrow keys reach
+     the iframe's own controls (e.g. a slider) instead of flipping
+     slides underneath; Escape (or a backdrop click) closes it. */
+  function ensureModal() {
+    let backdrop = document.getElementById('viz-modal-backdrop');
+    if (backdrop) return backdrop;
+    backdrop = document.createElement('div');
+    backdrop.id = 'viz-modal-backdrop';
+    backdrop.className = 'viz-modal-backdrop';
+    backdrop.innerHTML =
+      '<div class="viz-modal">' +
+        '<button type="button" class="viz-modal-close" aria-label="Close">&times;</button>' +
+        '<iframe class="viz-modal-frame"></iframe>' +
+      '</div>';
+    document.body.appendChild(backdrop);
+    backdrop.addEventListener('click', e => {
+      if (e.target === backdrop) closeModal();
+    });
+    backdrop.querySelector('.viz-modal-close').addEventListener('click', closeModal);
+    return backdrop;
+  }
+
+  function openModal(src, title) {
+    const backdrop = ensureModal();
+    const iframe = backdrop.querySelector('.viz-modal-frame');
+    iframe.title = title || 'Interactive visualization';
+    iframe.src = src;
+    backdrop.classList.add('open');
+    if (Reveal.isReady()) Reveal.configure({ keyboard: false });
+  }
+
+  function closeModal() {
+    const backdrop = document.getElementById('viz-modal-backdrop');
+    if (!backdrop || !backdrop.classList.contains('open')) return;
+    backdrop.classList.remove('open');
+    backdrop.querySelector('.viz-modal-frame').src = ''; /* stop e.g. sliders/animations */
+    if (Reveal.isReady()) Reveal.configure({ keyboard: true });
+  }
+
+  document.addEventListener('click', e => {
+    const trigger = e.target.closest('[data-modal-src]');
+    if (trigger) openModal(trigger.dataset.modalSrc, trigger.dataset.modalTitle);
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      closeModal();
+      closeQaModal();
+    }
+  });
+
+  /* ---- audience Q&A pop-up (.audience-qa > [data-audience-qa]) ----
+     Circled ? buttons open a text overlay for spontaneous audience
+     questions — separate from speaker notes. Content lives in a sibling
+     <template class="audience-qa-body"> (KaTeX is run on open). Copy
+     the .audience-qa block onto any slide; add .audience-qa--bl to pin
+     it to the bottom-left corner. */
+  function ensureQaModal() {
+    let backdrop = document.getElementById('qa-modal-backdrop');
+    if (backdrop) return backdrop;
+    backdrop = document.createElement('div');
+    backdrop.id = 'qa-modal-backdrop';
+    backdrop.className = 'qa-modal-backdrop';
+    backdrop.innerHTML =
+      '<div class="qa-modal" role="dialog" aria-modal="true">' +
+        '<button type="button" class="qa-modal-close" aria-label="Close">&times;</button>' +
+        '<div class="qa-modal-body"></div>' +
+      '</div>';
+    document.body.appendChild(backdrop);
+    backdrop.addEventListener('click', e => {
+      if (e.target === backdrop) closeQaModal();
+    });
+    backdrop.querySelector('.qa-modal-close').addEventListener('click', closeQaModal);
+    return backdrop;
+  }
+
+  function openQaModal(trigger) {
+    const wrap = trigger.closest('.audience-qa');
+    const tmpl = wrap && wrap.querySelector('template.audience-qa-body');
+    if (!tmpl) return;
+    const backdrop = ensureQaModal();
+    const body = backdrop.querySelector('.qa-modal-body');
+    body.innerHTML = tmpl.innerHTML;
+    renderMathInElement(body, KATEX_OPTS);
+    backdrop.classList.add('open');
+    trigger.setAttribute('aria-expanded', 'true');
+    if (Reveal.isReady()) Reveal.configure({ keyboard: false });
+  }
+
+  function closeQaModal() {
+    const backdrop = document.getElementById('qa-modal-backdrop');
+    if (!backdrop || !backdrop.classList.contains('open')) return;
+    backdrop.classList.remove('open');
+    backdrop.querySelector('.qa-modal-body').innerHTML = '';
+    document.querySelectorAll('[data-audience-qa][aria-expanded="true"]')
+      .forEach(btn => btn.setAttribute('aria-expanded', 'false'));
+    if (Reveal.isReady()) Reveal.configure({ keyboard: true });
+  }
+
+  document.addEventListener('click', e => {
+    const trigger = e.target.closest('[data-audience-qa]');
+    if (trigger) openQaModal(trigger);
+  });
 
   /* ---- overlay-state helper (Beamer \only / \alt emulation) ----
      Fragments tagged data-slide-class="X" toggle class X on their
@@ -124,7 +257,13 @@
       const { w, h, deckScale } = fittedViewport();
       applyDeckScale(deckScale);
       Reveal.configure({ width: w, height: h });
+      /* Figures.renderAll() rewrites [data-fig] hosts with fresh raw
+         \(...\) KaTeX source (e.g. metapanel axis labels) — it must be
+         followed by a KaTeX pass every time it runs, not just on the
+         initial build(), or a resize repaints those labels as literal
+         un-typeset text ("\(\cdots\)") instead of rendered math. */
       Figures.renderAll(slidesElRef);
+      renderMathInElement(slidesElRef, KATEX_OPTS);
     }, 120);
   }
 

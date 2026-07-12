@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<!-- ===================================================================
+  interactive/locality-bias.html — companion pop-up for the "Bias and
+  the Need for Locality" slide (sections/statistical_foundations.html
+  #sf-bias; opened via data-modal-src, see js/loader.js).
+
+  What it shows — the label-flipping experiment of Theorem 5.4 in [4]:
+  binary labels Y ~ Bernoulli(p0(1|x)); the "Scramble far labels"
+  button resamples every label OUTSIDE the epsilon-window around the
+  test point x* from an adversarial p-tilde (constant 0.9 — see the
+  comment at P_TILDE for why not 1 - p0). Two predictors are
+  evaluated at x*:
+    - LOCAL (window smoother over the epsilon-window): unchanged;
+    - GLOBAL (softly tilted average over ALL samples — an attention-
+      like predictor): jumps.
+  Moral: a predictor whose bias vanishes for every plausible truth
+  cannot care about far-away labels, i.e. must behave like the local
+  one. The global/attention predictor keeps a residual dependence on
+  far samples — its bias cannot vanish (cf. Theorem 6.3).
+
+  Style/layout conventions follow interactive/n-as-regulariser.html.
+=================================================================== -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Locality: Scramble Far-Away Labels</title>
+    <style>
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            margin: 0;
+            padding: 12px 20px;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #ffffff;
+            color: #0f172a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #viz-container {
+            width: 100%;
+            max-width: 1000px;
+            flex: 1 1 auto;
+            min-height: 0;
+            position: relative;
+            display: flex;
+        }
+        svg {
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        #legend {
+            position: absolute;
+            top: 12px;
+            right: 14px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            pointer-events: none;
+        }
+        .legend-item { display: flex; align-items: center; margin-bottom: 4px; }
+        .legend-item:last-child { margin-bottom: 0; }
+        .legend-color { width: 16px; height: 3px; margin-right: 8px; border-radius: 2px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; flex: 0 0 auto; }
+        #controls-container {
+            width: 100%;
+            max-width: 1000px;
+            flex: 0 0 auto;
+            margin-top: 10px;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 10px 20px;
+            box-sizing: border-box;
+            display: grid;
+            grid-template-columns: 1fr auto auto auto;
+            gap: 20px;
+            align-items: center;
+        }
+        .control-group { display: flex; flex-direction: column; gap: 8px; }
+        .control-label {
+            font-size: 14px; font-weight: 600; color: #1e293b;
+            display: flex; justify-content: space-between;
+        }
+        input[type=range] { width: 100%; cursor: pointer; }
+        button {
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #0f172a;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        button:hover { background: #f1f5f9; }
+        button.active { background: #7c3aed; border-color: #7c3aed; color: #ffffff; }
+        .metric-box {
+            display: flex; flex-direction: column; justify-content: center;
+            padding-left: 16px; border-left: 1px solid #cbd5e1;
+        }
+        .metric-title {
+            font-size: 12px; color: #64748b; text-transform: uppercase;
+            letter-spacing: 0.5px; margin-bottom: 4px;
+        }
+        .metric-value { font-size: 16px; font-weight: 700; color: #0f172a; }
+        .metric-delta { font-size: 12px; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<div id="viz-container">
+    <svg id="plot" viewBox="0 0 1000 470" preserveAspectRatio="xMidYMid meet">
+        <g id="grid-lines"></g>
+        <rect id="window-band" fill="rgba(249, 115, 22, 0.10)" stroke="rgba(249, 115, 22, 0.45)"
+              stroke-width="1" stroke-dasharray="4,3"></rect>
+        <path id="p0-line" fill="none" stroke="#94a3b8" stroke-width="2.5"></path>
+        <!-- half-transparent traces of the two predictors across ALL query x -->
+        <path id="local-trace" fill="none" stroke="#f97316" stroke-width="3" opacity="0.42"
+              stroke-linecap="round" stroke-linejoin="round"></path>
+        <path id="global-trace" fill="none" stroke="#0d9488" stroke-width="3" opacity="0.42"
+              stroke-linecap="round" stroke-linejoin="round"></path>
+        <g id="points-layer"></g>
+        <line id="test-line" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,3"></line>
+        <g id="pred-markers"></g>
+        <text id="test-star" font-size="26" fill="#ef4444" text-anchor="middle">&#9733;</text>
+    </svg>
+    <div id="legend">
+        <div class="legend-item"><div class="legend-color" style="background:#94a3b8;"></div>
+            <span>true p<sub>0</sub>(1 | x)</span></div>
+        <div class="legend-item"><div class="dot" style="background:#ef4444;"></div>
+            <span>samples (rows y = 0 / y = 1)</span></div>
+        <div class="legend-item"><div class="dot" style="background:none; border:2px solid #7c3aed; box-sizing:border-box;"></div>
+            <span>scrambled label (drawn from adversarial p&#771;(1|x) = 0.9)</span></div>
+        <div class="legend-item"><div class="legend-color" style="background:#f97316; opacity:0.5;"></div>
+            <span>local predictor &mdash; &epsilon;-window (&#9642; value at x*)</span></div>
+        <div class="legend-item"><div class="legend-color" style="background:#0d9488; opacity:0.5;"></div>
+            <span>global predictor &mdash; attention-like (&#9642; value at x*)</span></div>
+    </div>
+</div>
+
+<div id="controls-container">
+    <div class="control-group">
+        <div class="control-label">
+            <span>Test Point (x*)</span>
+            <span id="x-val">0.50</span>
+        </div>
+        <input type="range" id="x-slider" min="0.05" max="0.95" step="0.01" value="0.5">
+    </div>
+    <button id="scramble-btn">Scramble far labels</button>
+    <div class="metric-box">
+        <span class="metric-title">Local prediction &Delta;</span>
+        <span id="local-val" class="metric-value">&ndash;</span>
+        <span id="local-delta" class="metric-delta" style="color:#16a34a;"></span>
+    </div>
+    <div class="metric-box">
+        <span class="metric-title">Global prediction &Delta;</span>
+        <span id="global-val" class="metric-value">&ndash;</span>
+        <span id="global-delta" class="metric-delta" style="color:#dc2626;"></span>
+    </div>
+</div>
+
+<script>
+    const N = 150;
+    const EPS = 0.08;          /* the epsilon_n window around x* */
+    const KAPPA = 2.0;         /* mildness of the global predictor's tilt */
+
+    let seed = 733;
+    function random() {
+        let x = Math.sin(seed++) * 10000;
+        return x - Math.floor(x);
+    }
+    const p0 = x => 0.5 + 0.4 * Math.sin(2 * Math.PI * x);
+
+    /* fixed samples: original labels ~ p0; alternative labels drawn
+       from an adversarial CONSTANT p-tilde(1|x) = 0.9 — a pointwise
+       flip (1 - p0) would cancel out in the aggregate (its mean over
+       the domain is still 0.5) and the global predictor would barely
+       move, hiding the effect the pop-up exists to show */
+    const P_TILDE = 0.9;
+    const pts = [];
+    for (let i = 0; i < N; i++) {
+        const x = random();
+        const y = random() < p0(x) ? 1 : 0;
+        const yAlt = random() < P_TILDE ? 1 : 0;
+        const jit = (random() - 0.5) * 0.07;
+        pts.push({ x, y, yAlt, jit });
+    }
+
+    let scrambled = false;
+    const isFar = (p, xq) => Math.abs(p.x - xq) > EPS;
+    const labelOf = (p, xq) => (scrambled && isFar(p, xq)) ? p.yAlt : p.y;
+
+    /* Both predictors evaluated at a QUERY position q, under the label
+       configuration scrambled relative to the (fixed) test point xStar:
+       labelOf(p, xStar) is a sample's current label — original if it sits
+       inside xStar's eps-window, resampled from p-tilde if it is far. */
+    /* local predictor: plain average over the eps-window around q */
+    function localAt(q, xStar) {
+        let s = 0, c = 0;
+        for (const p of pts) if (Math.abs(p.x - q) <= EPS) { s += labelOf(p, xStar); c++; }
+        return c > 0 ? s / c : 0.5;
+    }
+    /* global predictor: softly tilted average over ALL samples, weights
+       ~ exp(-kappa |x - q|) — an attention-like soft localization that
+       never fully discards far samples */
+    function globalAt(q, xStar) {
+        let num = 0, den = 0;
+        for (const p of pts) {
+            const w = Math.exp(-KAPPA * Math.abs(p.x - q));
+            num += w * labelOf(p, xStar);
+            den += w;
+        }
+        return num / den;
+    }
+    /* prediction AT the test point x* = evaluate at q = xStar = xq */
+    const localPred = xq => localAt(xq, xq);
+    const globalPred = xq => globalAt(xq, xq);
+
+    /* build a semi-transparent trace across all query x for a predictor */
+    function tracePath(predAt, xStar) {
+        let d = '';
+        for (let j = 0; j <= 200; j++) {
+            const q = j / 200;
+            d += `${j === 0 ? 'M' : 'L'} ${gx(q).toFixed(1)} ${gy(predAt(q, xStar)).toFixed(1)} `;
+        }
+        return d;
+    }
+
+    /* ---- geometry ---- */
+    const W = 1000, H = 470, PX = 50, PY = 42;
+    const gx = v => PX + v * (W - 2 * PX);
+    const gy = v => H - PY - (v + 0.12) / 1.24 * (H - 2 * PY);   /* y in [-0.12, 1.12] */
+
+    function grid() {
+        let h = '';
+        [0, 0.25, 0.5, 0.75, 1].forEach(v => {
+            const y = gy(v);
+            h += `<line x1="${PX}" y1="${y}" x2="${W - PX}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>` +
+                 `<text x="${PX - 8}" y="${y + 4}" font-size="12" fill="#64748b" text-anchor="end">${v}</text>`;
+        });
+        for (let i = 0; i <= 10; i++) {
+            const x = gx(i / 10);
+            h += `<line x1="${x}" y1="${PY}" x2="${x}" y2="${H - PY}" stroke="#f1f5f9" stroke-width="1"/>`;
+        }
+        document.getElementById('grid-lines').innerHTML = h;
+    }
+
+    function p0Path() {
+        let d = '';
+        for (let j = 0; j <= 200; j++) {
+            const x = j / 200;
+            d += `${j === 0 ? 'M' : 'L'} ${gx(x).toFixed(1)} ${gy(p0(x)).toFixed(1)} `;
+        }
+        document.getElementById('p0-line').setAttribute('d', d);
+    }
+
+    /* predictions BEFORE scrambling (reference for the deltas) */
+    let baseLocal = 0, baseGlobal = 0;
+
+    const slider = document.getElementById('x-slider');
+
+    function update() {
+        const xq = parseFloat(slider.value);
+        document.getElementById('x-val').innerText = xq.toFixed(2);
+
+        /* reference = original labels at this x* */
+        const wasScrambled = scrambled;
+        scrambled = false;
+        baseLocal = localPred(xq); baseGlobal = globalPred(xq);
+        scrambled = wasScrambled;
+
+        const lp = localPred(xq), gp = globalPred(xq);
+
+        /* window band */
+        const band = document.getElementById('window-band');
+        band.setAttribute('x', gx(Math.max(0, xq - EPS)));
+        band.setAttribute('width', gx(Math.min(1, xq + EPS)) - gx(Math.max(0, xq - EPS)));
+        band.setAttribute('y', PY);
+        band.setAttribute('height', H - 2 * PY);
+
+        /* samples: rows at y=0 / y=1 (+ jitter); scrambled ones hollow violet */
+        let h = '';
+        for (const p of pts) {
+            const lbl = labelOf(p, xq);
+            const cx = gx(p.x).toFixed(1), cy = gy(lbl + p.jit).toFixed(1);
+            if (scrambled && isFar(p, xq)) {
+                h += `<circle cx="${cx}" cy="${cy}" r="4.5" fill="none" stroke="#7c3aed" stroke-width="2"/>`;
+            } else {
+                h += `<circle cx="${cx}" cy="${cy}" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="1.2"/>`;
+            }
+        }
+        document.getElementById('points-layer').innerHTML = h;
+
+        /* half-transparent predictor traces across all query x */
+        document.getElementById('local-trace').setAttribute('d', tracePath(localAt, xq));
+        document.getElementById('global-trace').setAttribute('d', tracePath(globalAt, xq));
+
+        /* test point + prediction markers on the probability axis */
+        const tx = gx(xq);
+        const tl = document.getElementById('test-line');
+        tl.setAttribute('x1', tx); tl.setAttribute('y1', PY);
+        tl.setAttribute('x2', tx); tl.setAttribute('y2', H - PY);
+        const star = document.getElementById('test-star');
+        star.setAttribute('x', tx); star.setAttribute('y', H - PY + 26);
+
+        document.getElementById('pred-markers').innerHTML =
+            `<rect x="${tx - 24}" y="${gy(lp) - 6}" width="12" height="12" rx="2"
+                   fill="#f97316" stroke="#ffffff" stroke-width="1.5"/>` +
+            `<rect x="${tx + 12}" y="${gy(gp) - 6}" width="12" height="12" rx="2"
+                   fill="#0d9488" stroke="#ffffff" stroke-width="1.5"/>`;
+
+        /* metrics */
+        document.getElementById('local-val').innerText = lp.toFixed(3);
+        document.getElementById('global-val').innerText = gp.toFixed(3);
+        document.getElementById('local-delta').innerText =
+            scrambled ? `Δ = ${Math.abs(lp - baseLocal).toFixed(3)} (unchanged)` : '';
+        document.getElementById('global-delta').innerText =
+            scrambled ? `Δ = ${Math.abs(gp - baseGlobal).toFixed(3)} (moved!)` : '';
+    }
+
+    slider.addEventListener('input', update);
+    const btn = document.getElementById('scramble-btn');
+    btn.addEventListener('click', () => {
+        scrambled = !scrambled;
+        btn.classList.toggle('active', scrambled);
+        btn.innerText = scrambled ? 'Restore original labels' : 'Scramble far labels';
+        update();
+    });
+
+    grid();
+    p0Path();
+    update();
+</script>
+</body>
+</html>

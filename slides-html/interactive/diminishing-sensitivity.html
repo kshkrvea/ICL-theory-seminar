@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<!-- ===================================================================
+  interactive/diminishing-sensitivity.html — companion pop-up for the
+  "Variance and Diminishing Sensitivity" slide
+  (sections/statistical_foundations.html #sf-variance; opened via
+  data-modal-src, see js/loader.js).
+
+  What it shows — condition (5) of [4] AND its consequence:
+    a fixed "pre-trained" predictor (Nadaraya-Watson smoother, bandwidth
+    frozen = the tuned theta) is fed D_n and a copy D_n' in which ONE
+    sample's label is pushed far off. LEFT: both prediction curves —
+    they visibly coincide as n grows (condition (5)) — over a shaded
+    Var band = E[q] +/- 1 std estimated from an ensemble of K
+    independent D_n's; the band (Theorem 5.2's CONCLUSION, the variance
+    term of the bias-variance split) narrows with n. RIGHT: log-log plot
+    of sup_x |q(D_n) - q(D_n')| vs n against a slope -1 guide, i.e.
+    (5) holds with alpha = 1, so Theorem 5.2 gives ~n^(-1/2) deviations
+    (variance ~ 1/n; readout n x Var[q] ~ const).
+
+  Style/layout conventions follow interactive/n-as-regulariser.html
+  (white bg, orange primary, teal secondary, red data points, controls
+  grid with metric boxes; body fills the iframe, overflow hidden).
+=================================================================== -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Diminishing Sensitivity: Swap One Sample</title>
+    <style>
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            margin: 0;
+            padding: 12px 20px;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #ffffff;
+            color: #0f172a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #viz-row {
+            width: 100%;
+            max-width: 1040px;
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            gap: 12px;
+        }
+        .panel {
+            position: relative;
+            min-width: 0;
+            display: flex;
+        }
+        #main-panel { flex: 1 1 62%; }
+        #rate-panel { flex: 1 1 38%; }
+        svg {
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        .panel-title {
+            position: absolute;
+            top: 10px;
+            left: 14px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #334155;
+            pointer-events: none;
+        }
+        #legend {
+            position: absolute;
+            top: 30px;
+            left: 14px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 8px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            pointer-events: none;
+        }
+        .legend-item { display: flex; align-items: center; margin-bottom: 4px; }
+        .legend-item:last-child { margin-bottom: 0; }
+        .legend-color { width: 16px; height: 3px; margin-right: 8px; border-radius: 2px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
+        #controls-container {
+            width: 100%;
+            max-width: 1040px;
+            flex: 0 0 auto;
+            margin-top: 10px;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 10px 20px;
+            box-sizing: border-box;
+            display: grid;
+            grid-template-columns: 1fr auto auto auto auto;
+            gap: 18px;
+            align-items: center;
+        }
+        .control-group { display: flex; flex-direction: column; gap: 8px; }
+        .control-label {
+            font-size: 14px; font-weight: 600; color: #1e293b;
+            display: flex; justify-content: space-between;
+        }
+        input[type=range] { width: 100%; cursor: pointer; }
+        button {
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #0f172a;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        button:hover { background: #f1f5f9; }
+        .metric-box {
+            display: flex; flex-direction: column; justify-content: center;
+            padding-left: 16px; border-left: 1px solid #cbd5e1;
+        }
+        .metric-title {
+            font-size: 12px; color: #64748b; text-transform: uppercase;
+            letter-spacing: 0.5px; margin-bottom: 4px;
+        }
+        .metric-value { font-size: 16px; font-weight: 700; color: #0f172a; }
+    </style>
+</head>
+<body>
+
+<div id="viz-row">
+    <div class="panel" id="main-panel">
+        <svg id="fit-plot" viewBox="0 0 620 430" preserveAspectRatio="xMidYMid meet">
+            <g id="fit-grid"></g>
+            <!-- variance band: E[q] ± 1 std over random D_n (Theorem 5.2's
+                 conclusion — it narrows as n grows) -->
+            <path id="var-band" fill="rgba(249, 115, 22, 0.16)" stroke="none"></path>
+            <line id="swap-arrow" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="3,3"></line>
+            <path id="q-line" fill="none" stroke="#f97316" stroke-width="4"
+                  stroke-linecap="round" stroke-linejoin="round"></path>
+            <path id="q-prime-line" fill="none" stroke="#0d9488" stroke-width="2.5"
+                  stroke-dasharray="7,5" stroke-linecap="round" stroke-linejoin="round"></path>
+            <g id="fit-points"></g>
+        </svg>
+        <div id="legend">
+            <div class="legend-item"><div class="legend-color" style="background:#f97316; height:4px;"></div>
+                <span>prediction on D<sub>n</sub></span></div>
+            <div class="legend-item"><div class="legend-color" style="background:#0d9488;"></div>
+                <span>prediction on D&prime;<sub>n</sub> (one sample swapped)</span></div>
+            <div class="legend-item"><div class="legend-color" style="background:rgba(249,115,22,0.30); height:10px; border-radius:2px;"></div>
+                <span>Var band: E[q] &plusmn; 1 std over random D<sub>n</sub></span></div>
+            <div class="legend-item"><div class="dot" style="background:#ef4444;"></div>
+                <span>samples&nbsp;&middot;&nbsp;<span style="color:#7c3aed;">&#9679;</span> swapped one</span></div>
+        </div>
+    </div>
+    <div class="panel" id="rate-panel">
+        <span class="panel-title">sup |&Delta; prediction| vs n &nbsp;(log&ndash;log)</span>
+        <svg id="rate-plot" viewBox="0 0 400 430" preserveAspectRatio="xMidYMid meet">
+            <g id="rate-grid"></g>
+            <path id="ref-line" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6,4"></path>
+            <path id="rate-line" fill="none" stroke="#64748b" stroke-width="2.5"
+                  stroke-linecap="round" stroke-linejoin="round"></path>
+            <g id="rate-marks"></g>
+            <circle id="rate-current" r="6" fill="#f97316" stroke="#ffffff" stroke-width="2"></circle>
+            <text id="ref-label" font-size="12" fill="#94a3b8"></text>
+        </svg>
+    </div>
+</div>
+
+<div id="controls-container">
+    <div class="control-group">
+        <div class="control-label">
+            <span>Context Size (n)</span>
+            <span id="n-val">20</span>
+        </div>
+        <input type="range" id="n-slider" min="10" max="300" value="20">
+    </div>
+    <button id="reswap-btn">Swap a different sample</button>
+    <div class="metric-box">
+        <span class="metric-title">sup |&Delta; prediction|</span>
+        <span id="delta-val" class="metric-value">&ndash;</span>
+    </div>
+    <div class="metric-box">
+        <span class="metric-title">n &times; sup |&Delta;| (&asymp; const &rArr; &alpha; = 1)</span>
+        <span id="ndelta-val" class="metric-value">&ndash;</span>
+    </div>
+    <div class="metric-box">
+        <span class="metric-title">Var[q] over random D<sub>n</sub> &nbsp;(&darr; with n)</span>
+        <span id="var-val" class="metric-value">&ndash;</span>
+    </div>
+</div>
+
+<script>
+    /* ---- data: fixed sequence, so growing n only ADDS samples ---- */
+    const N_MAX = 300;
+    const BANDWIDTH = 0.10;      /* the frozen "pre-trained" theta */
+    const SWAP_SHIFT = 0.7;      /* how far the swapped label is pushed */
+
+    let seed = 271;
+    function random() {
+        let x = Math.sin(seed++) * 10000;
+        return x - Math.floor(x);
+    }
+    function targetFunction(x) {
+        return 0.5 + 0.22 * Math.sin(2 * Math.PI * x) + 0.12 * Math.cos(6 * Math.PI * x);
+    }
+
+    const pts = [];
+    for (let i = 0; i < N_MAX; i++) {
+        const x = random();
+        const y = targetFunction(x) + (random() - 0.5) * 0.08;
+        pts.push({ x, y });
+    }
+
+    /* ---- ensemble of K independent D_n's (same DGP) — used only to
+       ESTIMATE the predictor's variance E[(q - E q)^2]; pts above is
+       one more draw from the same distribution ---- */
+    const K_ENS = 12;
+    const ensemble = [];
+    for (let k = 0; k < K_ENS; k++) {
+        const ds = [];
+        for (let i = 0; i < N_MAX; i++) {
+            const x = random();
+            const y = targetFunction(x) + (random() - 0.5) * 0.08;
+            ds.push({ x, y });
+        }
+        ensemble.push(ds);
+    }
+    function predictOn(ds, n, xq) {
+        let num = 0, den = 0;
+        for (let i = 0; i < n; i++) {
+            const u = (xq - ds[i].x) / BANDWIDTH;
+            const w = Math.exp(-0.5 * u * u);
+            num += w * ds[i].y; den += w;
+        }
+        return den > 1e-12 ? num / den : 0.5;
+    }
+    /* per-x mean & std over the ensemble, plus the x-averaged variance */
+    function varBand(n) {
+        const mean = [], sd = [];
+        let totVar = 0;
+        for (let j = 0; j <= RES; j++) {
+            const x = j / RES;
+            let m = 0;
+            const vals = ensemble.map(ds => predictOn(ds, n, x));
+            for (const v of vals) m += v; m /= K_ENS;
+            let vv = 0; for (const v of vals) vv += (v - m) * (v - m); vv /= K_ENS;
+            mean.push([x, m]); sd.push(Math.sqrt(vv)); totVar += vv;
+        }
+        return { mean, sd, avgVar: totVar / (RES + 1) };
+    }
+
+    /* swapped sample: index < 5 so it is present for every n >= 5 */
+    let swapIdx = 0;
+    const swappedY = i => pts[i].y > 0.5 ? pts[i].y - SWAP_SHIFT : pts[i].y + SWAP_SHIFT;
+
+    /* ---- Nadaraya-Watson smoother ---- */
+    function predict(n, xq, useSwap) {
+        let num = 0, den = 0;
+        for (let i = 0; i < n; i++) {
+            const yi = (useSwap && i === swapIdx) ? swappedY(i) : pts[i].y;
+            const u = (xq - pts[i].x) / BANDWIDTH;
+            const w = Math.exp(-0.5 * u * u);
+            num += w * yi;
+            den += w;
+        }
+        return den > 1e-12 ? num / den : 0.5;
+    }
+
+    const RES = 160;
+    function curves(n) {
+        const q = [], qp = [];
+        let sup = 0;
+        for (let j = 0; j <= RES; j++) {
+            const x = j / RES;
+            const a = predict(n, x, false);
+            const b = predict(n, x, true);
+            q.push([x, a]); qp.push([x, b]);
+            sup = Math.max(sup, Math.abs(a - b));
+        }
+        return { q, qp, sup };
+    }
+
+    /* ---- left panel geometry ---- */
+    const FW = 620, FH = 430, FPX = 40, FPY = 30;
+    const YMIN = -0.45, YMAX = 1.25;   /* room for the swapped label */
+    const fx = v => FPX + v * (FW - 2 * FPX);
+    const fy = v => FH - FPY - (v - YMIN) / (YMAX - YMIN) * (FH - 2 * FPY);
+
+    function fitGrid() {
+        let h = '';
+        for (let i = 0; i <= 8; i++) {
+            const y = FPY + i * (FH - 2 * FPY) / 8;
+            h += `<line x1="${FPX}" y1="${y}" x2="${FW - FPX}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>`;
+        }
+        for (let i = 0; i <= 10; i++) {
+            const x = fx(i / 10);
+            h += `<line x1="${x}" y1="${FPY}" x2="${x}" y2="${FH - FPY}" stroke="#f1f5f9" stroke-width="1"/>`;
+        }
+        document.getElementById('fit-grid').innerHTML = h;
+    }
+
+    const pathOf = c => c.map(([x, y], j) =>
+        `${j === 0 ? 'M' : 'L'} ${fx(x).toFixed(1)} ${fy(y).toFixed(1)}`).join(' ');
+
+    /* ---- right panel: sup|Δq| over a geometric n-grid (log-log) ---- */
+    const nGrid = [];
+    for (let n = 10; n <= N_MAX; n = Math.max(n + 1, Math.round(n * 1.35))) nGrid.push(n);
+    if (nGrid[nGrid.length - 1] !== N_MAX) nGrid.push(N_MAX);
+
+    const RW = 400, RH = 430, RPX = 46, RPY = 34;
+    let rateData = [];   /* [n, sup] */
+
+    function computeRates() {
+        rateData = nGrid.map(n => [n, curves(n).sup]);
+    }
+
+    function drawRates(nCurrent, supCurrent) {
+        const lx = v => Math.log10(v), ly = v => Math.log10(Math.max(v, 1e-6));
+        const xs = rateData.map(d => lx(d[0]));
+        const ys = rateData.map(d => ly(d[1]));
+        const x0 = Math.min(...xs), x1 = Math.max(...xs);
+        const y0 = Math.min(...ys) - 0.15, y1 = Math.max(...ys) + 0.15;
+        const rx = v => RPX + (lx(v) - x0) / (x1 - x0) * (RW - 2 * RPX);
+        const ry = v => RH - RPY - (ly(v) - y0) / (y1 - y0) * (RH - 2 * RPY);
+
+        let g = '';
+        for (let i = 0; i <= 5; i++) {
+            const y = RPY + i * (RH - 2 * RPY) / 5;
+            g += `<line x1="${RPX}" y1="${y}" x2="${RW - RPX}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>`;
+        }
+        [10, 30, 100, 300].forEach(n => {
+            const x = rx(n);
+            g += `<line x1="${x}" y1="${RPY}" x2="${x}" y2="${RH - RPY}" stroke="#f1f5f9" stroke-width="1"/>` +
+                 `<text x="${x}" y="${RH - RPY + 16}" font-size="11" fill="#64748b" text-anchor="middle">${n}</text>`;
+        });
+        document.getElementById('rate-grid').innerHTML = g;
+
+        document.getElementById('rate-line').setAttribute('d',
+            rateData.map((d, j) => `${j === 0 ? 'M' : 'L'} ${rx(d[0]).toFixed(1)} ${ry(d[1]).toFixed(1)}`).join(' '));
+
+        document.getElementById('rate-marks').innerHTML = rateData.map(d =>
+            `<circle cx="${rx(d[0]).toFixed(1)}" cy="${ry(d[1]).toFixed(1)}" r="3.5" fill="#64748b"/>`).join('');
+
+        /* slope -1 guide anchored at the first measured point */
+        const c = rateData[0][1] * rateData[0][0];   /* sup ~ c / n */
+        document.getElementById('ref-line').setAttribute('d',
+            `M ${rx(nGrid[0]).toFixed(1)} ${ry(c / nGrid[0]).toFixed(1)} ` +
+            `L ${rx(N_MAX).toFixed(1)} ${ry(c / N_MAX).toFixed(1)}`);
+        const lbl = document.getElementById('ref-label');
+        lbl.setAttribute('x', rx(40));
+        lbl.setAttribute('y', ry(c / 40) - 10);
+        lbl.textContent = 'slope -1  (~ 1/n)';
+
+        const cur = document.getElementById('rate-current');
+        cur.setAttribute('cx', rx(nCurrent));
+        cur.setAttribute('cy', ry(Math.max(supCurrent, 1e-6)));
+    }
+
+    /* ---- update ---- */
+    const slider = document.getElementById('n-slider');
+
+    function update() {
+        const n = parseInt(slider.value);
+        document.getElementById('n-val').innerText = n;
+
+        const { q, qp, sup } = curves(n);
+        document.getElementById('q-line').setAttribute('d', pathOf(q));
+        document.getElementById('q-prime-line').setAttribute('d', pathOf(qp));
+
+        /* variance band: E[q] ± 1 std over the ensemble */
+        const vb = varBand(n);
+        const up = vb.mean.map(([x, m], j) => [fx(x), fy(m + vb.sd[j])]);
+        const lo = vb.mean.map(([x, m], j) => [fx(x), fy(m - vb.sd[j])]);
+        let bd = `M ${up[0][0].toFixed(1)} ${up[0][1].toFixed(1)}`;
+        for (let j = 1; j < up.length; j++) bd += ` L ${up[j][0].toFixed(1)} ${up[j][1].toFixed(1)}`;
+        for (let j = lo.length - 1; j >= 0; j--) bd += ` L ${lo[j][0].toFixed(1)} ${lo[j][1].toFixed(1)}`;
+        document.getElementById('var-band').setAttribute('d', bd + ' Z');
+
+        let h = '';
+        for (let i = 0; i < n; i++) {
+            if (i === swapIdx) continue;
+            h += `<circle cx="${fx(pts[i].x).toFixed(1)}" cy="${fy(pts[i].y).toFixed(1)}" r="4"
+                          fill="#ef4444" stroke="#ffffff" stroke-width="1.2"/>`;
+        }
+        /* the swapped sample: hollow ring at the original label, filled
+           violet dot at the pushed-off label, dashed connector */
+        const sx = fx(pts[swapIdx].x), sy0 = fy(pts[swapIdx].y), sy1 = fy(swappedY(swapIdx));
+        h += `<circle cx="${sx.toFixed(1)}" cy="${sy0.toFixed(1)}" r="5.5"
+                      fill="none" stroke="#7c3aed" stroke-width="2"/>` +
+             `<circle cx="${sx.toFixed(1)}" cy="${sy1.toFixed(1)}" r="5.5"
+                      fill="#7c3aed" stroke="#ffffff" stroke-width="1.5"/>`;
+        document.getElementById('fit-points').innerHTML = h;
+        const arrow = document.getElementById('swap-arrow');
+        arrow.setAttribute('x1', sx); arrow.setAttribute('y1', sy0);
+        arrow.setAttribute('x2', sx); arrow.setAttribute('y2', sy1);
+
+        document.getElementById('delta-val').innerText = sup.toFixed(4);
+        document.getElementById('ndelta-val').innerText = (n * sup).toFixed(2);
+        document.getElementById('var-val').innerText = vb.avgVar.toFixed(5);
+        drawRates(n, sup);
+    }
+
+    slider.addEventListener('input', update);
+    document.getElementById('reswap-btn').addEventListener('click', () => {
+        swapIdx = (swapIdx + 1 + Math.floor(random() * 4)) % 5;  /* stays < 5: in every D_n */
+        computeRates();
+        update();
+    });
+
+    fitGrid();
+    computeRates();
+    update();
+</script>
+</body>
+</html>

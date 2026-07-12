@@ -394,7 +394,7 @@
        scale 0.5 => 0.4 effective; embed as nested <svg> positioned so
        its center is the icon's node coordinate */
     const iconScale = 0.8 * 0.5;         /* \scalebox{0.8} x panel scale 0.5 */
-    const iconSz = 1.4 * iconScale * PX_PER_CM;
+    const iconSz = 1.4 * iconScale * pxPerCm();
     const icon = (fn, xc) => {
       const cx = m.X(xc) - iconSz / 2, cy = m.Y(-1.85) - iconSz / 2;
       return `<g transform="translate(${cx},${cy})">${fn(iconScale)
