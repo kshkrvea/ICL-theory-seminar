@@ -40,16 +40,29 @@
 <section id="icl-vs">
   <header class="frame-head">
     <h2 class="frame-title">TabICL</h2>
+    <p class="frame-subtitle">TabICL vs. TabPFNv2</p>
   </header>
   <figure class="page-fig" style="--img-w:1; --img-y:56px;">
     <img src="assets/tabicl/tabicl-vs-tabpfnv2.png" alt="TabICL vs TabPFNv2">
   </figure>
 </section>
 
-<!-- Frame 3 — Discussion (placeholder) -->
+<!-- Frame 3 — TabICL vs TabPFNv2 empirical time comparison -->
 <section id="icl-disc">
   <header class="frame-head">
     <h2 class="frame-title">TabICL</h2>
-    <p class="frame-subtitle">Discussion</p>
+    <p class="frame-subtitle">TabICL vs. TabPFNv2</p>
   </header>
+  <figure class="page-fig" style="--img-w:0.7; --img-y:0px;">
+    <img src="assets/tabicl/tabicl-vs-tabpfnv2-empirical.png" alt="TabICL vs TabPFNv2">
+    <figcaption>
+      Training+inference times of TabICL and TabPFNv2.<br>
+      Each point represents the time on one dataset.
+    </figcaption>
+  </figure>
+
+  <aside class="notes">
+    So here the main point is that by arcitectual optimizations they achieved more efficient computations, 
+    and "used" this gap to train on larger context sizes => perform better in that case
+  </aside>
 </section>

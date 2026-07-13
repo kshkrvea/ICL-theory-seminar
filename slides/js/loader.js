@@ -16,7 +16,10 @@
 
    HOW TO ADJUST:
      - Add/rename/reorder sections: edit SECTIONS below. `toc` is the
-       TOC label; the optional `cite` is the .bib key of the section's
+       TOC label; set `toc: null` to omit a section from outline slides
+       and skip its divider (appendix behavior). Optional `menu` + `goto`
+       add a section to the corner dropdown without putting it on the
+       outline. The optional `cite` is the .bib key of the section's
        paper — it is rendered as a citation marker ONLY on that section's
        own divider slide (see outlineHTML), so the same paper is not
        re-cited on every outline slide.
@@ -46,12 +49,26 @@
     { file: 'sections/tabicl.html',                  toc: 'TabICL',
       cite: 'quTabICLTabularFoundation2025' },
     { file: 'sections/recent_sota.html',             toc: 'SOTA' },
-    { file: 'sections/connections.html',             toc: 'Connections to Other Topics' },
+    { file: 'sections/beyond_predictions.html',      toc: 'Beyond Predictions' },
     { file: 'sections/conclusion.html',              toc: 'Conclusion' },
-    { file: 'sections/appendix.html',                toc: null },
+    { file: 'sections/appendix.html',                toc: null, menu: 'Appendix', goto: 'apx-hp-priors' },
   ];
 
   const TOC_SECTIONS = SECTIONS.filter(s => s.toc !== null);
+
+  /* Section dropdown: outline sections plus any `menu` extras (e.g. appendix). */
+  function sectionMenuItems() {
+    const items = [];
+    let divIdx = 0;
+    for (const s of SECTIONS) {
+      if (s.toc !== null) {
+        items.push({ label: s.toc, gotoId: `divider-${divIdx++}` });
+      } else if (s.menu) {
+        items.push({ label: s.menu, gotoId: s.goto });
+      }
+    }
+    return items;
+  }
 
   /* ---- outline list, optionally with one section highlighted ----
      Every <li> carries data-goto-id pointing at that section's divider
@@ -132,10 +149,10 @@
     el.className = 'section-menu';
     el.innerHTML =
       '<ul class="section-menu-list">' +
-      TOC_SECTIONS.map((s, i) =>
-        `<li data-goto-id="divider-${i}">` +
+      sectionMenuItems().map((item, i) =>
+        `<li data-goto-id="${item.gotoId}">` +
           `<span class="n">${String(i + 1).padStart(2, '0')}</span>` +
-          `<span class="t">${s.toc}</span>` +
+          `<span class="t">${item.label}</span>` +
         '</li>').join('') +
       '</ul>' +
       '<div class="section-menu-hint">Type a slide number, then <kbd>&crarr;</kbd></div>';
@@ -143,8 +160,8 @@
     return el;
   }
 
-  /* mark the section that contains the current slide (the last divider
-     at or before it; the appendix keeps the last section marked) */
+  /* mark the section that contains the current slide (the last menu target
+     at or before it) */
   function highlightCurrentSection() {
     if (!sectionMenuEl || !Reveal.isReady()) return;
     const slides = Reveal.getSlides();

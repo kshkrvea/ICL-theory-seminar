@@ -140,6 +140,14 @@
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  function formatUrldate(raw) {
+    const m = clean(raw).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return clean(raw);
+    const [, y, mo, d] = m;
+    const month = MONTHS[mo.toLowerCase()] || mo;
+    return parseInt(d, 10) + ' ' + month + ' ' + y;
+  }
+
   /* one formatted reference line (plain-bibliography look, matching the
      old main.bbl output the hardcoded list reproduced) */
   function formatEntry(e) {
@@ -174,6 +182,10 @@
       html += esc(title);
       if (monthYear) html += ', ' + monthYear + '.';
       else if (title && !/[.?!]$/.test(title)) html += '.';
+    }
+    if (f.url) {
+      html += ' ' + esc(clean(f.url)) + '.';
+      if (f.urldate) html += ' Accessed ' + esc(formatUrldate(f.urldate)) + '.';
     }
     return html;
   }

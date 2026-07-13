@@ -3,16 +3,29 @@
   (section "SOTA", 2 empty placeholder frames).
 =================================================================== -->
 
-<section id="sota-tabpfnv3">
+<section id="ota-tabpfnv3">
   <header class="frame-head">
-    <h2 class="frame-title">Recent Sota Models</h2>
-    <p class="frame-subtitle">TabPFNv3</p>
+    <h2 class="frame-title">Current SOTA</h2>
   </header>
-</section>
+  <figure class="page-fig" style="--img-w:1.05; --img-y:0px;">
+    <img src="assets/sota/tabarena.png" alt="tabarena latest leaderboard">
+    <figcaption>
+      TabArena leaderboard <span class="cite" data-cite="tabarenaLeaderboard2026"></span>
+      for 51 datasets (all datasets, all tasks).
+    </figcaption>
+  </figure>
 
-<section id="sota-tabfm">
-  <header class="frame-head">
-    <h2 class="frame-title">Recent Sota Models</h2>
-    <p class="frame-subtitle">Google TabFM</p>
-  </header>
+  <aside class="notes">
+    To mention:
+    -> All top-5 is tabular foundation model.<br>
+    -> Tab FM is from Google Research, released in end of June 2026, no technical details available.<br>
+    -> TabPFN v3 is another incremental improvement of previous models: 
+    adopted tabicl's ideas, further enreached prior, added support of text features (e.g. company's name), 
+    Thinking mode: not too much details, from what I understood they allocate more comp. resources, select target matric (roc-auc)
+    and ensemble predictions on boot-strapped + augmented contexts. This mode beats Google's model but for some reason not in the leaderboard. <br>
+    <br>
+
+    Main conclusion: hot developing topic, models keep improving.
+
+  </aside>
 </section>
