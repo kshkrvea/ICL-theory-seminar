@@ -1,0 +1,274 @@
+<!-- ===================================================================
+  sections/tabpfn.html — port of slides/sections/tabpfn.tex (11 frames).
+
+  Slides, in order:
+    1.  tp-pipeline      Prior-fitting and Inference   (2-step image swap)
+    2.  tp-bnn           Bayesian Neural Networks Prior  (INTERACTIVE iframe,
+                         replaces the 8-step BNN_Prior_Step_*.pdf flip)
+    3.  tp-scm           Structural Causal Models Prior  (INTERACTIVE iframe,
+                         replaces the 8-step SCM_Prior_Step_*.pdf flip)
+    4.  tp-prior-example Synhtetic Prior Example       (image)
+    5.  tp-architecture  Architecture                  (3-step SVG swap + loss caption)
+    6.  tp-decision      Experiments & Results         (image)
+    7.  tp-performance   Experiments & Results         (2-step image swap)
+    8.  tp-extrapolation Experiments & Results         (image)
+    9.  tp-ensembling    Experiments & Results         (3-step swap, caption grows)
+    10. tp-complex       Experiments & Results         (image + magenta highlights)
+    11. tp-conclusions   TabPFN                        (7-step itemized blocks)
+
+  Image placement: every .page-fig header comment lists the ORIGINAL
+  LaTeX knobs; remember --img-y flips sign (LaTeX -0.5cm down = +40px).
+  Image swaps use reveal's r-stack recipe: first image .fade-out,
+  middles .current-visible, last plain .fragment — same index steps
+  as the \only<n> chain.
+=================================================================== -->
+
+<!-- ============================================================
+  Frame 1 — Prior-fitting and Inference
+  \only<1>{pipeline-less-saturate.png}\only<2>{pipeline.png}
+  \imgwidth=0.9  \imgx=0  \imgy=-0.5cm  ->  --img-y:+40px
+============================================================ -->
+<section id="tp-pipeline">
+  <header class="frame-head">
+    <h2 class="frame-title">TabPFN</h2>
+    <p class="frame-subtitle">Prior-fitting and Inference</p>
+  </header>
+  <figure class="page-fig" style="--img-w:0.9; --img-y:40px;">
+    <div class="r-stack">
+      <img class="fragment fade-out" data-fragment-index="0"
+           src="assets/tabpfn/architecture/pipeline-less-saturate.png" alt="TabPFN pipeline (dimmed)">
+      <img class="fragment" data-fragment-index="0"
+           src="assets/tabpfn/architecture/pipeline.png" alt="TabPFN pipeline">
+    </div>
+  </figure>
+</section>
+
+<!-- ============================================================
+  Frame 2 — Bayesian Neural Networks Prior  (INTERACTIVE)
+  Replaces the 8-step \only<1..8> PDF flip of BNN_Prior_Step_*.pdf.
+  Source app: slides/figures/tabpfn/bnn/bnn.html; adapted copy:
+  interactive/bnn.html (export chrome stripped, layout made to fill
+  the iframe box — see the header comment in that file).
+============================================================ -->
+<section id="tp-bnn">
+  <header class="frame-head">
+    <h2 class="frame-title">TabPFN</h2>
+    <p class="frame-subtitle">Bayesian Neural Networks Prior</p>
+  </header>
+  <div class="iframe-fill">
+    <iframe data-src="interactive/bnn.html" data-preload
+            title="Interactive BNN prior construction"></iframe>
+  </div>
+</section>
+
+<!-- ============================================================
+  Frame 3 — Structural Causal Models Prior  (INTERACTIVE)
+  Replaces the 8-step \only<1..8> PDF flip of SCM_Prior_Step_*.pdf.
+  Source app: slides/figures/tabpfn/scm/scm.html; adapted copy:
+  interactive/scm.html.
+============================================================ -->
+<section id="tp-scm">
+  <header class="frame-head">
+    <h2 class="frame-title">TabPFN</h2>
+    <p class="frame-subtitle">Structural Causal Models Prior</p>
+  </header>
+  <div class="iframe-fill">
+    <iframe data-src="interactive/scm.html" data-preload
+            title="Interactive SCM prior construction"></iframe>
+  </div>
+</section>
+
+<!-- ============================================================
+  Frame 4 — Synhtetic Prior Example   [sic — title kept verbatim]
+  \imgwidth=1  \imgy=-1cm  ->  --img-y:+80px
+============================================================ -->
+<section id="tp-prior-example">
+  <header class="frame-head">
+    <h2 class="frame-title">TabPFN</h2>
+    <p class="frame-subtitle">Synhtetic Prior Example</p>
+  </header>
+  <figure class="page-fig" style="--img-w:1; --img-y:80px;">
+    <img src="assets/tabpfn/prior-data/datasets.png" alt="Synthetic prior datasets">
+  </figure>
+</section>
+
+<!-- ============================================================
+  Frame 5 — Architecture (3-step swap of the converted v1 PDFs)
+  \only<1>encode  \only<2>attention  \only<3>mlp
+  \imgwidth=1.0  \imgy=0
+  Caption (\imglabel) exists ONLY on step 3 (\only<3>): the PFN loss.
+  Caption gap: below=0.5cm of img -> --cap-gap:40px.
+============================================================ -->
+<section id="tp-architecture">
+  <header class="frame-head">
+    <h2 class="frame-title">TabPFN</h2>
+    <p class="frame-subtitle">Architecture</p>
+  </header>
+  <figure class="page-fig" style="--img-w:1; --cap-gap:40px;">
+    <div class="r-stack">
+      <img class="fragment fade-out" data-fragment-index="0"
+           src="assets/tabpfn/architecture/tabpfn-v1-encode.svg" alt="TabPFN v1: encoding">
+      <img class="fragment current-visible" data-fragment-index="0"
+           src="assets/tabpfn/architecture/tabpfn-v1-attention.svg" alt="TabPFN v1: attention">
+      <img class="fragment" data-fragment-index="1"
+           src="assets/tabpfn/architecture/tabpfn-v1-mlp.svg" alt="TabPFN v1: MLP head">
+    </div>
+    <figcaption class="fragment" data-fragment-index="1">
+      \(\mathcal{L}_{\text{PFN}} = \mathbb{E}_{{\color{blue}\varphi \sim \mathbb{P}_{\Phi}},\,
+        {\color{teal}\mathcal{D}_n \cup (Y_{\text{test}},\, X_{\text{test}}) \sim (\mathcal{D}_{n+1} \mid \varphi)}}
+        \big[-\log {q_{\theta}(Y_{\text{test}} \mid X_{\text{test}}, \mathcal{D}_n)}\big]\)
+    </figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================
+  Frame 6 — Experiments & Results (decision boundaries)
+  \imgwidth=0.9  \imgy=-0.3cm  ->  --img-y:+24px
+============================================================ -->
+<section id="tp-decision">
+  <header class="frame-head">
+    <h2 class="frame-title">TabPFN</h2>
+    <p class="frame-subtitle">Experiments &amp; Results</p>
+  </header>
+  <figure class="page-fig" style="--img-w:0.9; --img-y:24px;">
+    <img src="assets/tabpfn/performance/decision-boundaries.png" alt="Decision boundaries">
+    <figcaption>Decision boundaries on toy datasets generated with scikit-learn.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================
+  Frame 7 — Experiments & Results (ROC AUC vs time budget)
+  \only<1>performance.png  \only<2>performance-transparent.png
+  \imgwidth=0.9  \imgy=-0.3cm  ->  --img-y:+24px
+============================================================ -->
+<section id="tp-performance">
+  <header class="frame-head">
+    <h2 class="frame-title">TabPFN</h2>
+    <p class="frame-subtitle">Experiments &amp; Results</p>
+  </header>
+  <figure class="page-fig" style="--img-w:0.9; --img-y:24px;">
+    <div class="r-stack">
+      <img class="fragment fade-out" data-fragment-index="0"
+           src="assets/tabpfn/performance/performance.png" alt="ROC AUC vs budget">
+      <img class="fragment" data-fragment-index="0"
+           src="assets/tabpfn/performance/performance-transparent.png" alt="ROC AUC vs budget (baselines dimmed)">
+    </div>
+    <figcaption>ROC AUC as a function of the time allowed to train &amp; tune methods.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================
+  Frame 8 — Experiments & Results (extrapolation)
+  \imgwidth=0.75  \imgy=-0.3cm -> +24px;  caption: \shortstack 2 lines,
+  below=-0.2cm of img -> --cap-gap:-16px (caption tucked close).
+============================================================ -->
+<section id="tp-extrapolation">
+  <header class="frame-head">
+    <h2 class="frame-title">TabPFN</h2>
+    <p class="frame-subtitle">Experiments &amp; Results</p>
+  </header>
+  <figure class="page-fig" style="--img-w:0.75; --img-y:24px; --cap-gap:-16px;">
+    <img src="assets/tabpfn/performance/extrapolation.png" alt="Extrapolation beyond training sizes">
+    <figcaption>
+      Performance on dataset sizes never seen during training.<br>
+      Dashed line is the maximum dataset size seen during training.
+    </figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================
+  Frame 9 — Experiments & Results (correlations -> ensembling)
+  \only<1>correlations \only<2>correlations-highlighted \only<3>ensembling-table
+  \imgwidth=1  \imgy=-0.2cm -> +16px
+  Caption line 2 appears only on step 3 (\only<3> inside \shortstack).
+============================================================ -->
+<section id="tp-ensembling">
+  <header class="frame-head">
+    <h2 class="frame-title">TabPFN</h2>
+    <p class="frame-subtitle">Experiments &amp; Results</p>
+  </header>
+  <figure class="page-fig" style="--img-w:1; --img-y:16px;">
+    <div class="r-stack">
+      <img class="fragment fade-out" data-fragment-index="0"
+           src="assets/tabpfn/ensembling/correlations.png" alt="Method correlations">
+      <img class="fragment current-visible" data-fragment-index="0"
+           src="assets/tabpfn/ensembling/correlations-highlighted.png" alt="Method correlations (highlighted)">
+      <img class="fragment" data-fragment-index="1"
+           src="assets/tabpfn/ensembling/ensembling-table.png" alt="Ensembling results">
+    </div>
+    <figcaption>
+      Spearman correlation of ROC AUC performance (left);<br>
+      <span class="fragment" data-fragment-index="1">Ensemble performance of TabPFN and AutoGluon (right).</span>
+    </figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================
+  Frame 10 — Experiments & Results (complex tasks + highlights)
+  \imgwidth=1  \imgy=-0.2cm -> +16px
+  The two magenta rectangles appear on step 2 (\only<2>). Coordinates
+  are FRACTIONS of the image box, straight from tabpfn.tex:
+    rect 1: left .30  right .38  bottom .75  top .85
+    rect 2: left .58  right .66  bottom .75  top .85
+  CSS mapping (y flipped): left=left, width=right-left,
+                           top=1-top,  height=top-bottom.
+============================================================ -->
+<section id="tp-complex">
+  <header class="frame-head">
+    <h2 class="frame-title">TabPFN</h2>
+    <p class="frame-subtitle">Experiments &amp; Results</p>
+  </header>
+  <figure class="page-fig" style="--img-w:1; --img-y:16px; --cap-gap:20px;">
+    <img src="assets/tabpfn/performance/performance-complex-tasks.png"
+         alt="Performance by dataset characteristics">
+    <div class="hl-overlay fragment" data-fragment-index="0">
+      <div class="hl-rect" style="left:30%; width:8%; top:15%; height:10%;"></div>
+      <div class="hl-rect" style="left:58%; width:8%; top:15%; height:10%;"></div>
+    </div>
+    <figcaption>Performance on datasets, divided by dataset characteristics.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================
+  Frame 11 — TabPFN (no subtitle): Conclusions + Limitations
+  \footnotesize; both itemizes are [<+->]: items appear one per step,
+  numbering continues across the blocks (Beamer beamerpauses), so:
+    conclusions item 1  visible from the start
+    conclusions item 2  fragment 0
+    limitations items 1-5  fragments 1-5
+============================================================ -->
+<section id="tp-conclusions" class="footnotesize">
+  <header class="frame-head">
+    <h2 class="frame-title">TabPFN</h2>
+  </header>
+  <div class="frame-body">
+    <div class="block">
+      <div class="block-title">Recepie</div>
+      <div class="block-body">
+        <ul style="margin-bottom:0;">
+          <li class="fragment" data-fragment-index="0">Generate millions of synthetic datasets;</li>
+          <li class="fragment" data-fragment-index="1">Pre-train a transformer;</li>
+          <li class="fragment" data-fragment-index="2">Approximate the PPD and predicts on a new dataset in one forward pass;</li>
+          <li class="fragment" data-fragment-index="3">Beat the strongest AutoML baselines in seconds rather than hours.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="alertblock">
+      <div class="block-title">Limitations</div>
+      <div class="block-body">
+        <ul style="margin-bottom:0;">
+          <li class="fragment" data-fragment-index="4">Focuses on datasets with \(n \le 10\text{k}\), 
+            \(\le 100\) numerical features and \(\le 10\) classes; beyond these limits baselines
+              still win.</li>
+          <li class="fragment" data-fragment-index="5">Memory scales <em>quadratically</em>
+              with <em>n</em>;</li>
+          <li class="fragment" data-fragment-index="6">Supports only classification,
+              without regression.</li>
+          <li class="fragment" data-fragment-index="7">Only approximates causal reasoning
+              over a distribution of SCMs, without explicitly performing it.</li>
+          <li class="fragment" data-fragment-index="8">Only IID samples.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>

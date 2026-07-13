@@ -1,0 +1,638 @@
+/* =====================================================================
+   Deck theme — modern light theme (2026 refresh of the old metropolis
+   port). Same class hooks and geometry knobs as before; only the visual
+   system changed:
+     * Inter (sans) for text, KaTeX keeps its LaTeX math font;
+     * slate ink + orange accent palette (CSS variables below);
+     * frame head = small uppercase section kicker (h2.frame-title)
+       over a large headline (p.frame-subtitle) — pure CSS inversion,
+       slides without a subtitle render their title big via :has();
+     * blocks are rounded cards with an accent side bar;
+     * numbered outline, styled progress bar / slide number, no arrows.
+
+   Coordinate system: design grid 1280×720 px (Beamer 16×9 cm at 80 px/cm).
+   The slide canvas is resized to the viewport at scale 1; --deck-scale
+   proportionally scales every px length below.
+
+   HOW TO ADJUST:
+     - Colors: the :root block below.
+     - Global font scale: .reveal font-size (26px base).
+     - Iframe inset: --fill-top/left/right/bottom on .iframe-fill (inherited
+       from parent <section>).
+     - Body text inset: --body-top/pad-top/pad-bottom on <section>.
+     - ? button inset: --qa-left/bottom on <section>.
+     - Frame kicker/headline size + spacing: .frame-head block.
+     - Block / alertblock styling: .block / .alertblock.
+===================================================================== */
+
+:root {
+  /* set by js/loader.js = fittedViewport width / 1280; scales layout px */
+  --deck-scale: 1;
+
+  /* palette */
+  --ink:            #17242c;   /* headings, strong text        */
+  --body-fg:        #243440;   /* body text                    */
+  --muted:          #5e7078;   /* subtitles, captions, chrome  */
+  --accent:         #e8661a;   /* primary accent (orange)      */
+  --accent-deep:    #c65310;   /* hover / darker accent        */
+  --sec:            #0e7b70;   /* secondary accent (teal)      */
+  --surface:        #f5f7f8;   /* card background              */
+  --surface-border: #e3e8eb;   /* card hairline                */
+  --alert-surface:  #fdf1e7;   /* alert card tint              */
+  --alert-border:   #f5d9c2;
+  --rule:           rgba(23, 36, 44, 0.12);
+  --dim-fg:         #b9c4c9;   /* dimmed TOC entries           */
+
+  /* legacy aliases (older per-slide styles reference these) */
+  --mDarkTeal: var(--ink);
+  --mAlert:    var(--accent);
+
+  /* semantic formula colors (LaTeX names used in the sources),
+     modernized hues — same roles, easier on a projector */
+  --tex-blue:   #2458e6;
+  --tex-teal:   #0f8c82;
+  --tex-olive:  #82861e;
+  --tex-red:    #e23d2e;
+  --tex-blueolive: #2d5dd2;  /* blue!90!olive */
+  --tex-redolive:  #c55329;  /* red!70!olive  */
+}
+
+/* ---------- global type ---------- */
+.reveal {
+  font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  font-size: calc(26px * var(--deck-scale));
+  font-weight: 400;
+  line-height: 1.42;
+  color: var(--body-fg);
+  background: #ffffff;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv05' 1, 'cv11' 1; /* Inter: open l/a shapes */
+}
+.reveal-viewport { background: #ffffff; }
+
+/* SHARPNESS: drop reveal's 3D compositing (transition is fade-only). */
+.reveal .slides { perspective: none !important; }
+
+.reveal .slides > section,
+.reveal .slides > section > section {
+  text-align: left;
+  padding: 0 calc(48px * var(--deck-scale));
+  height: 100%;
+  box-sizing: border-box;
+  flex-direction: column;
+  backface-visibility: visible !important;
+  transform-style: flat !important;
+}
+
+/* body area under the frame head; .vcenter = \vspace*{\fill} ... \vspace*{\fill}
+   Optional per-slide inset (design px, inherit from <section>):
+     --body-top, --body-pad-top, --body-pad-bottom */
+.frame-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: calc(var(--body-top, 0px) * var(--deck-scale));
+  padding-top: calc(var(--body-pad-top, 0px) * var(--deck-scale));
+  padding-bottom: calc(var(--body-pad-bottom, 0px) * var(--deck-scale));
+}
+.frame-body.vcenter {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-bottom: calc(26px * var(--deck-scale));
+}
+
+.reveal strong { font-weight: 600; color: var(--ink); }
+.reveal em { font-style: italic; }
+.reveal sup { font-size: 0.62em; }
+
+.small        { font-size: calc(22.5px * var(--deck-scale)); }
+.footnotesize { font-size: calc(20px * var(--deck-scale)); }
+.scriptsize   { font-size: calc(17px * var(--deck-scale)); }
+
+/* ---------- frame head: kicker + headline ----------
+   h2.frame-title  = section name  -> small uppercase kicker
+   p.frame-subtitle = slide topic  -> big headline
+   Slides without a subtitle keep the big style on the h2 (via :has()).
+   Total head height stays ~130px so body/figure insets are unchanged. */
+.frame-head {
+  margin: 0 calc(-48px * var(--deck-scale)) calc(24px * var(--deck-scale));
+  padding: calc(24px * var(--deck-scale)) calc(48px * var(--deck-scale)) calc(14px * var(--deck-scale));
+  border-bottom: 1px solid var(--rule);
+  position: relative;
+}
+/* short accent bar sitting on the hairline */
+.frame-head::after {
+  content: '';
+  position: absolute;
+  left: calc(48px * var(--deck-scale));
+  bottom: -2px;
+  width: calc(52px * var(--deck-scale));
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.frame-title {
+  font-size: calc(34px * var(--deck-scale));
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin: 0;
+  line-height: 1.18;
+}
+/* with a subtitle present, the title collapses into a kicker ... */
+.frame-head:has(.frame-subtitle) .frame-title {
+  font-size: calc(14.5px * var(--deck-scale));
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 calc(7px * var(--deck-scale));
+}
+/* ... and the subtitle becomes the headline */
+.frame-subtitle {
+  font-size: calc(33px * var(--deck-scale));
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin: 0;
+  line-height: 1.18;
+}
+.frame-title .cite { font-weight: 500; }
+
+/* ---------- title page ---------- */
+.title-slide { justify-content: center; }
+.title-slide::before {              /* soft corner wash, title page only */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(46% 60% at 88% -12%, rgba(232, 102, 26, 0.10), transparent 70%),
+    radial-gradient(40% 55% at -8% 110%, rgba(14, 123, 112, 0.08), transparent 70%);
+  pointer-events: none;
+}
+.title-block { width: 100%; position: relative; }
+.title-rule {                        /* accent bar ABOVE the title */
+  order: -1;
+  width: calc(76px * var(--deck-scale));
+  height: calc(6px * var(--deck-scale));
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent), #f0a35e);
+  margin-bottom: calc(26px * var(--deck-scale));
+}
+.title-block { display: flex; flex-direction: column; align-items: flex-start; }
+.title-slide h1 {
+  font-size: calc(58px * var(--deck-scale));
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.06;
+  color: var(--ink);
+  margin: 0 0 calc(18px * var(--deck-scale));
+}
+.title-subtitle {
+  font-size: calc(24px * var(--deck-scale));
+  font-weight: 450;
+  color: var(--muted);
+  margin: 0 0 calc(72px * var(--deck-scale));
+}
+.title-author {
+  font-size: calc(25px * var(--deck-scale));
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 calc(8px * var(--deck-scale));
+}
+.title-date {
+  font-size: calc(21px * var(--deck-scale));
+  color: var(--muted);
+  margin: 0;
+}
+
+/* ---------- outline / dividers ---------- */
+.toc {
+  list-style: none;
+  margin: calc(14px * var(--deck-scale)) 0 0;
+  padding: 0;
+  counter-reset: tocitem;
+}
+.reveal .toc > li {
+  counter-increment: tocitem;
+  display: flex;
+  align-items: baseline;
+  gap: calc(18px * var(--deck-scale));
+  margin: 0 0 calc(19px * var(--deck-scale));
+  padding-left: 0;
+  font-size: calc(29px * var(--deck-scale));
+  font-weight: 550;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.reveal .toc > li::before {          /* 01 02 03 ...; overrides the
+                                        generic list tick entirely */
+  content: counter(tocitem, decimal-leading-zero);
+  position: static;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: none;
+  font-size: calc(17px * var(--deck-scale));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  flex: 0 0 calc(34px * var(--deck-scale));
+}
+.reveal .toc > li.dimmed { color: var(--dim-fg); }
+.reveal .toc > li.dimmed::before { color: var(--dim-fg); }
+/* click-to-navigate (js/loader.js gotoSlideById) */
+.reveal .toc > li[data-goto-id] { cursor: pointer; transition: color 0.15s, transform 0.15s; }
+.reveal .toc > li[data-goto-id]:hover { color: var(--accent-deep); transform: translateX(calc(4px * var(--deck-scale))); }
+.reveal .toc > li.dimmed[data-goto-id]:hover { color: var(--muted); }
+
+/* ---------- lists ---------- */
+.reveal ul, .reveal ol { margin: 0 0 0 1.1em; }
+.reveal ul { list-style: none; }
+.reveal ul > li { position: relative; padding-left: 0.35em; margin-bottom: 0.5em; }
+.reveal ul > li::before {            /* rounded accent tick */
+  content: '';
+  position: absolute;
+  left: -0.85em;
+  top: 0.5em;
+  width: 0.34em;
+  height: 0.34em;
+  border-radius: 0.11em;
+  background: var(--accent);
+}
+.reveal ul ul > li::before { background: var(--sec); opacity: 0.75; }
+.reveal ol { list-style: decimal; }
+.reveal ol > li { padding-left: 0.2em; margin-bottom: 0.5em; }
+.reveal ol > li::marker { color: var(--accent); font-weight: 600; }
+
+/* ---------- blocks (cards) ---------- */
+.block, .alertblock {
+  margin: 0.6em 0;
+  font-size: inherit;
+  border-radius: calc(12px * var(--deck-scale));
+  overflow: hidden;
+  border: 1px solid var(--surface-border);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(23, 36, 44, 0.04);
+  position: relative;
+}
+.block::before, .alertblock::before {   /* accent side bar */
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: calc(4px * var(--deck-scale));
+  background: var(--sec);
+}
+.alertblock { background: var(--alert-surface); border-color: var(--alert-border); }
+.alertblock::before { background: var(--accent); }
+.block .block-title, .alertblock .block-title {
+  background: transparent;
+  color: var(--sec);
+  font-weight: 650;
+  font-size: 0.82em;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  padding: calc(13px * var(--deck-scale)) calc(20px * var(--deck-scale)) 0;
+}
+.alertblock .block-title { color: var(--accent-deep); }
+.block .block-body, .alertblock .block-body {
+  background: transparent;
+  padding: calc(8px * var(--deck-scale)) calc(20px * var(--deck-scale)) calc(14px * var(--deck-scale));
+}
+.center { text-align: center; }
+
+/* alerted list items (\item<alert@n>) get this class via overlay CSS */
+.alerted { color: var(--accent) !important; }
+
+/* ---------- math ---------- */
+/* KaTeX keeps its LaTeX font; 1.03em balances the serif math x-height
+   against the Inter body. */
+.reveal .katex { font-size: 1.03em; }
+.reveal .katex-display { margin: 0.55em 0; }
+.formula-line { margin: 0.55em 0; }        /* generic display-formula wrapper */
+
+/* ---------- speaker notes are invisible on-slide ---------- */
+.reveal aside.notes { display: none; }
+
+/* ---------- iframe slides (interactive visualizations) ----------
+   Inset the iframe box with design-px custom properties (scaled by
+   --deck-scale). Defaults match the original 48 / 128 / 16 px margins.
+   Usage on any .iframe-fill:
+     style="--fill-left:96px; --fill-right:96px;
+            --fill-top:200px; --fill-bottom:60px"
+   Larger values shrink the box toward the center on that edge. ---- */
+.iframe-fill {
+  position: absolute;
+  left: calc(var(--fill-left, 48px) * var(--deck-scale));
+  right: calc(var(--fill-right, 48px) * var(--deck-scale));
+  top: calc(var(--fill-top, 128px) * var(--deck-scale));
+  bottom: calc(var(--fill-bottom, 16px) * var(--deck-scale));
+}
+.iframe-fill iframe {
+  width: 100%; height: 100%;
+  border: 0;
+  background: #ffffff;
+}
+
+/* ---------- click-to-open iframe pop-up (js/loader.js: data-modal-src) --
+   Viewport-fixed, so it ignores --deck-scale/the reveal canvas entirely
+   and just centers over whatever the browser window actually is. ---- */
+.viz-modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 41, 0.45);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.viz-modal-backdrop.open { display: flex; }
+.viz-modal {
+  position: relative;
+  width: min(1100px, 92vw);
+  height: min(640px, 86vh);
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 24px 70px rgba(10, 20, 30, 0.35);
+  overflow: hidden;
+}
+.viz-modal-frame {
+  width: 100%; height: 100%;
+  border: 0;
+  display: block;
+}
+.viz-modal-close {
+  position: absolute;
+  top: 10px; right: 12px;
+  width: 32px; height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(23, 36, 44, 0.07);
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 1;
+  transition: background 0.15s;
+}
+.viz-modal-close:hover { background: rgba(23, 36, 44, 0.16); }
+
+/* ---------- audience Q&A pop-up (js/loader.js: .audience-qa) ----------
+   Click the circled ? to show a text/math answer for spontaneous
+   audience questions (distinct from speaker <aside class="notes">).
+   Reusable: copy the .audience-qa block onto any slide; put HTML/LaTeX
+   in the nested <template class="audience-qa-body">. Add
+   .audience-qa--bl to pin the ? to the bottom-left corner.
+   Optional per-slide inset (design px, inherit from <section>):
+     --qa-left, --qa-bottom ---- */
+.audience-qa {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 0.35em;
+}
+/* NB: do NOT set `position: relative` on the slide <section> here — reveal
+   already positions every `.slides > section` as `position: absolute`, so
+   the absolute .audience-qa--bl below already anchors to it. Forcing the
+   section to `relative` overrides reveal's absolute stacking and drops the
+   slide out of the deck (it renders blank). */
+.audience-qa--bl {
+  position: absolute;
+  left: calc(var(--qa-left, 48px) * var(--deck-scale));
+  bottom: calc(var(--qa-bottom, 16px) * var(--deck-scale));
+  margin-left: 0;
+  z-index: 2;
+}
+.audience-qa-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(26px * var(--deck-scale));
+  height: calc(26px * var(--deck-scale));
+  padding: 0;
+  border: 1.5px solid rgba(23, 36, 44, 0.45);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: calc(14px * var(--deck-scale));
+  font-weight: 650;
+  font-family: inherit;
+  line-height: 1;
+  cursor: pointer;
+  vertical-align: middle;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.audience-qa-btn:hover {
+  background: rgba(232, 102, 26, 0.08);
+  border-color: var(--accent);
+  color: var(--accent-deep);
+}
+.qa-modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 41, 0.45);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.qa-modal-backdrop.open { display: flex; }
+.qa-modal {
+  position: relative;
+  width: min(720px, 88vw);
+  max-height: min(480px, 80vh);
+  padding: calc(36px * var(--deck-scale)) calc(40px * var(--deck-scale))
+           calc(32px * var(--deck-scale));
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 24px 70px rgba(10, 20, 30, 0.35);
+  overflow: auto;
+  font-size: calc(14px * var(--deck-scale));
+  line-height: 1.5;
+}
+.qa-modal-body { margin: 0; }
+.qa-modal-body .katex-display { margin: 0.4em 0; }
+.qa-modal-body .qa-table {
+  margin: 0.25em 0 0;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.qa-modal-body .qa-table th,
+.qa-modal-body .qa-table td {
+  padding: 0.2em 1.2em 0.2em 0;
+  text-align: right;
+}
+.qa-modal-body .qa-table th:first-child,
+.qa-modal-body .qa-table td:first-child { padding-left: 0; }
+.qa-modal-body .qa-table th { font-weight: 600; border-bottom: 1px solid rgba(15, 23, 41, 0.2); }
+.qa-modal-close {
+  position: absolute;
+  top: 10px; right: 12px;
+  width: 32px; height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(23, 36, 44, 0.07);
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.qa-modal-close:hover { background: rgba(23, 36, 44, 0.16); }
+
+/* ---------- references ---------- */
+.references { font-size: calc(19px * var(--deck-scale)); line-height: 1.5; }
+.references .ref {
+  display: flex;
+  gap: calc(14px * var(--deck-scale));
+  margin-bottom: calc(15px * var(--deck-scale));
+}
+.references .ref .no {
+  flex: 0 0 2em;
+  color: var(--accent);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- figures ---------- */
+.page-fig figcaption { color: var(--muted); }
+
+/* ---------- partial-height inline viz (theorem slides) ----------
+   .iframe-fill variant for slides that keep a short intuitive text
+   block above the visualization: --fill-top defaults to 260px (clears
+   the text) instead of 128px under the frame head. Combine with
+   --fill-bottom / --fill-left / --fill-right to shrink from any edge.
+   Usage:
+     <div class="iframe-fill below-text"
+          style="--fill-top:250px; --fill-bottom:48px; --fill-left:80px;"> */
+.iframe-fill.below-text {
+  top: calc(var(--fill-top, 260px) * var(--deck-scale));
+}
+.iframe-fill.below-text iframe {
+  border: 1px solid var(--surface-border);
+  border-radius: calc(10px * var(--deck-scale));
+  box-sizing: border-box;
+}
+
+/* ---------- reveal chrome ---------- */
+.reveal .progress {
+  height: 3px;
+  color: var(--accent);
+  background: rgba(23, 36, 44, 0.06);
+}
+.reveal .progress span {
+  background: linear-gradient(90deg, var(--accent), #f0a35e);
+}
+/* the slide number doubles as the section-menu button (js/loader.js) */
+.reveal .slide-number {
+  right: calc(14px * var(--deck-scale));
+  bottom: calc(12px * var(--deck-scale));
+  padding: calc(3px * var(--deck-scale)) calc(9px * var(--deck-scale));
+  border-radius: 999px;
+  background: rgba(23, 36, 44, 0.05);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: calc(13px * var(--deck-scale));
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.reveal .slide-number:hover { background: rgba(232, 102, 26, 0.14); color: var(--accent-deep); }
+.reveal .slide-number a { color: inherit; text-decoration: none; }
+
+/* ---------- section menu (click the slide number) ----------
+   Frosted pop-over anchored to the bottom-right corner, above the slide
+   number; rises into place like a macOS menu. Built by js/loader.js from
+   the SECTIONS list; each row jumps to that section's divider slide. */
+.section-menu {
+  position: fixed;
+  right: calc(14px * var(--deck-scale));
+  bottom: calc(46px * var(--deck-scale));
+  z-index: 1100;
+  /* lives on <body>, outside .reveal — restate the deck font */
+  font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  min-width: calc(270px * var(--deck-scale));
+  padding: calc(7px * var(--deck-scale));
+  border: 1px solid rgba(23, 36, 44, 0.10);
+  border-radius: calc(14px * var(--deck-scale));
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px) saturate(1.7);
+  -webkit-backdrop-filter: blur(20px) saturate(1.7);
+  box-shadow: 0 calc(18px * var(--deck-scale)) calc(46px * var(--deck-scale)) rgba(10, 20, 30, 0.20),
+              0 1px 2px rgba(10, 20, 30, 0.10);
+  opacity: 0;
+  transform: translateY(calc(8px * var(--deck-scale))) scale(0.97);
+  transform-origin: 100% 100%;
+  pointer-events: none;
+  transition: opacity 0.16s ease, transform 0.18s cubic-bezier(0.2, 0.85, 0.25, 1);
+}
+.section-menu.open { opacity: 1; transform: none; pointer-events: auto; }
+
+.section-menu-list { list-style: none; margin: 0; padding: 0; }
+.section-menu-list li {
+  display: flex;
+  align-items: baseline;
+  gap: calc(12px * var(--deck-scale));
+  margin: 0;
+  padding: calc(7px * var(--deck-scale)) calc(11px * var(--deck-scale));
+  border-radius: calc(8px * var(--deck-scale));
+  font-size: calc(15px * var(--deck-scale));
+  line-height: 1.25;
+  color: var(--body-fg);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.section-menu-list li::before { content: none; }   /* not a deck bullet */
+.section-menu-list li .n {
+  flex: 0 0 auto;
+  font-size: calc(11.5px * var(--deck-scale));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.section-menu-list li:hover { background: rgba(232, 102, 26, 0.12); color: var(--accent-deep); }
+.section-menu-list li:hover .n { color: var(--accent-deep); }
+.section-menu-list li.current { background: rgba(23, 36, 44, 0.06); color: var(--ink); font-weight: 600; }
+.section-menu-list li.current .n { color: var(--accent); }
+.section-menu-list li .cite { font-weight: 400; color: var(--muted); }
+
+.section-menu-hint {
+  margin-top: calc(5px * var(--deck-scale));
+  padding: calc(7px * var(--deck-scale)) calc(11px * var(--deck-scale)) calc(3px * var(--deck-scale));
+  border-top: 1px solid rgba(23, 36, 44, 0.08);
+  font-size: calc(11.5px * var(--deck-scale));
+  color: var(--muted);
+}
+.section-menu-hint kbd {
+  padding: 0 calc(4px * var(--deck-scale));
+  border: 1px solid rgba(23, 36, 44, 0.18);
+  border-radius: calc(4px * var(--deck-scale));
+  font-family: inherit;
+  font-size: 0.95em;
+}
+
+/* ---------- reveal's jump-to-slide box (digit keys / `G`) ---------- */
+.reveal .jump-to-slide-input {
+  font-family: inherit;
+  font-size: calc(15px * var(--deck-scale));
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(16px) saturate(1.6);
+  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+  border: 1px solid rgba(23, 36, 44, 0.12);
+  border-radius: calc(9px * var(--deck-scale));
+  padding: calc(7px * var(--deck-scale)) calc(11px * var(--deck-scale));
+  box-shadow: 0 calc(10px * var(--deck-scale)) calc(28px * var(--deck-scale)) rgba(10, 20, 30, 0.18);
+  outline: none;
+}
+.reveal .jump-to-slide-input::placeholder { color: var(--muted); }
+
+::selection { background: rgba(232, 102, 26, 0.25); }

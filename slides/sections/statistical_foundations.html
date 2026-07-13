@@ -1,0 +1,660 @@
+<!-- ===================================================================
+  sections/statistical_foundations.html — port of
+  slides/sections/statistical_foundations.tex (10 frames).
+
+  Slides, in order (paper references are to pfn-theory.tex, cited as
+  naglerStatisticalFoundationsPriorData2023 via data-cite markers;
+  theorem/equation numbers follow the published paper).
+
+  Theorem-slide pattern (sf-ppd-learn, sf-variance, sf-bias,
+  sf-transformer): one INTUITIVE plain-language statement on the slide,
+  the visualization EMBEDDED inline below it (.iframe-fill.below-text;
+  --fill-top / --fill-bottom / --fill-left / --fill-right inset the
+  box), and the RAW theorem in the bottom-left
+  "?" pop-up (.audience-qa, see js/loader.js). sf-biasvar: formula
+  only + "?" context.
+
+    1.  sf-questions    Studied Questions      (4 steps: alert@1..4 cycling)
+    2.  sf-ppd-learn    When PPDs can Learn    (Thm 3.1; inline theorem_3_1.html)
+    3.  sf-approx       PFN Approximation of the PPD  (4-factor list, \S4;
+                        4th item opens interactive/n-as-regulariser.html in a pop-up —
+                        data-modal-src, see js/loader.js — instead of a separate slide)
+    4.  sf-biasvar      Bias-Variance Decomposition of PFNs  (\S5.1; colored underbraces)
+    5.  sf-variance     Variance and Diminishing Sensitivity (\S5.3: eq (5), Thm 5.2,
+                        Lemma 5.3; inline diminishing-sensitivity.html)
+    6.  sf-bias         Bias and the Need for Locality       (\S5.4: Thm 5.4;
+                        inline locality-bias.html)
+    7.  sf-transformer  Transformer Networks                 (\S6.3: Thm 6.2;
+                        inline attention-weights.html)
+    8.  sf-numerical    Numerical Validation  (\S6.5; 4-state image swap of our own
+                        src/results/ reproductions: v1 -> untrained v1 -> v2.5 -> 20k/ub10000
+                        — absorbs the deleted "Localized PFNs" placeholder)
+    9.  sf-discussion   Discussion            (main insights of the paper)
+=================================================================== -->
+
+<!-- ============================================================
+  Frame 1 — Studied Questions
+  \item<alert@n>: all four items are always visible; the ORANGE
+  highlight moves down one item per step (4 steps -> 3 fragments).
+  State classes s2/s3/s4 + the CSS at the end implement the cycle.
+============================================================ -->
+<section id="sf-questions">
+  <header class="frame-head">
+    <h2 class="frame-title">Statistical Foundations of PFNs</h2>
+    <p class="frame-subtitle">Studied Questions</p>
+  </header>
+  <div class="frame-body">
+    <ul>
+      <li class="q1">When PPDs can Learn?</li>
+      <li class="q2">How PFNs approximate PPDs?</li>
+      <li class="q3">When PFNs can learn In-Context?</li>
+      <li class="q4">Which ICL properties do transformers (in particular TabPFN) have?</li>
+    </ul>
+    <!-- invisible steps driving the alert cycle -->
+    <span class="fragment" data-fragment-index="0" data-slide-class="s2"></span>
+    <span class="fragment" data-fragment-index="1" data-slide-class="s3"></span>
+    <span class="fragment" data-fragment-index="2" data-slide-class="s4"></span>
+  </div>
+  <aside class="notes">
+    (Step 1) Since PPDs are the main motivation behind PFNs, we first ask when
+    a PPD can learn from training data.
+    (Step 2) What do we need for a good approximation of PPD?
+    (Step 3) Why can a pre-trained network still learn in the inference phase?
+    Although we know now why a PPD does, a PFN is not a valid PPD, and it is
+    only trained to approximate the PPD for limited training sizes.
+  </aside>
+</section>
+
+<!-- ============================================================
+  Frame 2 — When PPDs can Learn  (Thm 3.1 of the paper, INTERACTIVE)
+  Target style for the theorem slides: one intuitive sentence, the
+  visualization inline below it (.iframe-fill.below-text), and the
+  RAW theorem in the bottom-left "?" pop-up (.audience-qa). The old
+  in-iframe theorem box was removed from interactive/theorem_3_1.html.
+============================================================ -->
+<section id="sf-ppd-learn">
+  <header class="frame-head">
+    <h2 class="frame-title">Statistical Foundations of PFNs</h2>
+    <p class="frame-subtitle">When PPDs can Learn</p>
+  </header>
+  <div class="frame-body">
+    <p class="footnotesize"> Let \(\mathcal{S} = \{\varphi \in \Phi : \mathbb{P}_{\Phi}(\varphi) > 0\}\) be the <em>support</em> of the prior.<br>
+    <strong>Theorem 3.1. <span class="cite" data-cite="naglerStatisticalFoundationsPriorData2023"></span>:</strong> Under <em>regularity conditions</em>, there exists \(\varphi^* \in \mathcal{S}\) such that for almost every \((y, x)\)</p>
+    <p class="footnotesize center">
+        \[ \pi(y \mid x, \mathcal{D}_n) \xrightarrow[n \to \infty]{} \varphi^*(y \mid x) \quad \text{a.s.} \]
+        and \(\varphi^*\) is the KL-optimal approximation of \(p_0\) in \(\mathcal{S}\): \(\quad \varphi^* = \arg\min_{\varphi \in \mathcal{S}} \text{KL}(\varphi \parallel p_0)\).</p>
+  </div>
+  <div class="iframe-fill below-text" style="--fill-top:285px; --fill-bottom:60px">
+    <iframe data-src="interactive/theorem_3_1.html" data-preload
+            title="Interactive KL projection / PPD convergence (Theorem 3.1)"></iframe>
+  </div>
+  <span class="audience-qa audience-qa--bl">
+    <button type="button" class="audience-qa-btn" data-audience-qa
+            aria-label="Show raw theorem" aria-expanded="false">
+      <span class="audience-qa-icon" aria-hidden="true">?</span>
+    </button>
+    <template class="audience-qa-body">
+      <p>Let \(H(\varphi, \varphi')\) be the Hellinger distance
+        between \(\varphi\) and \(\varphi'\). Regularity conditions:</p>
+      <p><strong>(A1)</strong> \(\exists\) unique \(\varphi^* \in \mathcal{S}\) with
+        \(\displaystyle \varphi^* = \arg\min_{\varphi \in \mathcal{S}} \mathrm{KL}(\varphi \parallel p_0)\)
+        and \(\mathrm{KL}(\varphi^* \parallel p_0) < \infty\).</p>
+      <p><strong>(A2)</strong> For every \(\alpha \in (0, 1/2)\), there are sets
+        \(B_1, \dots, B_{J(\alpha)}\) with
+        \[ \mathcal{S} \subseteq \bigcup_{j=1}^{J(\alpha)} B_j, \qquad
+           \sup_{\varphi, \varphi' \in B_j} H(\varphi, \varphi') \le 4(\alpha^2/2)^{1/\alpha}, \qquad
+           \sum_{j=1}^{J(\alpha)} \mathbb{P}_{\Phi}(B_j)^{\alpha} < \infty. \]</p>
+    </template>
+  </span>
+  <aside class="notes">
+   ->  PPD trajectory does not generally lie within the prior support S for finite sample sizes:
+    if S is non-convex — such as a union of disjoint hypothesis classes — averaging candidate
+    models produces a predictive function that resides outside S. <br>
+   -> (A1) requires only the existence within P of a unique distribution p∗ minimizing the KLD relative to p0 <br>
+   -> (A2) prevents the distribution П from spreading significant probability mass across an infinite number of B_j: fundamentally distinct, statistically easily distinguishable hypotheses.
+
+  </aside>
+</section>
+
+<!-- ============================================================
+  Frame 3 — PFN Approximation of the PPD  (\S4 of pfn-theory.tex)
+  Four factors govern the approximation \wh\theta of Eq. (erm); listed
+  here as a plain <ul> (same pattern as sf-questions). Items 1-3 are
+  the usual DL suspects (model capacity, hypothesis-space capacity, MC
+  sample size); item 4 — the prior over context sizes P_N — has no
+  analogue outside PFNs, so it's paired with
+  interactive/n-as-regulariser.html embedded inline below the list
+  (.iframe-fill.below-text, preloaded via data-preload). The iframe
+  box itself carries class="fragment" so it only appears on the
+  slide's second click/step — first click shows the bare bullet list.
+============================================================ -->
+<section id="sf-approx">
+  <header class="frame-head">
+    <h2 class="frame-title">Statistical Foundations of PFNs</h2>
+    <p class="frame-subtitle">PFN Approximation of the PPD</p>
+  </header>
+  
+  <div class="frame-body">
+    <p class="footnotesize">Four factors govern how well \(q_{\widehat\theta}\) approximates the family of PPDs
+      \(\{\pi(\cdot \mid \cdot,\, \mathcal{D}_n)\}_{n}\):</p>
+    <ul class="approx-list footnotesize">
+      <li><strong>Model capacity</strong> \(\{q_\theta : \theta \in \Theta\}\) must be
+        expressive enough to represent \(\pi\);</li>
+      <li><strong>Hypothesis space</strong> \(\Phi\) should be complex enough;</li>
+      <li><strong>Monte-Carlo size:</strong> \(\widehat\theta\)  \(\rightarrow\) \(\theta^*\) at rate
+        \(\sim m^{-1/2}\) \(\Rightarrow\) a large number of steps \(m\) is needed;</li>
+      <li class="viz-item">
+        <strong>Prior over context sizes</strong> serves as PPD's complexity regularizer.</span>
+      </li>
+    </ul>
+    <span class="audience-qa audience-qa--bl">
+    <button type="button" class="audience-qa-btn" data-audience-qa
+            aria-label="Show answer" aria-expanded="false">
+      <span class="audience-qa-icon" aria-hidden="true">?</span>
+    </button>
+    <template class="audience-qa-body">
+    
+      \[ \theta^{*} = \arg\max_{\theta}\;
+           \mathbb{E}_{N \sim \mathbb{P}_N,\, {\color{blue}\varphi \sim \mathbb{P}_{\Phi}},\,
+                       {\color{teal}\mathcal{D}_N \cup (Y, X) \sim (\mathcal{D}_{N+1} \mid \varphi)}}
+           \big[\log {\color{olive}q_{\theta}(Y \mid X, \mathcal{D}_N)}\big] \]
+           
+    </template>
+  </span>
+  </div>
+
+  <div class="iframe-fill below-text fragment" data-fragment-index="0"
+       style="--fill-top:330px; --fill-bottom:60px">
+    <iframe data-src="interactive/n-as-regulariser.html" data-preload
+            title="Context size as an implicit complexity regularizer"></iframe>
+  </div>
+  
+  <aside class="notes">
+    Mechanism (for N): <br>
+    - Larger n => more versatile PPD => expect approximation to model more complex functions <br>
+    - Open ?: we train q by iterating over Ns => need to see large enough Ns to have complex functions <br>
+    - TabPFN was trained only on N in {1, ..., 1023} yet still generalizes well to much larger n at test time -- the next section looks at why.
+  </aside>
+</section>
+
+<!-- ============================================================
+  Frame 4 — Bias-Variance Decomposition of PFNs  (\S5.1 of the paper)
+  The frequentist turn of the story: beyond pre-training sizes the
+  Bayesian view says nothing, so treat q_theta-hat as an UNTRAINED
+  predictor and split its error. Underbrace coloring follows the
+  bg-ppd-2 recipe (\textcolor{teal/blue}{\underbrace{\textcolor{black}
+  {...}}}); the same teal=variance / blue=bias coding is reused on
+  the following slides (.c-teal / .c-blue in the <style> below).
+  Step 2 (fragment 0): asymptotic question between the two terms.
+============================================================ -->
+<section id="sf-biasvar">
+  <header class="frame-head">
+    <h2 class="frame-title">Statistical Foundations of PFNs</h2>
+    <p class="frame-subtitle">Bias-Variance Decomposition of PFNs</p>
+  </header>
+  <div class="frame-body footnotesize">
+    <div class="formula-line">
+      \[\begin{aligned}
+        q_{\theta}(y \mid x, \mathcal{D}_n) - p_0(y \mid x)
+        \;=
+      \end{aligned}\]
+    </div>
+    
+    <div class="formula-line">
+      \[\begin{aligned}
+        & \textcolor{teal}{\underbrace{\textcolor{black}{q_{\theta}(y \mid x, \mathcal{D}_n)
+            - \mathbb{E}_{\mathcal{D}_n \sim p_0^n}\big[q_{\theta}(y \mid x, \mathcal{D}_n)\big]}}_{\textstyle\text{variance}}} &+\; \;\;
+            
+            \textcolor{blue}{\underbrace{\textcolor{black}{\mathbb{E}_{\mathcal{D}_n \sim p_0^n}\big[q_{\theta}(y \mid x, \mathcal{D}_n)\big]
+            - p_0(y \mid x)}}_{\textstyle\text{bias}}}
+      \end{aligned}\]
+    </div>
+    <p class="biasvar-mid-q center fragment" data-fragment-index="0" >
+      How does each term behave asymptotically as \(n\) grows?
+    </p>
+  </div>
+  <span class="audience-qa audience-qa--bl">
+    <button type="button" class="audience-qa-btn" data-audience-qa
+            aria-label="Show context" aria-expanded="false">
+      <span class="audience-qa-icon" aria-hidden="true">?</span>
+    </button>
+    <template class="audience-qa-body">
+    
+      \[ \theta^{*} = \arg\max_{\theta}\;
+           \mathbb{E}_{N \sim \mathbb{P}_N,\, {\color{blue}\varphi \sim \mathbb{P}_{\Phi}},\,
+                       {\color{teal}\mathcal{D}_N \cup (Y, X) \sim (\mathcal{D}_{N+1} \mid \varphi)}}
+           \big[\log {\color{olive}q_{\theta}(Y \mid X, \mathcal{D}_N)}\big] \]
+           
+    </template>
+  </span>
+  <aside class="notes">
+    -> variance term: scatter of the prediction around its average over training sets drawn from p_0. <br>
+    -> bias term: offset of that average from the truth. 
+    
+    -> empirically the error keeps decreasing with n even for sizes never seen in pre-training; <br>
+    
+    -> next three slides explain why: variance dies by architecture, bias only dies with locality.
+  </aside>
+</section>
+
+<!-- ============================================================
+  Frame 5 — Variance and Diminishing Sensitivity  (\S5.3 of the paper)
+  Intuitive statement on the slide; raw eq (5) + Theorem 5.2 +
+  Lemma 5.3 in the "?" pop-up; diminishing-sensitivity.html inline.
+============================================================ -->
+<section id="sf-variance">
+  <header class="frame-head">
+    <h2 class="frame-title">Statistical Foundations of PFNs</h2>
+    <p class="frame-subtitle">Variance and Diminishing Sensitivity</p>
+  </header>
+  <div class="frame-body">
+    <div class="variance-intro">
+    <p class="footnotesize"><strong>Diminishing sensitivity</strong>:
+        Let \(\exists \alpha > 0\), \(L < \infty\) s.t. for large \(n\) and almost
+        all data sets \(D_n,\, D_n'\) differing in <em>one</em> sample,
+        \[ \big|\, q_{\theta}(y \mid x, D_n) - q_{\theta}(y \mid x, D_n') \,\big|
+           \;\le\; L\, n^{-\alpha}. \tag{*} \]</p>
+    <p class="footnotesize"><strong>Theorem 5.2 + Lemma 5.3</strong> <span class="cite" data-cite="naglerStatisticalFoundationsPriorData2023"></span> (informal):</p>
+    <p class="center footnotesize"> 
+      If (*) holds, the <span class="c-teal">variance</span> is bounded by a ratio \(\sim n^{1/2-\alpha}\). <br>
+      If (*) holds with \(\alpha > 1/2\), then the <span class="c-teal">variance</span> \(\xrightarrow{n \to \infty} 0\) </p>
+    </div>
+  </div>
+  <div class="iframe-fill below-text" style="--fill-top:330px; --fill-bottom:60px">
+    <iframe data-src="interactive/diminishing-sensitivity.html" data-preload
+            title="Diminishing sensitivity: swap one sample, watch the prediction (not) move"></iframe>
+  </div>
+  <span class="audience-qa audience-qa--bl">
+    <button type="button" class="audience-qa-btn" data-audience-qa
+            aria-label="Show raw theorem" aria-expanded="false">
+      <span class="audience-qa-icon" aria-hidden="true">?</span>
+    </button>
+    <template class="audience-qa-body">
+      <p><strong>Theorem 5.2</strong> <span class="cite" data-cite="naglerStatisticalFoundationsPriorData2023"></span>. If (*) holds, then with
+        high probability
+        \[ \big|\, q_{\theta}(y \mid x, \mathcal{D}_n) - \mathbb{E}\big[q_{\theta}(y \mid x, \mathcal{D}_n)\big] \,\big|
+           \;\lesssim\; n^{1/2 - \alpha}. \]</p>
+      <p><strong>Lemma 5.3</strong> <span class="cite" data-cite="naglerStatisticalFoundationsPriorData2023"></span>. If (*) holds with
+        \(\alpha > 1/2\), then
+        \[ q_{\theta}(y \mid x, \mathcal{D}_n) - \mathbb{E}\big[q_{\theta}(y \mid x, \mathcal{D}_n)\big]
+           \xrightarrow{\;n \to \infty\;} 0 \quad \text{almost surely}. \]</p>
+    </template>
+  </span>
+  <aside class="notes">
+    -> Read (*) as a bounded-differences / stability condition: replacing one sample moves the
+    output by at most L n^-alpha. <br>
+    -> Crucially this is a property of the ARCHITECTURE \(q_\theta\) as a function of \(D_n\), valid at any \(n\) — this is the part of the error that keeps improving on context sizes the network never saw. <br>
+    -> Foreshadow: transformers satisfy (*) by construction.
+  </aside>
+</section>
+
+<!-- ============================================================
+  Frame 6 — Bias and the Need for Locality  (\S5.4 of the paper)
+  Intuitive statement on the slide; raw Theorem 5.4 (label-resampling
+  formulation) in the "?" pop-up; locality-bias.html inline. The viz
+  illustrates the Definition/eq (5) POSITIVELY: ONE (unbiased,
+  attention-like) model on TWO datasets — teal on D_n, orange on the
+  scrambled D~_n — and the gap between the traces, which IS the
+  quantity |q(y|x,D_n) - q(y|x,D~_n)| of the Definition, closes as n
+  grows. Both converge to p0, hence to each other.
+============================================================ -->
+<section id="sf-bias">
+  <header class="frame-head">
+    <h2 class="frame-title">Statistical Foundations of PFNs</h2>
+    <p class="frame-subtitle">Bias and the Need for Locality</p>
+  </header>
+  <div class="footnotesize bias-intro">
+    <p><strong>Theorem 5.4</strong> <span class="cite" data-cite="naglerStatisticalFoundationsPriorData2023"></span> (informal):<br>
+      If <span class="c-blue">bias</span> \(\mathbb{E}_{\mathcal{D}_n \sim \varphi^n}\big[q_{\theta}(y \mid x, \mathcal{D}_n)\big] - \varphi(y \mid x) \xrightarrow{\;n \to \infty\;} 0\)  for every truth \(\varphi \in \Phi\),
+      predictor \(q_{\theta}\) with diminishing sensitivity \((*)\) must be <em>local</em>.</p>
+    <p><strong>Definition:</strong> \(q_{\theta}\) is <em>local</em> if there is a sequence
+      \({\color{#f97316}\epsilon_n} \to 0\) such that arbitrarily resampling the labels of far points
+      \(\big(\|X^{(i)} - x\| > {\color{#f97316}\epsilon_n}\big)\) leaves the prediction unchanged in the limit:
+      \(\;\big|\, q_{\theta}(y \mid x, \mathcal{D}_n) - q_{\theta}(y \mid x, \widetilde{\mathcal{D}}_n) \,\big| \xrightarrow{\;n \to \infty\;} 0\) a.s.</p>
+  </div>
+  <div class="iframe-fill below-text" style="--fill-top:305px; --fill-bottom:60px">
+    <iframe data-src="interactive/locality-bias.html" data-preload
+            title="Locality: the same model on the original vs. the far-label-scrambled data set"></iframe>
+  </div>
+  <span class="audience-qa audience-qa--bl">
+    <button type="button" class="audience-qa-btn" data-audience-qa
+            aria-label="Show raw theorem" aria-expanded="false">
+      <span class="audience-qa-icon" aria-hidden="true">?</span>
+    </button>
+    <template class="audience-qa-body">
+      <p><strong>Diminishing sensitivity</strong>:
+        Let \(\exists \alpha > 0\), \(L < \infty\) s.t. for large \(n\) and almost
+        all data sets \(D_n,\, D_n'\) differing in <em>one</em> sample,
+        \[ \big|\, q_{\theta}(y \mid x, D_n) - q_{\theta}(y \mid x, D_n') \,\big|
+           \;\le\; L\, n^{-\alpha}. \tag{*} \]<br></p>
+
+      <p><strong>Theorem 5.4</strong> <span class="cite" data-cite="naglerStatisticalFoundationsPriorData2023"></span>.
+        Let the hypothesis space \(\Phi\) be the class of candidate truths, i.e. suppose
+        \[ \mathbb{E}_{\mathcal{D}_n \sim \varphi^n}\big[q_{\theta}(y \mid x, \mathcal{D}_n)\big]
+          \xrightarrow{\;n \to \infty\;} \varphi(y \mid x)
+          \qquad \text{for every } \varphi \in \Phi \]
+        (vanishing bias). If \((*)\) holds, there is \(\epsilon_n \to 0\) such that for every
+        \(\widetilde{\varphi} \in \Phi\), almost surely
+        \[ \big|\, q_{\theta}(y \mid x, \mathcal{D}_n) - q_{\theta}(y \mid x, \widetilde{\mathcal{D}}_n) \,\big|
+           \xrightarrow{\;n \to \infty\;} 0, \]
+        where \(\widetilde{\mathcal{D}}_n\) keeps the features but resamples the far-away labels
+        from \(\widetilde{\varphi}\):
+        \[ Y^{(i)\prime} \begin{cases}
+             = Y^{(i)}, & \text{if } \|X^{(i)} - x\| \le \epsilon_n, \\
+             \sim \widetilde{\varphi}(\cdot \mid X^{(i)}), & \text{if } \|X^{(i)} - x\| > \epsilon_n.
+           \end{cases} \]</p>
+    </template>
+  </span>
+  <aside class="notes">
+    -> if the predictor is to be asymptotically unbiased for EVERY plausible truth p,
+    it has to not rely on far-away samples <br>
+    
+    -> So asymptotically only an epsilon_n-neighbourhood of x may contribute. <br>
+    
+    -> !!! This is only a necessary condition (the constant predictor is local but biased) <br>
+    
+    -> locality means the effective sample count is o(n)
+  </aside>
+</section>
+
+<!-- ============================================================
+  Frame 7 — Transformer Networks  (\S6.3 of the paper)
+  One takeaway on the slide (variance vanishes for free, any theta);
+  attention definition + raw Theorem 6.2 with all boundedness
+  assumptions in the "?" pop-up; attention-weights.html inline
+  (weights flatten as n grows, argmax jumps to later samples).
+============================================================ -->
+<section id="sf-transformer">
+  <header class="frame-head">
+    <h2 class="frame-title">Statistical Foundations of PFNs</h2>
+    <p class="frame-subtitle">Transformer Networks</p>
+  </header>
+  <div class="frame-body footnotesize">
+    <!-- <ul> may not sit inside <p>: the parser closes the <p> before it, which
+         is why the list could not be spaced from the lead-in. Siblings + CSS. -->
+    <p class="transformer-lead"><strong>Theorems 6.2 and 6.3</strong> <span class="cite" data-cite="naglerStatisticalFoundationsPriorData2023"></span> (informal):
+      A one-layer transformer \(q_{\theta}\)'s</p>
+    <ul class="transformer-list">
+      <li><span class="c-teal">variance</span> vanishes with rate \(\sim n^{-1/2}\) for <em>any</em> parameters \(\theta\). </li>
+      <li><span class="c-blue">bias</span> converges to a non-zero value and depends on parameters \(\theta\).</li>
+    </ul>
+  </div>
+  <div class="iframe-fill below-text" style="--fill-top:270px; --fill-bottom:55px">
+    <iframe data-src="interactive/attention-weights.html" data-preload
+            title="Attention weights flatten as n grows"></iframe>
+  </div>
+  <span class="audience-qa audience-qa--bl">
+    <button type="button" class="audience-qa-btn" data-audience-qa
+            aria-label="Show raw theorem" aria-expanded="false">
+      <span class="audience-qa-icon" aria-hidden="true">?</span>
+    </button>
+    <template class="audience-qa-body">
+      <p><strong>One-layer transformer.</strong> Context tokens
+        \(V^{(i)} = (Y^{(i)}, X^{(i)}) \in \{0,1\} \times \mathbb{R}^d\), query token
+        \(v = (0, x)\), \(H\) heads:
+        \[ \begin{aligned}
+             a_j^{(h)} &= \operatorname{softmax}\big( v^\top W_q^{(h)} V^{(1)}, \dots,
+                          v^\top W_q^{(h)} V^{(n)} \big)_j,
+                       &&\textstyle\sum_{j=1}^{n} a_j^{(h)} = 1, \\
+             u' &= \sum_{h=1}^{H} \sum_{j=1}^{n} a_j^{(h)} W_v^{(h)} V^{(j)},
+                       &&u = \operatorname{LN}(v + u';\, \gamma), \\
+             z' &= W_{r,2}\, \operatorname{ReLU}\big(W_{r,1} u;\, \gamma\big),
+                       &&z = \operatorname{LN}(u + z';\, \gamma), \\
+             q_{\theta}(\cdot \mid x, \mathcal{D}_n) &= \operatorname{softmax}(W_o z). &&
+           \end{aligned} \]</p>
+
+      <p><strong>Theorem 6.2</strong> <span class="cite" data-cite="naglerStatisticalFoundationsPriorData2023"></span>
+        (<span style="color:var(--tex-teal)">variance</span>).
+        For bounded features \(\mathcal{X} = \{x : \|x\| \le K\}\) and bounded matrices
+        \(\|W_q^{(h)}\|, \|W_v^{(h)}\|, \|W_{r,1}\|, \|W_{r,2}\|, \|W_o\| < \infty\),
+        with high probability
+        \[ \big|\, q_{\theta}(y \mid x, \mathcal{D}_n)
+                 - \mathbb{E}\big[q_{\theta}(y \mid x, \mathcal{D}_n)\big] \,\big|
+           \;\lesssim\; n^{-1/2}. \]
+        Any \(\theta\): a head's weights sum to one \(\Rightarrow\) each sample carries
+        \(\sim 1/n\) \(\Rightarrow\) \((*)\) with \(\alpha = 1\) \(\Rightarrow\) Thm 5.2.</p>
+
+      <p><strong>Theorem 6.3</strong> <span class="cite" data-cite="naglerStatisticalFoundationsPriorData2023"></span>
+        (<span style="color:var(--tex-blue)">bias</span>).
+        Under the same assumptions,
+        \(\;\mathbb{E}\big[q_{\theta}(\cdot \mid x, \mathcal{D}_n)\big]
+           \xrightarrow{\;n \to \infty\;} \bar{q}_{\theta}(\cdot \mid x)\),
+        where \(\bar{q}_{\theta}\) is \(q_{\theta}\) with \(u'\) replaced by
+        \[ \bar{u}' = \sum_{h=1}^{H} W_v^{(h)}\, \mathbb{E}_{V \sim g_h}[V],
+           \qquad
+           g_h(s) = \frac{\exp\big(v^\top W_q^{(h)} s\big)}
+                         {\mathbb{E}_{V \sim p_0}\big[\exp\big(v^\top W_q^{(h)} V\big)\big]}\, p_0(s). \]</p>
+
+      <p>\(g_h\) is an <em>exponentially tilted</em> \(p_0\): head \(h\) lifts the samples similar
+        to \(v\) and discounts the rest — but never to zero. The network localizes <em>softly</em>,
+        never in the sense of Thm 5.4, so the limiting
+        <span style="color:var(--tex-blue)">bias</span>
+        \(\bar{q}_{\theta}(y \mid x) - p_0(y \mid x)\) does not vanish — and depends entirely
+        on \(\theta\).</p>
+    </template>
+  </span>
+  <aside class="notes">    
+    -> Theorem 5.2 turns that into the n^(-1/2) deviation bound. This holds irrespective of the tuned parameters theta-hat.<br>
+    -> The bias depends entirely on theta, converges to a limit != 0 <br>
+  </aside>
+</section>
+
+<!-- ============================================================
+  Frame 8 — Numerical Validation  (\S6.5 of the paper, Figure 1)
+  The formerly empty figure now shows OUR reproductions from
+  src/results/: squared bias (left panel of each
+  image) and variance (right) of TabPFN vs a LOCALIZED TabPFN (context =
+  k_n nearest neighbours of x). A 4-state image swap tells the version
+  story; the caption changes per state via the s2/s3/s4 class mechanism
+  (like bg-ppd). This single frame absorbs the deleted "Localized PFNs"
+  placeholder. Images share the same ~2.4:1 aspect so the r-stack
+  overlay stays aligned. Geometry: --img-w:0.8, --img-y:-24px.
+============================================================ -->
+<section id="sf-numerical">
+  <header class="frame-head">
+    <h2 class="frame-title">Statistical Foundations of PFNs</h2>
+    <p class="frame-subtitle">Numerical Validation</p>
+  </header>
+  <figure class="page-fig" style="--img-w:0.8; --img-y:-24px;">
+    <div class="r-stack">
+      <img class="fragment fade-out" data-fragment-index="1"
+           src="assets/statistical_foundations/bv-v1.png"
+           alt="Bias and variance: TabPFN v1 vs localized">
+      <img class="fragment" data-fragment-index="1" data-slide-class="s2"
+           src="assets/statistical_foundations/bv-v1-untrained.png"
+           alt="Bias and variance: randomly initialized TabPFN v1.">
+      <img class="fragment current-visible" data-fragment-index="2" data-slide-class="s3"
+           src="assets/statistical_foundations/bv-v2.5.png"
+           alt="Bias and variance: TabPFN v2.5 out of the box, n up to 4000">
+      <img class="fragment" data-fragment-index="3" data-slide-class="s4"
+           src="assets/statistical_foundations/bv-v2.5-20k-ub10000.png"
+           alt="Bias and variance: TabPFN v2.5, n up to 20000, local context capped at 10000">
+    </div>
+    <figcaption>
+      <span class="cap cap1">Average errors on simulated data sets of the <strong>pre-trained TabPFN v1</strong>. <br>
+        Pre-trained on \(n \le 1\text{k}\).</span>
+
+      <span class="cap cap2">Average errors on simulated data sets of the <strong>randomly initialized TabPFN v1</strong>.<br>
+        No training at all.</span>
+
+      <span class="cap cap3">Average errors on simulated data sets of the <strong>pre-trained TabPFN v2.5</strong>.<br>
+        Pre-trained on \(n \le 10\text{k}\).</span>
+
+      <span class="cap cap4">Average errors on simulated data sets of the <strong>pre-trained TabPFN v2.5</strong>.<br>
+        Inference up to \(n = 20\text{k}\), local context capped at \(10\text{k}\).</span>
+    </figcaption>
+  </figure>
+  <!-- audience Q&A: copy .audience-qa block to other slides; add
+       audience-qa--bl for bottom-left placement. Edit <template>
+       content (KaTeX supported). See loader.js + theme.css. -->
+  <span class="audience-qa audience-qa--bl">
+    <button type="button" class="audience-qa-btn" data-audience-qa
+            aria-label="Show answer" aria-expanded="false">
+      <span class="audience-qa-icon" aria-hidden="true">?</span>
+    </button>
+    <template class="audience-qa-body">
+    
+      <ul>
+        <li>\(p_0(1 \mid X) = \tfrac{1}{2} + \sin(\mathbf{1}^\top X)/2,\quad
+          X \sim \mathcal{N}(0, I_5)\)</li>
+        <li>FEATURES_DIM = 5; NUM_DATASETS = 100; TEST_SIZE = 100</li>
+        <li><strong>Localized TabPFN:</strong> \(k_n\) nearest neighbours of \(x\) as context.
+          <div class="formula-line">
+            \[ k_n = \text{round}\!\left(n \cdot \min\!\left(\left(\tfrac{n}{N_{\mathrm{ub}}}\right)^{-\frac{d}{d+4}},\, 1.0\right)\right) \]
+          </div>
+          <p style="margin:0.35em 0 0.2em;">Here \(d=5\), \(N_{\mathrm{ub}}=500\):</p>
+          <table class="qa-table">
+            <thead>
+              <tr><th>\(n\)</th><th>\(k_n\)</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>250</td><td>250</td></tr>
+              <tr><td>500</td><td>500</td></tr>
+              <tr><td>1000</td><td>680</td></tr>
+              <tr><td>2000</td><td>926</td></tr>
+              <tr><td>4000</td><td>1260</td></tr>
+            </tbody>
+          </table>
+        </li>
+      </ul>
+    </template>
+  </span>
+  <aside class="notes">
+    -> test dataset: p_0(1|X) = 1/2 + sin(1^T X)/2, X ~ N(0, I_5); <br>
+    
+    -> FEATURES_DIM = 5; NUM_DATASETS = 100; TEST_SIZE = 100 <br>
+
+    -> localized TabPFN uses the k_n nearest neighbours of x as context. <br>
+
+    -> DO NOT FORGET TO TELL THAT LOCALIZATION TAKES MUUUUCH MORE TIME (SINCE ATTENTION IS NOT CACHED).
+
+  </aside>
+</section>
+
+<!-- ============================================================
+  Frame 9 — Discussion: the arc of the Nagler paper in one slide.
+============================================================ -->
+<section id="sf-discussion">
+  <header class="frame-head">
+    <h2 class="frame-title">Statistical Foundations of PFNs</h2>
+    <p class="frame-subtitle">Main insights</p>
+  </header>
+  <div class="frame-body">
+
+    <ul style="margin-top:0.8em;">
+      <li>With enough model capacity, a rich enough \(\Phi\) and enough Monte-Carlo steps,<br>
+        pre-training makes \(q_{\widehat\theta} \approx \pi\) for context sizes from \(\mathbb{P}_N\);</li>
+      <li>In practice \(\mathbb{P}_N\) is necessarily limited yet predictions keep improving on larger \(n\);</li>
+      <li>That happens since attention forces the <span class="c-teal">variance</span> to vanish
+        (\(\sim n^{-1/2}\)) for <em>any</em> \(\widehat\theta\);</li>
+      <li>The <span class="c-blue">bias</span> does <em>not</em> vanish though; localization is a possible solution.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================
+  Overlay CSS: the alert@n cycle on sf-questions.
+  Page 1 (no state class): item 1 orange. Each later page moves the
+  highlight down (classes are cumulative: page n has s2..sn).
+============================================================ -->
+<style>
+  #sf-questions .q1 { color: var(--mAlert); }
+  #sf-questions.s2 .q1 { color: inherit; }
+  #sf-questions.s2:not(.s3) .q2 { color: var(--mAlert); }
+  #sf-questions.s3:not(.s4) .q3 { color: var(--mAlert); }
+  #sf-questions.s4 .q4 { color: var(--mAlert); }
+
+  /* --- sf-approx: extra space above the 4-factor list --- */
+  #sf-approx .approx-list { margin-top: 0.9em; }
+
+  /* --- sf-biasvar: top-aligned decomposition; step-2 question --- */
+  #sf-biasvar .frame-body { padding-top: 0.15em; }
+  #sf-biasvar .formula-line { margin: 0.35em 0; }
+  #sf-biasvar .biasvar-mid-q {
+    margin: 5.15em 0 0.55em;
+    color: var(--mAlert);
+    font-weight: 500;
+  }
+  #sf-biasvar .biasvar-mid-q:not(.visible) {
+    display: none;
+    margin: 0;
+  }
+
+  /* --- #sf-variance layout knobs (design px; set on section, children inherit)
+     Slide chrome:
+       --fill-top/bottom/left/right   iframe box inset (larger = smaller viz)
+       --body-top                     margin above theorem text
+       --body-pad-top / --body-pad-bottom   padding inside text block
+       --qa-left / --qa-bottom        ? button corner inset
+     Viz internals (edit interactive/diminishing-sensitivity.html :root):
+       --viz-pad-x/y, --viz-row-gap, --legend-top/left,
+       --controls-margin-top, --main-panel-flex, --rate-panel-flex,
+       --fit-pad-x/y (main-plot inner margins) --- */
+  #sf-variance {
+    --fill-top: 350px;
+    --fill-bottom: 60px;
+    --fill-left: 48px;
+    --fill-right: 48px;
+    --body-top: 0px;
+    --body-pad-top: 0px;
+    --body-pad-bottom: 0px;
+    --qa-left: 48px;
+    --qa-bottom: 16px;
+  }
+  #sf-variance .variance-intro {
+    padding-left: calc(40px * var(--deck-scale));
+    padding-right: calc(40px * var(--deck-scale));
+    padding-bottom: calc(20px * var(--deck-scale));
+  }
+  #sf-variance .variance-intro p {
+    margin: 0 0 0.85em;
+  }
+  #sf-variance .variance-intro p:last-child {
+    margin-bottom: 0;
+  }
+  #sf-variance .variance-intro .katex-display {
+    margin: 0.75em 0;
+  }
+
+  /* --- sf-bias: reveal's reset zeroes every <p> margin, so the theorem and
+         the definition sat flush against each other (and the definition ran
+         under the iframe box). Space them, and the .iframe-fill --fill-top
+         on the section must clear the taller text block: header ends at 144,
+         theorem ~91px, gap 26px, definition ~61px -> text bottom ~322px. --- */
+  #sf-bias .bias-intro p {
+    margin: 0 0 calc(26px * var(--deck-scale));
+  }
+  #sf-bias .bias-intro p:last-child {
+    margin-bottom: 0;
+  }
+
+  /* --- sf-transformer: gap between the theorem lead-in and the two bullets --- */
+  #sf-transformer .transformer-list {
+    margin-top: calc(16px * var(--deck-scale));
+  }
+
+  /* --- pop-up hint (data-modal-src trigger) — only sf-approx still
+         uses it; the theorem slides embed their viz inline --- */
+  .reveal .viz-hint {
+    display: inline-block;
+    margin-left: 0.4em;
+    color: var(--mAlert);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .reveal .viz-hint:hover { text-decoration: underline; }
+
+  /* --- teal=variance / blue=bias color coding (sf-biasvar onwards),
+         matching the \textcolor underbraces in the decomposition --- */
+  .reveal .c-teal { color: var(--tex-teal); }
+  .reveal .c-blue { color: var(--tex-blue); }
+
+  /* --- sf-numerical: the caption swaps with the image (4 states).
+         'visible' is monotonic so s2..s4 accumulate — hence the
+         :not() guards select exactly one caption per step. --- */
+  #sf-numerical .cap { display: none; }
+  #sf-numerical:not(.s2) .cap1 { display: block; }
+  #sf-numerical.s2:not(.s3) .cap2 { display: block; }
+  #sf-numerical.s3:not(.s4) .cap3 { display: block; }
+  #sf-numerical.s4 .cap4 { display: block; }
+</style>

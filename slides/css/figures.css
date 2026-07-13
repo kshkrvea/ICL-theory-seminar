@@ -1,0 +1,115 @@
+/* =====================================================================
+   Figure & image-placement styles — the CSS side of slides/figures.tex
+   and of the \imgwidth/\imgx/\imgy knobs used all over sections/*.tex.
+
+   ============================  .page-fig  ============================
+   Reproduces the standard image-frame pattern from the LaTeX sections:
+
+     \node[anchor=center, xshift=\imgx, yshift=\imgy] at (current page.center)
+       {\includegraphics[width=\imgwidth\textwidth]{...}};
+     \node[below=0.3cm of img] {\small\imglabel};
+
+   Usage:
+     <figure class="page-fig" style="--img-w:0.9; --img-x:0px; --img-y:-40px;">
+       <img src="assets/...">
+       <figcaption>...</figcaption>
+     </figure>
+
+   Knobs (CSS custom properties = the LaTeX macros):
+     --img-w   \imgwidth : fraction of \textwidth (0..1.1). \textwidth is
+                14.8cm = 1184px, i.e. 92.5% of the 1280px slide.
+     --img-x   \imgx : horizontal shift, + right (80px = 1cm).
+     --img-y   \imgy : SIGN-FLIPPED vs LaTeX — CSS y grows downward, so
+                write LaTeX "-0.5cm" (down) as +40px here. Comments on
+                each slide state the original value.
+     --cap-gap distance image-bottom -> caption (below=0.3cm -> 24px).
+
+   Set these on <figure class="page-fig" style="..."> OR on the parent
+   <section style="..."> — custom properties inherit, so one knob block
+   per slide scales every .page-fig inside it.
+
+   The <figure> box is centered on the slide center and sized to the
+   image only; the caption hangs below it (exactly like the TikZ
+   "below=... of img" node) so it never shifts the image.
+===================================================================== */
+.page-fig {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: calc(var(--img-w, 1) * 92.5%);
+  transform: translate(calc(-50% + var(--img-x, 0px) * var(--deck-scale)),
+                       calc(-50% + var(--img-y, 0px) * var(--deck-scale)));
+  margin: 0;
+}
+.page-fig img, .page-fig .r-stack > img {
+  width: 100%;
+  display: block;
+  shape-rendering: geometricPrecision;
+  text-rendering: geometricPrecision;
+}
+.page-fig .r-stack { width: 100%; margin: 0; }
+.page-fig figcaption {
+  position: absolute;
+  top: calc(100% + var(--cap-gap, 24px) * var(--deck-scale));
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  text-align: center;
+  font-size: calc(24px * var(--deck-scale));
+  line-height: 1.35;
+  white-space: normal;
+}
+
+/* Highlight rectangles overlaid on a .page-fig image (tabpfn.tex,
+   performance-complex-tasks \only<2>). Children are .hl-rect divs
+   whose inset is set inline in FRACTIONS of the image box:
+     left  = rectLeft,  width = rectRight - rectLeft
+     top   = 1 - rectTop, height = rectTop - rectBot
+   (LaTeX y goes up, CSS top goes down — hence the 1 - ... flip.) */
+.hl-overlay { position: absolute; inset: 0; pointer-events: none; }
+.hl-rect {
+  position: absolute;
+  border: calc(4px * var(--deck-scale)) solid magenta;
+  border-radius: calc(8px * var(--deck-scale));
+}
+
+/* =====================  TikZ figure containers  ===================== */
+/* Hosts filled by js/figures.js. The JS sets explicit px width/height
+   (from the TikZ bounding boxes) so layout never jumps — the HTML
+   equivalent of \fixedbbox. */
+.fig-host { position: relative; display: inline-block; }
+.fig-host > svg { position: absolute; left: 0; top: 0; }
+
+/* HTML/KaTeX labels overlaid on the SVGs (axis labels, point labels,
+   legend, formulas). Positioned in px by js/figures.js. */
+.fig-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  font-size: calc(22px * var(--deck-scale));
+  line-height: 1;
+}
+.fig-label.anchor-w  { transform: translate(0, -50%); }      /* node[right] */
+.fig-label.anchor-s  { transform: translate(-50%, -100%); }  /* node[above] */
+
+/* the \featurelegend key box */
+.fig-legend {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border: 1px solid #191919;
+  padding: calc(5px * var(--deck-scale)) calc(8px * var(--deck-scale));
+  font-size: calc(18px * var(--deck-scale));
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.fig-legend .row { display: flex; align-items: center; gap: 6px; }
+
+/* inline hypothesis icons inside formulas (\scalebox{0.45}{\hypLinA}) */
+.fig-inline { display: inline-block; vertical-align: middle; }
+.fig-inline > svg { display: block; }
+
+/* two-column layouts (\begin{columns}) */
+.columns { display: flex; align-items: center; width: 100%; }
+.columns.top { align-items: flex-start; }   /* [T] */
+.col { box-sizing: border-box; }
+.col.centered { text-align: center; }
