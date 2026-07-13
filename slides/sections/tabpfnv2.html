@@ -111,12 +111,14 @@
     right: calc(var(--fill-right, 48px) * var(--deck-scale));
     bottom: 0;
     height: calc(var(--fill-bottom, 64px) * var(--deck-scale));
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    /* NB: block + align-content, NOT flex — a flex <p> drops the
+       whitespace text nodes around the inline .cite span */
+    display: block;
+    align-content: center;
     margin: 0;
     text-align: center;
-    font-size: calc(24px * var(--deck-scale));
+    font-size: calc(22px * var(--deck-scale));
+    color: var(--muted);
     line-height: 1.35;
   }
 </style>
