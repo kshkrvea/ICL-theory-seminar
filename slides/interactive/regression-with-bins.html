@@ -1,77 +1,125 @@
 <!DOCTYPE html>
+<!-- ===================================================================
+  interactive/regression-with-bins.html — how TabPFNv2 does regression.
+
+  The point of the slide: v2 does NOT regress a single number. It turns
+  regression into classification over a bar (Riemann) distribution —
+  the target range is cut into `num_bins` bins and the model emits a
+  softmax over them, giving a piece-wise constant density over y
+  ("For regression tasks, we use a piece-wise constant output
+  distribution ... which allows our models to predict a probability
+  distribution of target values instead of a single value, including,
+  for example, bimodal distributions" — Hollmann et al. 2025).
+
+  What is drawn, for one fixed test point x:
+    * the TRUE conditional density p(y | x)  — a bimodal mixture (orange);
+    * the model's piece-wise constant approximation over `num_bins`
+      equal-mass bins (teal bars) — drag the slider from 1 to 5,000
+      (the paper's setting) and watch the bars converge onto the curve;
+    * the bin edges, ticked on the axis: equal MASS, so they bunch up
+      where the density is high — resolution follows the data;
+    * the single number a classical regressor would return, E[y | x]
+      (dashed) — it lands in the valley BETWEEN the two modes, i.e. at a
+      y the target almost never takes. That is what the distribution
+      buys you.
+    * a running L1 error between the bars and the true density.
+
+  HOW TO ADJUST: colors mirror css/theme.css; the density itself is
+  getTrueDensity() (unchanged from the original version of this file).
+=================================================================== -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TabPFN Distribution Visualisation</title>
+    <!-- same body font as the deck (this is a separate document, so it
+         does not inherit index.html's font links) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.2.5/400.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.2.5/600.css">
     <style>
         :root {
-            --bg-color: #ffffff;
-            --panel-bg: #ffffff;
-            --text-main: #000000;
-            --accent: #38bdf8;
-            --border: #dddddd;
-            --bar-color: #3b82f6;
-            --bar-highlight: #60a5fa;
+            --bg: #ffffff;
+            --ink: #17242c;
+            --body: #243440;
+            --muted: #5e7078;
+            --rule: rgba(23, 36, 44, 0.12);
+            --surface: #f5f7f8;
+            --border: #e3e8eb;
+            --accent: #e8661a;          /* true density                */
+            --sec: #0e7b70;             /* predicted (Riemann) bars     */
+            --sec-fill: rgba(14, 123, 112, 0.22);
         }
 
+        html, body { height: 100%; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--body);
             margin: 0;
-            padding: 24px;
+            padding: 10px;
             box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
         }
 
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
+            height: 100%;
             display: flex;
             flex-direction: column;
-            gap: 24px;
-        }
-
-        .controls-bar {
-            background-color: var(--panel-bg);
-            border: 1px solid var(--border);
-            padding: 16px 24px;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .slider-group {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            flex-grow: 1;
-        }
-
-        input[type="range"] {
-            flex-grow: 1;
-            accent-color: var(--accent);
-            cursor: pointer;
+            gap: 12px;
+            box-sizing: border-box;
         }
 
         .panel {
-            background-color: var(--panel-bg);
+            flex: 1 1 auto;
+            min-height: 0;
+            background: var(--bg);
             border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 16px;
+            border-radius: 10px;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        canvas { width: 100%; height: 100%; display: block; }
+
+        .controls-bar {
+            flex: 0 0 auto;
             display: flex;
-            flex-direction: column;
-            position: relative;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 18px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            box-sizing: border-box;
         }
 
-        canvas {
-            width: 100%;
-            height: 380px;
-            background-color: var(--bg-color);
-            border-radius: 4px;
-            border: 1px solid #eeeeee;
+        .ctl-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--ink);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            white-space: nowrap;
         }
+        .ctl-value {
+            min-width: 4.2em;
+            font-size: 15px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            color: var(--sec);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+        input[type="range"] {
+            flex: 1 1 auto;
+            accent-color: var(--sec);
+            cursor: pointer;
+            min-width: 120px;
+        }
+        .metric {
+            white-space: nowrap;
+            font-size: 13px;
+            color: var(--muted);
+            font-variant-numeric: tabular-nums;
+        }
+        .metric b { color: var(--ink); font-weight: 600; }
     </style>
 </head>
 <body>
@@ -81,14 +129,18 @@
         </div>
 
         <div class="controls-bar">
-            <div class="slider-group">
-                <input type="range" id="binSlider" min="1" max="500" step="1" value="4">
-            </div>
+            <span class="ctl-label">num_bins</span>
+            <span class="ctl-value" id="binValue">4</span>
+            <input type="range" id="binSlider" min="0" max="240" step="1" value="39">
+            <span class="metric">approximation error
+                &#8747;|<i>p̂</i> &#8722; <i>p</i>| d<i>y</i> = <b id="l1">–</b></span>
         </div>
     </div>
 
     <script>
         const binSlider = document.getElementById('binSlider');
+        const binValue  = document.getElementById('binValue');
+        const l1Out     = document.getElementById('l1');
         const distCanvas = document.getElementById('distCanvas');
         const distCtx = distCanvas.getContext('2d');
 
@@ -96,15 +148,17 @@
         const Y_MAX = 2.5;
         const FIXED_X = 0.5;
 
-        function resizeCanvases() {
-            const rect = distCanvas.getBoundingClientRect();
-            distCanvas.width = rect.width * window.devicePixelRatio;
-            distCanvas.height = rect.height * window.devicePixelRatio;
-            distCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
-            render();
-        }
-        window.addEventListener('resize', resizeCanvases);
+        const MAX_BINS = 5000;          /* the paper's setting */
+        const CDF_RES  = 20000;         /* must exceed MAX_BINS for quantiles */
+        const MAX_DENSITY = 1.5;        /* y-axis top */
 
+        /* slider position (0..240) -> bin count, geometric so the whole
+           1 .. 5,000 range is reachable with useful resolution at the
+           low end (where the piece-wise constant shape is still visible) */
+        const sliderToBins = t =>
+            Math.max(1, Math.round(Math.pow(MAX_BINS, t / +binSlider.max)));
+
+        /* ---------- the ground-truth conditional density p(y | x) ---------- */
         function getTrueDensity(x, y) {
             const split = Math.sin(x) * 1.2;
             const mean1 = split;
@@ -121,13 +175,13 @@
             return w1 * p1 + w2 * p2;
         }
 
-        // Generates highly uneven, adaptive quantile bins
+        /* Generates highly uneven, adaptive quantile bins */
         function generateBins(numBins) {
             // 1. Sample the background distribution across the target space to get the cumulative mass
-            const resolution = 2000;
+            const resolution = CDF_RES;
             const step = (Y_MAX - Y_MIN) / resolution;
             const cdf = [0];
-            
+
             for (let i = 0; i < resolution; i++) {
                 const y = Y_MIN + (i + 0.5) * step;
                 // Mix the true target density with a uniform background so outer tail bins still get finite width
@@ -145,13 +199,13 @@
                 while (cdfIndex < resolution && cdf[cdfIndex] < targetMass) {
                     cdfIndex++;
                 }
-                
+
                 // Linear interpolation for exact quantile border
                 const idx0 = Math.max(0, cdfIndex - 1);
                 const mass0 = cdf[idx0];
                 const mass1 = cdf[cdfIndex] || totalMass;
                 const t = (mass1 === mass0) ? 0 : (targetMass - mass0) / (mass1 - mass0);
-                
+
                 const y0 = Y_MIN + idx0 * step;
                 const y1 = Y_MIN + cdfIndex * step;
                 bins.push(y0 + t * (y1 - y0));
@@ -167,14 +221,14 @@
 
             for (let i = 0; i < numBins; i++) {
                 const yLower = binEdges[i];
-                const yUpper = binEdges[i+1];
+                const yUpper = binEdges[i + 1];
                 const binWidth = yUpper - yLower;
 
                 // Numerical integration of probability mass inside this specific bin
                 const subSteps = 10;
                 const subWidth = binWidth / subSteps;
                 let binMass = 0;
-                
+
                 for (let s = 0; s < subSteps; s++) {
                     const y = yLower + (s + 0.5) * subWidth;
                     binMass += getTrueDensity(x, y) * subWidth;
@@ -187,61 +241,244 @@
             return densities;
         }
 
-        function render() {
-            const numBins = parseInt(binSlider.value, 10);
-            const binEdges = generateBins(numBins);
-            const densities = computeBinDensities(FIXED_X, binEdges);
-            drawDistribution(densities, binEdges, numBins);
+        /* E[y | x] — the single number a classical regressor would return */
+        function trueMean(x) {
+            const steps = 4000;
+            const dy = (Y_MAX - Y_MIN) / steps;
+            let m = 0, z = 0;
+            for (let i = 0; i < steps; i++) {
+                const y = Y_MIN + (i + 0.5) * dy;
+                const p = getTrueDensity(x, y);
+                m += y * p * dy;
+                z += p * dy;
+            }
+            return m / (z || 1);
+        }
+        const MEAN_Y = trueMean(FIXED_X);
+
+        /* L1 distance between the bar density and the true density */
+        function l1Error(binEdges, densities) {
+            const steps = 3000;
+            const dy = (Y_MAX - Y_MIN) / steps;
+            let err = 0;
+            let bin = 0;
+            for (let i = 0; i < steps; i++) {
+                const y = Y_MIN + (i + 0.5) * dy;
+                while (bin < densities.length - 1 && y > binEdges[bin + 1]) bin++;
+                err += Math.abs(densities[bin] - getTrueDensity(FIXED_X, y)) * dy;
+            }
+            return err;
         }
 
-        function drawDistribution(densities, binEdges, numBins) {
-            const width = distCanvas.getBoundingClientRect().width;
-            const height = distCanvas.getBoundingClientRect().height;
+        /* ---------------------------- drawing ---------------------------- */
+        const M = { top: 34, right: 18, bottom: 44, left: 58 };
 
-            distCtx.clearRect(0, 0, width, height);
+        function resizeCanvas() {
+            const rect = distCanvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            distCanvas.width  = Math.round(rect.width * dpr);
+            distCanvas.height = Math.round(rect.height * dpr);
+            distCtx.setTransform(dpr, 0, 0, dpr, 0, 0);   /* crisp on HiDPI */
+            render();
+        }
+        window.addEventListener('resize', resizeCanvas);
+        if (window.ResizeObserver) {
+            new ResizeObserver(resizeCanvas).observe(distCanvas.parentElement);
+        }
 
-            const maxDensity = 1.5;
+        function render() {
+            const numBins = sliderToBins(binSlider.value);
+            binValue.textContent = numBins.toLocaleString('en-US');
 
-            distCtx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+            const binEdges = generateBins(numBins);
+            const densities = computeBinDensities(FIXED_X, binEdges);
+            l1Out.textContent = l1Error(binEdges, densities).toFixed(3);
+
+            draw(binEdges, densities, numBins);
+        }
+
+        function draw(binEdges, densities, numBins) {
+            const rect = distCanvas.getBoundingClientRect();
+            const W = rect.width, H = rect.height;
+            const plotW = W - M.left - M.right;
+            const plotH = H - M.top - M.bottom;
+            if (plotW <= 10 || plotH <= 10) return;
+
+            const X = y => M.left + ((y - Y_MIN) / (Y_MAX - Y_MIN)) * plotW;
+            const Y = d => M.top + plotH - Math.min(1, d / MAX_DENSITY) * plotH;
+
+            distCtx.clearRect(0, 0, W, H);
+            distCtx.font = '12px Inter, -apple-system, "Segoe UI", Roboto, sans-serif';
+
+            /* --- horizontal gridlines + density ticks --- */
+            distCtx.strokeStyle = 'rgba(23, 36, 44, 0.09)';
             distCtx.lineWidth = 1;
-            for (let i = 1; i <= 4; i++) {
-                const y = height - (i / 4) * (height - 30);
+            distCtx.fillStyle = '#5e7078';
+            distCtx.textAlign = 'right';
+            distCtx.textBaseline = 'middle';
+            for (let d = 0; d <= MAX_DENSITY + 1e-9; d += 0.5) {
+                const yPix = Math.round(Y(d)) + 0.5;
                 distCtx.beginPath();
-                distCtx.moveTo(0, y);
-                distCtx.lineTo(width, y);
+                distCtx.moveTo(M.left, yPix);
+                distCtx.lineTo(M.left + plotW, yPix);
+                distCtx.stroke();
+                distCtx.fillText(d.toFixed(1), M.left - 10, yPix);
+            }
+
+            /* --- the model's piece-wise constant (Riemann) density ---
+               drawn as ONE staircase path, not one rect per bin: with
+               thousands of sub-pixel bins, overlapping translucent rects
+               would stack their alpha and fake a gradient. */
+            const baseline = M.top + plotH;
+            distCtx.fillStyle = 'rgba(14, 123, 112, 0.22)';
+            distCtx.beginPath();
+            distCtx.moveTo(X(binEdges[0]), baseline);
+            for (let i = 0; i < numBins; i++) {
+                const yTop = Y(densities[i]);
+                distCtx.lineTo(X(binEdges[i]), yTop);
+                distCtx.lineTo(X(binEdges[i + 1]), yTop);
+            }
+            distCtx.lineTo(X(binEdges[numBins]), baseline);
+            distCtx.closePath();
+            distCtx.fill();
+
+            /* bin outlines only while they are still individually readable */
+            if (numBins <= 120) {
+                distCtx.strokeStyle = '#0e7b70';
+                distCtx.lineWidth = 1;
+                distCtx.beginPath();
+                for (let i = 0; i < numBins; i++) {
+                    const x0 = X(binEdges[i]);
+                    const x1 = X(binEdges[i + 1]);
+                    const yTop = Math.round(Y(densities[i])) + 0.5;
+                    distCtx.moveTo(x0, baseline);
+                    distCtx.lineTo(x0, yTop);
+                    distCtx.lineTo(x1, yTop);
+                    distCtx.lineTo(x1, baseline);
+                }
                 distCtx.stroke();
             }
 
-            for (let i = 0; i < numBins; i++) {
-                const yLower = binEdges[i];
-                const yUpper = binEdges[i+1];
-                
-                const xStart = ((yLower - Y_MIN) / (Y_MAX - Y_MIN)) * width;
-                const xEnd = ((yUpper - Y_MIN) / (Y_MAX - Y_MIN)) * width;
-                const barWidth = Math.max(0.5, xEnd - xStart);
+            /* --- the true conditional density p(y | x) --- */
+            distCtx.strokeStyle = '#e8661a';
+            distCtx.lineWidth = 2;
+            distCtx.beginPath();
+            for (let px = 0; px <= plotW; px++) {
+                const y = Y_MIN + (px / plotW) * (Y_MAX - Y_MIN);
+                const d = getTrueDensity(FIXED_X, y);
+                const xPix = M.left + px;
+                const yPix = Y(d);
+                if (px === 0) distCtx.moveTo(xPix, yPix);
+                else distCtx.lineTo(xPix, yPix);
+            }
+            distCtx.stroke();
 
-                const barHeight = Math.min(1, densities[i] / maxDensity) * (height - 30);
-                const yStart = height - barHeight - 15;
+            /* --- E[y|x]: the single number a point regressor would return --- */
+            const mx = X(MEAN_Y);
+            distCtx.save();
+            distCtx.setLineDash([5, 4]);
+            distCtx.strokeStyle = 'rgba(23, 36, 44, 0.55)';
+            distCtx.lineWidth = 1.5;
+            distCtx.beginPath();
+            distCtx.moveTo(mx, M.top);
+            distCtx.lineTo(mx, M.top + plotH);
+            distCtx.stroke();
+            distCtx.restore();
+            distCtx.fillStyle = 'rgba(23, 36, 44, 0.75)';
+            distCtx.textAlign = 'center';
+            distCtx.textBaseline = 'bottom';
+            distCtx.fillText('point prediction  E[y | x]', mx, M.top - 6);
 
-                distCtx.fillStyle = '#3b82f6';
-                distCtx.fillRect(xStart, yStart, barWidth, barHeight);
+            /* --- x axis: line, bin edges, ticks, labels --- */
+            const axisY = Math.round(M.top + plotH) + 0.5;
+            distCtx.strokeStyle = 'rgba(23, 36, 44, 0.45)';
+            distCtx.lineWidth = 1;
+            distCtx.beginPath();
+            distCtx.moveTo(M.left, axisY);
+            distCtx.lineTo(M.left + plotW, axisY);
+            distCtx.stroke();
 
-                if (numBins <= 150) {
-                    distCtx.strokeStyle = '#60a5fa';
-                    distCtx.lineWidth = 0.5;
-                    distCtx.strokeRect(xStart, yStart, barWidth, barHeight);
+            /* bin edges (equal MASS -> uneven widths; they crowd the modes) */
+            if (numBins <= 200) {
+                distCtx.strokeStyle = 'rgba(14, 123, 112, 0.75)';
+                distCtx.beginPath();
+                for (const edge of binEdges) {
+                    const xPix = Math.round(X(edge)) + 0.5;
+                    distCtx.moveTo(xPix, axisY);
+                    distCtx.lineTo(xPix, axisY + 4);
                 }
+                distCtx.stroke();
             }
 
-            distCtx.fillStyle = '#000000';
-            distCtx.font = 'bold 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace';
-            distCtx.textAlign = 'right';
-            distCtx.fillText(`num_bins = ${numBins}`, width - 20, 30);
+            /* numeric ticks */
+            distCtx.strokeStyle = 'rgba(23, 36, 44, 0.45)';
+            distCtx.fillStyle = '#5e7078';
+            distCtx.textAlign = 'center';
+            distCtx.textBaseline = 'top';
+            for (let t = -2; t <= 2; t += 1) {
+                const xPix = Math.round(X(t)) + 0.5;
+                distCtx.beginPath();
+                distCtx.moveTo(xPix, axisY);
+                distCtx.lineTo(xPix, axisY + 8);
+                distCtx.stroke();
+                distCtx.fillText(String(t), xPix, axisY + 12);
+            }
+            /* minor ticks at the half-steps */
+            distCtx.strokeStyle = 'rgba(23, 36, 44, 0.25)';
+            distCtx.beginPath();
+            for (let t = -2.5; t <= 2.5; t += 0.5) {
+                if (Math.abs(t - Math.round(t)) < 1e-9) continue;
+                const xPix = Math.round(X(t)) + 0.5;
+                distCtx.moveTo(xPix, axisY);
+                distCtx.lineTo(xPix, axisY + 4);
+            }
+            distCtx.stroke();
+
+            /* axis titles */
+            distCtx.fillStyle = '#17242c';
+            distCtx.textAlign = 'center';
+            distCtx.textBaseline = 'bottom';
+            distCtx.fillText('target  y', M.left + plotW / 2, H - 4);
+            distCtx.save();
+            distCtx.translate(14, M.top + plotH / 2);
+            distCtx.rotate(-Math.PI / 2);
+            distCtx.textBaseline = 'middle';
+            distCtx.fillText('density  p(y | x)', 0, 0);
+            distCtx.restore();
+
+            drawLegend(M.left + 12, M.top + 10);
+        }
+
+        function drawLegend(x, y) {
+            const rows = [
+                ['bar', 'TabPFN: piece-wise constant over bins'],
+                ['line', 'true p(y | x)'],
+            ];
             distCtx.textAlign = 'left';
+            distCtx.textBaseline = 'middle';
+            rows.forEach(([kind, label], i) => {
+                const yy = y + i * 18;
+                if (kind === 'bar') {
+                    distCtx.fillStyle = 'rgba(14, 123, 112, 0.22)';
+                    distCtx.fillRect(x, yy - 5, 18, 10);
+                    distCtx.strokeStyle = '#0e7b70';
+                    distCtx.lineWidth = 1;
+                    distCtx.strokeRect(x + 0.5, yy - 5.5, 17, 11);
+                } else {
+                    distCtx.strokeStyle = '#e8661a';
+                    distCtx.lineWidth = 2;
+                    distCtx.beginPath();
+                    distCtx.moveTo(x, yy);
+                    distCtx.lineTo(x + 18, yy);
+                    distCtx.stroke();
+                }
+                distCtx.fillStyle = '#5e7078';
+                distCtx.fillText(label, x + 26, yy);
+            });
         }
 
         binSlider.addEventListener('input', render);
-        setTimeout(resizeCanvases, 50);
+        resizeCanvas();
     </script>
 </body>
 </html>

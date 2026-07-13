@@ -30,9 +30,18 @@ Inter and three.js are pinned CDN builds).
 
 - `→` / `Space`: next overlay step / slide; `←` back; `Esc` overview;
   `S` speaker notes window; `?` all shortcuts.
+- **Jump to a slide**: just type its number and press `↵` — the number is
+  the one printed in the bottom-right corner (`12 ↵` → slide 12). `Esc`
+  cancels. (reveal's own `G` opens the same box; the deck additionally
+  lets any digit open it, PowerPoint-style. Typing a word instead of a
+  number jumps to the first slide containing it.)
+- **Jump to a section**: click the slide number in the corner — a
+  translucent list of the sections drops up; clicking one goes to that
+  section's divider slide. The section you are in is highlighted.
 - On the interactive slides (BNN prior, SCM prior, Theorem 3.1, …)
   click the controls inside the frame; click *outside* the frame to give
-  keyboard focus back to the deck before pressing `→`.
+  keyboard focus back to the deck before pressing `→` or typing a number
+  (while the focus is inside an iframe, the keys go to the iframe).
 
 ## Layout
 
@@ -80,3 +89,7 @@ thing you want to tweak.
   with `[n]`, and generates the References slide
   (`sections/conclusion.html`) — nothing to renumber by hand. Uncited
   `.bib` entries are held for future slides and don't appear anywhere.
+  A *section's* paper is declared as `cite:` on its entry in the
+  `SECTIONS` list (`js/loader.js`), not inside the TOC label: the marker
+  is then rendered only on that section's own divider slide, so the paper
+  is not re-cited on the main Outline or on the other eight dividers.

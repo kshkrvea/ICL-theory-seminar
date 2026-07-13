@@ -7,12 +7,14 @@
      2. collect every marker `<span class="cite" data-cite="key[,key...]">`
         in DOM order — including markers inside <template> pop-up bodies
         (audience-qa), which live in template.content, not the document;
-     3. assign numbers by FIRST APPEARANCE, skipping markers inside the
-        top Outline slide ([data-outline]) so its TabPFN label stays a
-        forward reference to the number defined by the section dividers;
+     3. assign numbers by FIRST APPEARANCE in that order;
      4. fill every marker with its "[n]" / "[n, m]" text;
      5. render the cited entries (only those, in number order) into the
         References slide container ([data-references], conclusion.html).
+
+   Outline slides need no special-casing here: js/loader.js emits a
+   section's marker only on that section's own divider, so a paper is
+   never cited on the main Outline or on a foreign section's divider.
 
    The BibTeX reader is deliberately minimal: brace/quote/bare field
    values, the accent macros our entries actually use, `--` en-dashes,
@@ -180,12 +182,9 @@
   function collectMarkers(slidesEl) {
     const markers = [];
     slidesEl.querySelectorAll('section').forEach(sec => {
-      const inOutline = sec.hasAttribute('data-outline');
-      sec.querySelectorAll('[data-cite]').forEach(el =>
-        markers.push({ el, counts: !inOutline }));
+      sec.querySelectorAll('[data-cite]').forEach(el => markers.push(el));
       sec.querySelectorAll('template').forEach(t =>
-        t.content.querySelectorAll('[data-cite]').forEach(el =>
-          markers.push({ el, counts: !inOutline })));
+        t.content.querySelectorAll('[data-cite]').forEach(el => markers.push(el)));
     });
     return markers;
   }
@@ -204,11 +203,10 @@
 
     const markers = collectMarkers(slidesEl);
 
-    /* number by first appearance (outline slide excluded) */
+    /* number by first appearance */
     const number = {};
     const order = [];
-    for (const { el, counts } of markers) {
-      if (!counts) continue;
+    for (const el of markers) {
       for (const key of keysOf(el)) {
         if (!(key in number)) {
           number[key] = order.length + 1;
@@ -218,8 +216,7 @@
       }
     }
 
-    /* fill every marker (outline included) */
-    for (const { el } of markers) {
+    for (const el of markers) {
       el.textContent = '[' + keysOf(el).map(k => number[k] || '?').join(', ') + ']';
     }
 

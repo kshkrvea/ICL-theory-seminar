@@ -16,8 +16,10 @@
 
    HOW TO ADJUST:
      - Add/rename/reorder sections: edit SECTIONS below. `toc` is the
-       TOC label (TabPFN carries a data-cite marker, filled with its
-       reference number by js/cite.js).
+       TOC label; the optional `cite` is the .bib key of the section's
+       paper — it is rendered as a citation marker ONLY on that section's
+       own divider slide (see outlineHTML), so the same paper is not
+       re-cited on every outline slide.
      - Beamer-overlay emulation: any .fragment may carry
        data-slide-class="s2" — while that fragment is visible, the
        class is set on its <section>. Slides use cumulative classes
@@ -35,15 +37,21 @@
      of the outline and add no divider (the \appendix behavior). */
   const SECTIONS = [
     { file: 'sections/background.html',              toc: 'Background' },
-    { file: 'sections/tabpfn.html',                  toc: 'TabPFN <span class="cite" data-cite="hollmannTabPFNTransformerThat2023"></span>' },
-    { file: 'sections/statistical_foundations.html', toc: 'Statistical Foundations of PFNs' },
-    { file: 'sections/tabpfnv2.html',                toc: 'TabPFNv2' },
-    { file: 'sections/tabicl.html',                  toc: 'TabICL' },
+    { file: 'sections/tabpfn.html',                  toc: 'TabPFN',
+      cite: 'hollmannTabPFNTransformerThat2023' },
+    { file: 'sections/statistical_foundations.html', toc: 'Statistical Foundations of PFNs',
+      cite: 'naglerStatisticalFoundationsPriorData2023' },
+    { file: 'sections/tabpfnv2.html',                toc: 'TabPFNv2',
+      cite: 'hollmannAccuratePredictionsSmall2025' },
+    { file: 'sections/tabicl.html',                  toc: 'TabICL',
+      cite: 'quTabICLTabularFoundation2025' },
     { file: 'sections/recent_sota.html',             toc: 'SOTA' },
     { file: 'sections/connections.html',             toc: 'Connections to Other Topics' },
     { file: 'sections/conclusion.html',              toc: 'Conclusion' },
     { file: 'sections/appendix.html',                toc: null },
   ];
+
+  const TOC_SECTIONS = SECTIONS.filter(s => s.toc !== null);
 
   /* ---- outline list, optionally with one section highlighted ----
      Every <li> carries data-goto-id pointing at that section's divider
@@ -51,11 +59,22 @@
      gotoSlideById / the delegated click listener below). This powers
      both the main Outline slide and every per-section divider's own
      outline list, so a click always jumps regardless of which one
-     you're looking at. */
+     you're looking at.
+
+     A section's `cite` marker is emitted ONLY on that section's own
+     divider (currentIdx === i) — never on the main Outline (currentIdx
+     null) and never on the other dividers. Otherwise the same paper
+     would carry a visible [n] on all nine outline slides. js/cite.js
+     numbers by first appearance in DOM order, so a section paper that
+     is not cited earlier in the deck gets its number here, at the
+     divider that opens its section. */
   function outlineHTML(currentIdx) {
-    return SECTIONS.filter(s => s.toc !== null).map((s, i) =>
-      `<li class="${currentIdx != null && i !== currentIdx ? 'dimmed' : ''}" data-goto-id="divider-${i}">${s.toc}</li>`
-    ).join('');
+    return TOC_SECTIONS.map((s, i) => {
+      const cite = (s.cite && currentIdx === i)
+        ? ` <span class="cite" data-cite="${s.cite}"></span>` : '';
+      const dimmed = currentIdx != null && i !== currentIdx ? 'dimmed' : '';
+      return `<li class="${dimmed}" data-goto-id="divider-${i}">${s.toc}${cite}</li>`;
+    }).join('');
   }
 
   function dividerSlide(idx) {
@@ -82,7 +101,104 @@
 
   document.addEventListener('click', e => {
     const li = e.target.closest('[data-goto-id]');
-    if (li) gotoSlideById(li.dataset.gotoId);
+    if (li) {
+      gotoSlideById(li.dataset.gotoId);
+      toggleSectionMenu(false);
+    }
+  });
+
+  /* ================= navigation: section menu + jump-to-slide =========
+     Two ways to get somewhere fast without arrowing through the deck:
+
+     1. TYPE A SLIDE NUMBER, PRESS ENTER (PowerPoint-style). reveal 5
+        ships a jump-to-slide box (config `jumpToSlide`, opened with `G`)
+        and — because our `slideNumber` is 'c' (one continuous count) —
+        a plain number in it means exactly the number printed in the
+        corner. The handler below lets you skip the `G`: any digit typed
+        on the deck opens that box already holding the digit, so "12 ⏎"
+        goes to slide 12. Escape cancels.
+
+     2. CLICK THE SLIDE NUMBER -> section menu. A translucent list of the
+        sections pops up above the corner; clicking one jumps to that
+        section's divider slide. The section you are in is highlighted.
+
+     Both are ignored while an iframe pop-up / Q&A overlay is open, and
+     while focus is inside a text field (including reveal's own box).
+  ==================================================================== */
+  let sectionMenuEl = null;
+
+  function buildSectionMenu() {
+    const el = document.createElement('div');
+    el.className = 'section-menu';
+    el.innerHTML =
+      '<ul class="section-menu-list">' +
+      TOC_SECTIONS.map((s, i) =>
+        `<li data-goto-id="divider-${i}">` +
+          `<span class="n">${String(i + 1).padStart(2, '0')}</span>` +
+          `<span class="t">${s.toc}</span>` +
+        '</li>').join('') +
+      '</ul>' +
+      '<div class="section-menu-hint">Type a slide number, then <kbd>&crarr;</kbd></div>';
+    document.body.appendChild(el);
+    return el;
+  }
+
+  /* mark the section that contains the current slide (the last divider
+     at or before it; the appendix keeps the last section marked) */
+  function highlightCurrentSection() {
+    if (!sectionMenuEl || !Reveal.isReady()) return;
+    const slides = Reveal.getSlides();
+    const cur = slides.indexOf(Reveal.getCurrentSlide());
+    const items = sectionMenuEl.querySelectorAll('[data-goto-id]');
+    let active = -1;
+    items.forEach((li, i) => {
+      const target = document.getElementById(li.dataset.gotoId);
+      const idx = target ? slides.indexOf(target) : -1;
+      if (idx !== -1 && idx <= cur) active = i;
+      li.classList.remove('current');
+    });
+    if (active >= 0) items[active].classList.add('current');
+  }
+
+  function toggleSectionMenu(force) {
+    if (!sectionMenuEl) sectionMenuEl = buildSectionMenu();
+    const open = force === undefined
+      ? !sectionMenuEl.classList.contains('open')
+      : Boolean(force);
+    sectionMenuEl.classList.toggle('open', open);
+    if (open) highlightCurrentSection();
+  }
+
+  const overlayOpen = () =>
+    !!document.querySelector('.viz-modal-backdrop.open, .qa-modal-backdrop.open');
+
+  document.addEventListener('click', e => {
+    /* the slide number is an <a href="#/..."> — swallow the hash nav */
+    if (e.target.closest('.reveal .slide-number')) {
+      e.preventDefault();
+      toggleSectionMenu();
+      return;
+    }
+    if (sectionMenuEl && sectionMenuEl.classList.contains('open')
+        && !e.target.closest('.section-menu')) {
+      toggleSectionMenu(false);
+    }
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (!/^[0-9]$/.test(e.key)) return;
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (overlayOpen() || !Reveal.isReady()) return;
+
+    e.preventDefault();
+    toggleSectionMenu(false);
+    Reveal.toggleJumpToSlide(true);
+    const input = document.querySelector('.jump-to-slide-input');
+    if (!input) return;
+    input.value = e.key;                       /* seed it with the digit */
+    input.dispatchEvent(new Event('input'));   /* arms reveal's auto-jump */
   });
 
   /* ---- generic click-to-open iframe pop-up (data-modal-src) ----
@@ -138,6 +254,7 @@
     if (e.key === 'Escape') {
       closeModal();
       closeQaModal();
+      toggleSectionMenu(false);
     }
   });
 
@@ -322,13 +439,18 @@
       transitionSpeed: 'fast',
       backgroundTransition: 'none',
       display: 'flex',
+      /* 'c' = one continuous count; the jump-to-slide box (below) then
+         takes exactly the number printed in the corner. */
       slideNumber: 'c',
+      jumpToSlide: true,
       controls: false,
       progress: true,
       plugins: [RevealNotes],
     });
 
     Reveal.on('ready', syncOverlayState);
+    Reveal.on('ready', highlightCurrentSection);
+    Reveal.on('slidechanged', highlightCurrentSection);
     Reveal.on('slidechanged', syncOverlayState);
     Reveal.on('fragmentshown', syncOverlayState);
     Reveal.on('fragmenthidden', syncOverlayState);
