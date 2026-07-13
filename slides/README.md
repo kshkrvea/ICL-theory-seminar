@@ -5,6 +5,10 @@ Beamer deck it was ported from (recoverable from git history); content,
 slide order and overlay steps still mirror that origin, with the
 step-by-step PDF figure flips replaced by **interactive** visualizations.
 
+Live at **https://kshkrvea.github.io/ICL-theory-seminar/** — this directory
+is published as-is by `.github/workflows/pages.yml` on every push to `main`
+that touches `slides/` (no build step; `index.html` becomes the site root).
+
 ## Serve
 
 The deck fetches its section fragments at runtime, so it needs an HTTP
@@ -28,8 +32,19 @@ Inter and three.js are pinned CDN builds).
 
 ## Controls
 
-- `→` / `Space`: next overlay step / slide; `←` back; `Esc` overview;
-  `S` speaker notes window; `?` all shortcuts.
+There are **no on-screen arrows** (`controls: false` in `js/loader.js`) —
+deliberately, so nothing competes with the slide content. The keyboard and
+the corner slide number are the interface:
+
+| | | where it comes from |
+| --- | --- | --- |
+| `→` / `Space`, `←` | next overlay step or slide, back (swipe on touch) | reveal defaults |
+| `Esc` | overview grid; also closes an open pop-up or the section menu | `js/loader.js` |
+| `S` | speaker view — timer, next slide, notes (opens a **pop-up window**: allow pop-ups for the site) | `RevealNotes`, loaded in `index.html` |
+| `?` | all shortcuts | reveal default |
+| any digit, then `↵` | jump to a slide | `js/loader.js` |
+| click the slide number | section menu | `js/loader.js` |
+
 - **Jump to a slide**: just type its number and press `↵` — the number is
   the one printed in the bottom-right corner (`12 ↵` → slide 12). `Esc`
   cancels. (reveal's own `G` opens the same box; the deck additionally
@@ -38,10 +53,26 @@ Inter and three.js are pinned CDN builds).
 - **Jump to a section**: click the slide number in the corner — a
   translucent list of the sections drops up; clicking one goes to that
   section's divider slide. The section you are in is highlighted.
-- On the interactive slides (BNN prior, SCM prior, Theorem 3.1, …)
-  click the controls inside the frame; click *outside* the frame to give
+- **Interactive slides.** The `interactive/*.html` visualizations (BNN
+  prior, SCM prior, Theorem 3.1, …) are embedded *inline* in the slide as
+  `<iframe data-src=…>`, so reveal lazy-loads them as you approach. Click
+  the controls inside the frame; click *outside* the frame to give
   keyboard focus back to the deck before pressing `→` or typing a number
   (while the focus is inside an iframe, the keys go to the iframe).
+- **Audience-Q&A pop-ups.** The circled `?` buttons (`.audience-qa`, seven
+  of them, all in `statistical_foundations.html`) open a text overlay with
+  an answer to a question the audience tends to ask — separate from
+  speaker notes. `Esc`, the `×`, or a backdrop click closes it; while it
+  is open reveal's keyboard nav is off.
+- **Deep links**: `hash: true`, so the URL tracks the current slide and
+  `…/#/12` is shareable.
+
+> Note: `js/loader.js` also carries a generic click-to-open iframe pop-up
+> (`data-modal-src`) and `css/theme.css` a matching `.viz-hint` style, but
+> **no slide uses them any more** — the theorem slides embed their viz
+> inline instead. Both are dead code kept for reuse; the comment at
+> `sections/statistical_foundations.html:635` claiming `sf-approx` still
+> uses it is stale.
 
 ## Layout
 
