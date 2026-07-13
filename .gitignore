@@ -7,20 +7,6 @@ __pycache__
 *.npz
 *.ipynb
 
-# LaTeX build artifacts
-slides/*.aux
-slides/*.log
-slides/*.bbl
-slides/*.blg
-slides/*.nav
-slides/*.out
-slides/*.snm
-slides/*.toc
-slides/*.vrb
-slides/*.fdb_latexmk
-slides/*.fls
-slides/*.synctex.gz
-
 src/*.png
 
 library/*
