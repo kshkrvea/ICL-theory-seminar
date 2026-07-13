@@ -2,11 +2,7 @@
 
 Seminar talk for the LMU StaDS MSc course *[s26] Theoretical Foundations of Amortization and Meta-, and In-Context Learning*.
 
-PFNs turn Bayesian inference into a forward pass: a transformer is pre-trained on synthetic datasets drawn from a prior, and at inference it approximates the posterior predictive distribution in-context, with no gradient updates on the real data. The talk traces the idea from that construction through **TabPFN**, its **statistical foundations** (what the approximation actually converges to, and why *n* acts as a regulariser), the redesign in **TabPFN v2**, the scaling story of **TabICL**, the current tabular state of the art, and what PFNs give you *beyond* point predictions.
-
 ## ▶ [View the slides](https://kshkrvea.github.io/ICL-theory-seminar/)
-
-Hosted on GitHub Pages. Best in a desktop browser; needs an internet connection (reveal.js, KaTeX and three.js are loaded from CDNs).
 
 ## Using the slides
 
