@@ -13,8 +13,12 @@
     - compact 220px controls column, no execution ledger;
     - buttons: white/dark default; .next-step = dark fill (see updateUIState).
 
-  HOW TO ADJUST: controls column width in .controls { width };
-  simulation logic is verbatim from the source file.
+  HOW TO ADJUST: controls column width in .controls { width }.
+  Simulation logic was reworked 2026-07 and no longer matches the
+  standalone source file: hyperparameters follow the paper's meta-prior
+  table (TNLU / Beta samplers), the class partition + categorical bins
+  are calibrated at Step 3 from a hidden probe batch, and Phase II→III
+  loops per sample.
 =================================================================== -->
 <html lang="en">
 <head>
@@ -56,8 +60,11 @@
             border: 1px solid #e2e5e6;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 6px;
             min-height: 0;
+            /* scroll rather than clip if the column is taller than the iframe
+               (the deck may size this iframe smaller than the controls' natural height) */
+            overflow-y: auto;
             box-sizing: border-box;
         }
         .visualization-panel {
@@ -78,7 +85,7 @@
             position: relative;
         }
         .control-group {
-            padding-bottom: 8px;
+            padding-bottom: 6px;
             border-bottom: 1px solid #e9ecef;
         }
         .control-group:last-child {
@@ -96,7 +103,7 @@
         }
         button {
             width: 100%;
-            padding: 6px 8px;
+            padding: 5px 8px;
             border-radius: 4px;
             border: 1px solid #ced4da;
             box-sizing: border-box;
@@ -105,7 +112,7 @@
             font-weight: 600;
             cursor: pointer;
             transition: background-color 0.2s, border-color 0.2s, color 0.2s;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
             text-align: left;
             font-size: 0.72rem;
         }
@@ -130,6 +137,25 @@
             background-color: var(--mDarkTealHover);
             border-color: var(--mDarkTealHover);
         }
+        /* one-click orchestrator buttons: prominent accent call-to-action */
+        button.run-btn {
+            background-color: var(--mAlert);
+            color: #ffffff;
+            border-color: var(--mAlert);
+            opacity: 1;
+        }
+        button.run-btn:hover:not(:disabled) {
+            background-color: var(--mAlertHover);
+            border-color: var(--mAlertHover);
+        }
+        button.run-btn:disabled {
+            background-color: var(--mAlert);
+            color: #ffffff;
+            border-color: var(--mAlert);
+            opacity: 0.4;
+        }
+        /* NB: usage instructions live on the SLIDE (sections/tabpfn.html #tp-scm,
+           .audience-qa "?" pop-up), not in here — this page is the embedded iframe. */
         svg {
             border: 1px solid #e9ecef;
             border-radius: 4px;
@@ -147,6 +173,12 @@
 
 <div class="container">
     <div class="controls">
+        <div class="control-group">
+            <label>Quick Run</label>
+            <button id="btn-run-phase1" class="run-btn">▶ Sample Prior &nbsp;(Phase I)</button>
+            <button id="btn-run-sample" class="run-btn" disabled>▶ Draw Data Point &nbsp;(Phase II→III)</button>
+        </div>
+
         <div class="control-group">
             <label>Phase I: SCM DAG Generation</label>
             <button id="btn-sample-hyper">Step 1: Sample Meta-Prior Hyperparameters</button>
@@ -184,8 +216,16 @@
         graph: null,
         currentPropagationLayer: -1,
         continuousOutput: null,
+        forwardComplete: false, // set once causal generation reaches the target; blocks re-runs within a sample
+        autoRunning: false,     // a one-click orchestrator (Phase I / draw-sample) is mid-sequence
+        sampleCount: 0,         // how many data samples have been drawn from the CURRENT prior (Phase I)
+        sigmaW: 1.0,            // weights std        ~ TNLU(0.01, 10)     (paper Table)
+        sigmaEps: 0.1,          // exogenous noise std ~ TNLU(0.0001, 0.3) (paper Table)
+        numClasses: 0,          // N_c, sampled at Step 1
+        classSplit: null,       // {numClasses, bounds} — FIXED at Step 3 from the probe batch
+        catFeatures: null,      // per-feature: null (numeric) or {nCat, bounds} (categorical)
         classData: null,
-        axisDomain: null
+        axisDomain: null // probe-calibrated [min,max]; fixed at Step 3, never rescaled per sample
     };
 
     const activations = ['Tanh', 'Leaky ReLU', 'ELU', 'Identity'];
@@ -196,6 +236,8 @@
     const btnSampleNoise = document.getElementById('btn-sample-noise');
     const btnFlowData = document.getElementById('btn-flow-data');
     const btnTransformClass = document.getElementById('btn-transform-class');
+    const btnRunPhase1 = document.getElementById('btn-run-phase1');
+    const btnRunSample = document.getElementById('btn-run-sample');
     const mainSvg = document.getElementById('main-svg');
     const allStepButtons = [
         btnSampleHyper, btnBuildDense, btnDropoutEdges,
@@ -211,18 +253,26 @@
         else if (state.step === 1) next = btnBuildDense;
         else if (state.step === 2) next = btnDropoutEdges;
         else if (state.step === 3) next = btnSampleNoise;
-        else if (state.step === 4) next = btnFlowData;
-        else if (state.step === 5 && state.continuousOutput !== null && !state.classData) next = btnTransformClass;
-        else if (state.step >= 6) next = btnSampleHyper;
+        else if (!state.forwardComplete) next = btnFlowData;        // step >= 4, still propagating
+        else if (!state.classData) next = btnTransformClass;        // generation done, not yet discretized
+        else next = btnSampleNoise;                                 // sample done → draw the NEXT sample (loop Phase II→III)
         if (next && !next.disabled) next.classList.add('next-step');
     }
 
     function updateUIState() {
-        btnBuildDense.disabled = state.step < 1;
-        btnDropoutEdges.disabled = state.step < 2;
-        btnSampleNoise.disabled = state.step < 3;
-        btnFlowData.disabled = state.step < 4;
-        btnTransformClass.disabled = state.step < 5 || state.continuousOutput === null;
+        // While a one-click sequence plays, every button is locked.
+        const auto = state.autoRunning;
+        btnSampleHyper.disabled = auto;
+        btnBuildDense.disabled = auto || state.step < 1;
+        btnDropoutEdges.disabled = auto || state.step < 2;
+        btnSampleNoise.disabled = auto || state.step < 3;
+        // Step 5 stays clickable while propagating, but locks once generation completes.
+        btnFlowData.disabled = auto || state.step < 4 || state.forwardComplete;
+        // Step 6 unlocks only after generation, and locks again once the label is assigned.
+        btnTransformClass.disabled = auto || !state.forwardComplete || state.classData !== null;
+        // One-click shortcuts: Phase I always available; draw-sample needs a built prior.
+        btnRunPhase1.disabled = auto;
+        btnRunSample.disabled = auto || state.step < 3 || !state.graph;
         highlightNextStep();
     }
 
@@ -231,22 +281,169 @@
             case 'Tanh': return Math.tanh(x);
             case 'Leaky ReLU': return x >= 0 ? x : 0.1 * x;
             case 'ELU': return x >= 0 ? x : 1.0 * (Math.exp(x) - 1);
-            case 'Identity': 
+            case 'Identity':
             default: return x;
         }
     }
 
-    btnSampleHyper.addEventListener('click', () => {
-        state.layers = Math.floor(Math.random() * 2) + 1; 
-        state.hiddenUnits = Math.floor(Math.random() * 2) + 2; 
+    // ---- meta-prior samplers (TabPFN paper, Table "prior hyperparameter
+    //      distribution"; see library/raw/papers-2207-01848v6.../main.tex) ----
+    function randn() {
+        const u1 = Math.max(1e-12, Math.random());
+        const u2 = Math.random();
+        return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+    }
+    function logUniform(a, b) {
+        return Math.exp(Math.log(a) + Math.random() * (Math.log(b) - Math.log(a)));
+    }
+    // TNLU(μ̌, μ̂, round, min): μ, σ ~ LogUniform(μ̌, μ̂); v ~ TruncNormal(μ, σ², a=0).
+    // `cap` is a DISPLAY-ONLY ceiling (the paper allows e.g. 12 nodes per layer,
+    // which cannot be drawn legibly in a 1000×470 SVG).
+    function sampleTNLU(minMean, maxMean, doRound, minVal, cap) {
+        const mu = logUniform(minMean, maxMean);
+        const sigma = logUniform(minMean, maxMean);
+        let v;
+        do { v = mu + sigma * randn(); } while (v < 0);
+        if (doRound) v = Math.round(v);
+        v = Math.max(v, minVal);
+        return cap !== undefined ? Math.min(v, cap) : v;
+    }
+    // Gamma(k, 1) via Marsaglia–Tsang (boosted for k<1), for Beta sampling
+    function sampleGamma(k) {
+        if (k < 1) return sampleGamma(k + 1) * Math.pow(Math.max(1e-12, Math.random()), 1 / k);
+        const d = k - 1 / 3, c = 1 / Math.sqrt(9 * d);
+        for (;;) {
+            let x, v;
+            do { x = randn(); v = 1 + c * x; } while (v <= 0);
+            v = v * v * v;
+            const u = Math.random();
+            if (u < 1 - 0.0331 * x * x * x * x) return d * v;
+            if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
+        }
+    }
+    function sampleBeta(a, b) {
+        const x = sampleGamma(a), y = sampleGamma(b);
+        return x / (x + y);
+    }
+
+    // Compact display formatters: σ_w up to ~10 means node values can span many
+    // orders of magnitude, so fixed .toFixed(2) is no longer safe anywhere.
+    function fmt(v) {
+        const a = Math.abs(v);
+        if (a >= 1e4) return v.toExponential(1);
+        if (a >= 100) return v.toFixed(0);
+        if (a >= 0.005 || a === 0) return v.toFixed(2);
+        if (a >= 1e-4) return v.toFixed(4);
+        return v.toExponential(1);
+    }
+    function fmtAxis(v) {  // decimals adapted to the (probe-calibrated) axis span
+        const span = state.axisDomain ? Math.max(state.axisDomain.max - state.axisDomain.min, 1e-12) : 1;
+        const a = Math.abs(v);
+        if (a >= 1e5 || (a > 0 && a < 1e-4 && span < 1e-3)) return v.toExponential(1);
+        const dec = span >= 100 ? 0 : span >= 1 ? 2 : Math.min(6, Math.ceil(-Math.log10(span)) + 2);
+        return v.toFixed(dec);
+    }
+
+    // One silent causal generation through the finished DAG (fresh exogenous noise
+    // at every node, no display state touched). Mirrors the visible Step-5 math:
+    // z_i = f(Σ W_ij·z_j + ε_i) at every node. Used by calibratePartition.
+    function probeForward() {
+        const vals = {};
+        for (let l = 0; l < state.graph.topology.length; l++) {
+            state.graph.nodes.filter(n => n.layer === l).forEach(tN => {
+                let dot = 0;
+                state.graph.edges.forEach(e => {
+                    if (e.target.id === tN.id && !e.dropped) dot += vals[e.source.id] * e.weight;
+                });
+                vals[tN.id] = applyActivation(dot + randn() * state.sigmaEps, state.activation);
+            });
+        }
+        const target = state.graph.nodes.find(n => n.role === 'target');
+        const feats = state.graph.nodes.filter(n => n.role === 'feature')
+            .sort((a, b) => a.featureIdx - b.featureIdx).map(n => vals[n.id]);
+        return { yhat: vals[target.id], feats };
+    }
+
+    // End of Phase I: draw a hidden probe batch and fix everything downstream
+    // sampling depends on. Paper-faithful: class bounds are "sampled randomly from
+    // the set of continuous targets" (Sec. Multi-class Prediction) — i.e. from
+    // THIS SCM's actual z_y distribution, so drawn samples spread across classes
+    // instead of clustering in one. Also fixes the axis window and the
+    // categorical-feature bins (Appendix: "analogous to multiclass labels").
+    function calibratePartition() {
+        const K = 64;
+        const probes = [];
+        for (let i = 0; i < K; i++) probes.push(probeForward());
+        const ys = probes.map(p => p.yhat).sort((a, b) => a - b);
+        let lo = ys[0], hi = ys[K - 1];
+        if (!(hi - lo > 1e-12)) { lo -= 0.5; hi += 0.5; }   // degenerate constant output
+        const span = hi - lo;
+
+        // N_c-1 bounds from the probe targets, kept ≥8% of the span apart so the
+        // B_i tick labels stay readable; fall back to even spacing if the empirical
+        // distribution is too clumped to satisfy the gaps.
+        const n = state.numClasses - 1;
+        const minGap = 0.08 * span;
+        let bounds = null;
+        for (let attempt = 0; attempt < 200 && !bounds; attempt++) {
+            const cand = [];
+            for (let j = 0; j < n; j++) cand.push(ys[1 + Math.floor(Math.random() * (K - 2))]);
+            cand.sort((a, b) => a - b);
+            let ok = cand[0] - lo >= minGap * 0.5 && hi - cand[n - 1] >= minGap * 0.5;
+            for (let j = 1; j < n; j++) if (cand[j] - cand[j - 1] < minGap) ok = false;
+            if (ok) bounds = cand;
+        }
+        if (!bounds) {
+            bounds = [];
+            for (let j = 1; j <= n; j++) bounds.push(lo + span * j / (n + 1));
+        }
+        state.classSplit = { numClasses: state.numClasses, bounds };
+        state.axisDomain = { min: lo - 0.1 * span, max: hi + 0.1 * span };
+
+        // Categorical features: a random fraction p_cat of features per dataset is
+        // discretized like the target (bins from that feature's probe values).
+        const featCount = state.graph.nodes.filter(nd => nd.role === 'feature').length;
+        const pCat = Math.random() * 0.7;
+        state.catFeatures = [];
+        for (let f = 0; f < featCount; f++) {
+            if (Math.random() < pCat) {
+                const fv = probes.map(p => p.feats[f]).sort((a, b) => a - b);
+                const nCat = 2 + Math.floor(Math.random() * 3);   // 2–4 categories
+                const fb = [];
+                for (let j = 0; j < nCat - 1; j++) fb.push(fv[1 + Math.floor(Math.random() * (K - 2))]);
+                fb.sort((a, b) => a - b);
+                state.catFeatures.push({ nCat, bounds: fb });
+            } else {
+                state.catFeatures.push(null);
+            }
+        }
+    }
+
+    function stepSampleHyper() {
+        // Paper meta-prior (structural sizes display-scaled: the paper allows up
+        // to 12 nodes per layer, which is not drawable in this SVG):
+        //   SCM #nodes/layer  TNLU(1, 12, round, min 1) → here TNLU(1, 4) in [2, 4]
+        state.layers = sampleTNLU(1, 2, true, 1, 3);
+        state.hiddenUnits = sampleTNLU(1, 4, true, 2, 4);
         state.activation = activations[Math.floor(Math.random() * activations.length)];
-        state.dropoutRate = +(Math.random() * 0.30 + 0.30).toFixed(2);
-        
+        // weight dropout: 0.9 · Beta(a, b), a, b ~ Uniform(0.1, 5.0)
+        state.dropoutRate = 0.9 * sampleBeta(0.1 + Math.random() * 4.9, 0.1 + Math.random() * 4.9);
+        state.sigmaW = sampleTNLU(0.01, 10.0, false, 0.0);      // weights std
+        state.sigmaEps = sampleTNLU(0.0001, 0.3, false, 0.0);   // exogenous noise std
+
+        // N_c is part of the Step-1 draw; the concrete cut points come from the
+        // probe batch at Step 3 (paper: bounds sampled from the z_y values).
+        state.numClasses = Math.floor(Math.random() * 3) + 2;   // 2–4 classes (min 2)
+
         state.step = 1;
         state.stepTitle = "Step 1: Sample SCM Meta-Prior Hyperparameters";
         state.currentPropagationLayer = -1;
         state.continuousOutput = null;
+        state.forwardComplete = false;
+        state.sampleCount = 0;   // a new prior → restart the data-sample count
         state.classData = null;
+        state.classSplit = null;
+        state.catFeatures = null;
         state.axisDomain = null;
         state.graph = null;
         
@@ -258,9 +455,9 @@
         
         renderUnifiedCanvas();
         updateUIState();
-    });
+    }
 
-    btnBuildDense.addEventListener('click', () => {
+    function stepBuildDense() {
         const width = 1000;
         const height = 285;
         const offsetY = 72;
@@ -322,10 +519,8 @@
             
             currentLayerNodes.forEach(source => {
                 nextLayerNodes.forEach(target => {
-                    let u1 = Math.max(1e-9, Math.random());
-                    let u2 = Math.random();
-                    let w = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2) * 0.8; 
-                    
+                    let w = randn() * state.sigmaW;   // weights ~ N(0, σ_w²), σ_w from Step 1
+
                     edges.push({
                         id: `E_${source.id}_${target.id}`,
                         source: source,
@@ -342,7 +537,11 @@
         state.stepTitle = "Step 2: Build Dense Topology and Select Observed Variables (Z_X, z_y)";
         state.currentPropagationLayer = -1;
         state.continuousOutput = null;
+        state.forwardComplete = false;
+        state.sampleCount = 0;
         state.classData = null;
+        state.classSplit = null;   // a rebuilt DAG invalidates the old calibration;
+        state.catFeatures = null;  // Step 3 re-runs the probe batch
         state.axisDomain = null;
         
         logToLedger(`[Step 2: SCM Topology Constructed]\n` +
@@ -353,9 +552,9 @@
         
         renderUnifiedCanvas();
         updateUIState();
-    });
+    }
 
-    btnDropoutEdges.addEventListener('click', () => {
+    function stepDropout() {
         if (!state.graph) return;
 
         let dropCount = 0;
@@ -367,8 +566,12 @@
         });
 
         state.step = 3;
-        state.stepTitle = "Step 3: Edge Dropout (Sparsify SCM to Random DAG)";
-        
+        state.stepTitle = "Step 3: Edge Dropout — Prior Fixed, Class Partition Calibrated";
+
+        // The DAG is now final: fix the class partition + categorical bins
+        // from a hidden probe batch of this prior's own outputs.
+        calibratePartition();
+
         let activeEdges = state.graph.edges.length - dropCount;
         let actualRate = ((dropCount / state.graph.edges.length) * 100).toFixed(1);
         
@@ -379,22 +582,25 @@
             
         renderUnifiedCanvas();
         updateUIState();
-    });
+    }
 
-    btnSampleNoise.addEventListener('click', () => {
+    function stepSampleNoise() {
         if (!state.graph) return;
         
         state.graph.nodes.forEach(node => {
-            node.noise = +(Math.random() * 2 - 1).toFixed(3);
+            node.noise = randn() * state.sigmaEps;   // ε_i ~ N(0, σ_ε²), σ_ε from Step 1
             node.value = 0.0;
         });
 
         state.step = 4;
-        state.stepTitle = "Step 4: Sample Exogenous Noise (ε) for all Nodes";
+        state.sampleCount++;     // each Phase II entry draws a fresh data sample from the fixed prior
+        state.stepTitle = `Step 4: Sample Exogenous Noise (ε) for all Nodes  (Sample #${state.sampleCount})`;
         state.currentPropagationLayer = -1;
         state.continuousOutput = null;
+        state.forwardComplete = false;
         state.classData = null;
-        state.axisDomain = null;
+        // NOTE: classSplit/axisDomain deliberately survive — the partition is part
+        // of the prior and stays fixed across all samples drawn from it.
         
         logToLedger(`[Step 4: Exogenous Noise Injected]\n` +
             `• Structural Noise ε_i ~ N(0, σ_i^2) sampled for all nodes in Z.\n` +
@@ -402,25 +608,22 @@
             
         renderUnifiedCanvas();
         updateUIState();
-    });
+    }
 
-    btnFlowData.addEventListener('click', () => {
+    function stepFlow() {
         if (!state.graph) return;
+        if (state.forwardComplete) return; // causal generation runs exactly once
 
         let nextLayer = state.currentPropagationLayer + 1;
         if (nextLayer >= state.graph.topology.length) {
             state.currentPropagationLayer = -2;
             let targetNode = state.graph.nodes.find(n => n.role === 'target');
             state.continuousOutput = targetNode.value;
-
-            logToLedger(`[Causal Generation Completed]\n` +
-                `• Continuous Scalar Target (z_y): ${state.continuousOutput.toFixed(4)}\n` +
-                `• Ready for Phase III interval discretization.`);
-            
-            state.axisDomain = {
-                min: state.continuousOutput - 2.5,
-                max: state.continuousOutput + 2.5
-            };
+            state.forwardComplete = true;
+            // Axis was fixed at Step 3; widen minimally only if this z_y is an outlier.
+            const d = state.axisDomain, s = d.max - d.min;
+            if (state.continuousOutput < d.min) d.min = state.continuousOutput - 0.05 * s;
+            if (state.continuousOutput > d.max) d.max = state.continuousOutput + 0.05 * s;
 
             updateUIState();
             renderUnifiedCanvas();
@@ -444,7 +647,7 @@
             
             let linearEq = equationTerms.length > 0 ? equationTerms.join(' + ') : '0';
             let linearActivation = dotProduct + tNode.noise;
-            tNode.value = +applyActivation(linearActivation, state.activation).toFixed(4);
+            tNode.value = applyActivation(linearActivation, state.activation);
 
             trace.push(`  - ${tNode.id} [${tNode.role}]:\n    z_i = ${state.activation}( ${linearEq} + ${tNode.noise.toFixed(2)}[ε] ) = ${tNode.value.toFixed(4)}`);
         });
@@ -462,58 +665,75 @@
             
         renderUnifiedCanvas(true);
         updateUIState();
-    });
+    }
 
-    btnTransformClass.addEventListener('click', () => {
-        if (state.continuousOutput === null) return;
+    function stepTransform() {
+        // Runs once: only after generation, and never after a label is assigned.
+        if (!state.forwardComplete || state.classData || !state.classSplit) return;
 
-        let numClasses = Math.floor(Math.random() * 3) + 1; 
-        
-        let bounds = [];
-        let baseVal = state.continuousOutput;
-        for (let i = 0; i < numClasses - 1; i++) {
-            let offset = (Math.random() * 3 - 1.5);
-            bounds.push(+(baseVal + offset).toFixed(2));
-        }
-        bounds.sort((a, b) => a - b);
-
-        for(let i = 1; i < bounds.length; i++) {
-            if(bounds[i] <= bounds[i-1]) bounds[i] = +(bounds[i-1] + 0.35).toFixed(2);
-        }
-
-        let minVal = Math.min(state.axisDomain.min, ...bounds) - 0.5;
-        let maxVal = Math.max(state.axisDomain.max, ...bounds) + 0.5;
-        state.axisDomain = { min: minVal, max: maxVal };
-
+        // The partition (count + cut points) was fixed at Step 1. Discretization is now
+        // purely deterministic: z_y lands in the interval it falls into — same z_y, same class.
+        let { numClasses, bounds } = state.classSplit;
         let assignedClass = 0;
-        bounds.forEach(bound => {
-            if (bound < state.continuousOutput) {
-                assignedClass++;
-            }
-        });
-
-        let intervals = [];
-        for(let c = 0; c < numClasses; c++) {
-            let lower = c === 0 ? '-∞' : bounds[c-1];
-            let upper = c === numClasses - 1 ? '+∞' : bounds[c];
-            let match = c === assignedClass ? ' ◄== [ASSIGNED]' : '';
-            intervals.push(`  Class ${c}: (${lower}, ${upper}]${match}`);
-        }
+        bounds.forEach(bound => { if (bound < state.continuousOutput) assignedClass++; });
 
         state.classData = { numClasses, bounds, assignedClass };
         state.step = 6;
-        state.stepTitle = "Step 6: Transform Continuous Target z_y to Discrete Class Label";
-        
-        logToLedger(`[Step 6: Target Discretized to Class Label]\n` +
-            `• Sampled Class Count (N_c): ${numClasses}\n` +
-            `• Threshold Split Boundaries (B_i): [${bounds.join(', ')}]\n` +
-            `• Continuous Target (z_y): ${state.continuousOutput.toFixed(4)}\n` +
-            `• Interval Mapping Ledger:\n${intervals.join('\n')}\n` +
-            `• Final Assigned Class: [ y = ${assignedClass} ]`);
-            
+        state.stepTitle = "Step 6: Discretize z_y to Class Label (+ Categorical Features)";
+
         renderUnifiedCanvas();
         updateUIState();
-    });
+    }
+
+    // ---- one-click orchestrators -------------------------------------------
+    // Phase I in a single click (Steps 1→2→3), then a whole data point in a
+    // single click (Steps 4→5→…→6). Steps are the same functions the manual
+    // buttons call; a short delay between them keeps the build/generation
+    // legible. state.autoRunning locks every button while a sequence plays.
+    function runPhase1() {
+        if (state.autoRunning) return;
+        state.autoRunning = true;
+        stepSampleHyper();                 // Step 1
+        updateUIState();                   // lock the controls for the cascade
+        setTimeout(() => {
+            stepBuildDense();              // Step 2
+            setTimeout(() => {
+                stepDropout();             // Step 3
+                state.autoRunning = false;
+                updateUIState();
+            }, 380);
+        }, 380);
+    }
+
+    function runSample() {
+        if (state.autoRunning || state.step < 3 || !state.graph) return;
+        state.autoRunning = true;
+        stepSampleNoise();                 // Step 4 (new data sample)
+        updateUIState();
+        const flow = () => {
+            if (!state.forwardComplete) {
+                stepFlow();                // Step 5, one layer per tick
+                setTimeout(flow, 300);
+            } else {
+                setTimeout(() => {
+                    stepTransform();       // Step 6 (discretize on the fixed partition)
+                    state.autoRunning = false;
+                    updateUIState();
+                }, 360);
+            }
+        };
+        setTimeout(flow, 340);
+    }
+
+    // Wire the manual step buttons and the two one-click orchestrators.
+    btnSampleHyper.addEventListener('click', stepSampleHyper);
+    btnBuildDense.addEventListener('click', stepBuildDense);
+    btnDropoutEdges.addEventListener('click', stepDropout);
+    btnSampleNoise.addEventListener('click', stepSampleNoise);
+    btnFlowData.addEventListener('click', stepFlow);
+    btnTransformClass.addEventListener('click', stepTransform);
+    btnRunPhase1.addEventListener('click', runPhase1);
+    btnRunSample.addEventListener('click', runSample);
 
     function renderUnifiedCanvas(highlightActiveFlow = false) {
         mainSvg.innerHTML = '';
@@ -541,8 +761,22 @@
         subText.setAttribute('y', 47);
         subText.setAttribute('font-size', '13px');
         subText.setAttribute('fill', '#6c757d');
-        subText.textContent = `Architecture: ${state.layers} Layers | Width: ${state.hiddenUnits} | SCM Deterministic Function f_i: ${state.activation} | Target Edge Dropout: ${(state.dropoutRate*100).toFixed(0)}%`;
+        subText.textContent = `${state.layers} Layers | Width: ${state.hiddenUnits} | f_i: ${state.activation} | Dropout: ${(state.dropoutRate*100).toFixed(0)}% | σ_w = ${fmt(state.sigmaW)} | σ_ε = ${fmt(state.sigmaEps)} | N_c = ${state.numClasses}`;
         mainSvg.appendChild(subText);
+
+        // Data-sample counter (top-right): the Phase-I prior is fixed; each Phase II→III
+        // pass draws another sample from it, so this ticks up as the loop is repeated.
+        if (state.sampleCount > 0) {
+            const sampleTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            sampleTxt.setAttribute('x', 970);
+            sampleTxt.setAttribute('y', 28);
+            sampleTxt.setAttribute('text-anchor', 'end');
+            sampleTxt.setAttribute('font-size', '14px');
+            sampleTxt.setAttribute('font-weight', 'bold');
+            sampleTxt.setAttribute('fill', '#23373b');
+            sampleTxt.textContent = `Data sample #${state.sampleCount}`;
+            mainSvg.appendChild(sampleTxt);
+        }
 
         if (state.graph) {
             state.graph.edges.forEach(edge => {
@@ -667,7 +901,7 @@
                     nVal.setAttribute('class', 'mono');
                     nVal.setAttribute('font-size', '9px');
                     nVal.setAttribute('fill', '#c25e00');
-                    nVal.textContent = node.noise.toFixed(2);
+                    nVal.textContent = fmt(node.noise);
                     mainSvg.appendChild(nVal);
 
                     const nLbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -721,17 +955,26 @@
                 text.setAttribute('y', node.y + 4);
                 text.setAttribute('text-anchor', 'middle');
                 
+                const catInfo = node.role === 'feature' && state.catFeatures
+                    ? state.catFeatures[node.featureIdx] : null;
                 if (node.role === 'target' && state.classData) {
                     text.setAttribute('font-size', '14px');
                     text.setAttribute('font-weight', 'bold');
                     text.setAttribute('fill', '#ffffff');
                     text.textContent = `C:${state.classData.assignedClass}`;
+                } else if (catInfo && state.classData && state.step >= 4) {
+                    // categorical feature, after Step 6: show the binned category
+                    const k = catInfo.bounds.reduce((a, b) => a + (b < node.value ? 1 : 0), 0);
+                    text.setAttribute('class', 'mono');
+                    text.setAttribute('font-size', '13px');
+                    text.setAttribute('fill', '#0e7b70');
+                    text.textContent = `c${k}`;
                 } else {
                     text.setAttribute('class', 'mono');
                     text.setAttribute('font-size', '12px');
                     text.setAttribute('fill', '#212529');
                     if (state.step >= 4) {
-                        text.textContent = node.value.toFixed(2);
+                        text.textContent = fmt(node.value);
                     }
                 }
                 group.appendChild(text);
@@ -745,7 +988,9 @@
                 
                 if (node.role === 'feature') {
                     label.setAttribute('fill', '#17a2b8');
-                    label.textContent = `z_X${node.featureIdx + 1}`;
+                    const isCat = state.catFeatures && state.catFeatures[node.featureIdx];
+                    label.textContent = `z_X${node.featureIdx + 1}${isCat ? ' (cat)' : ''}`;
+                    if (isCat) label.setAttribute('fill', '#0e7b70');
                 } else if (node.role === 'target') {
                     label.setAttribute('fill', '#d39e00');
                     label.textContent = state.classData ? `z_y (Class ${state.classData.assignedClass})` : `z_y`;
@@ -782,14 +1027,18 @@
         axis.setAttribute('stroke-width', '2px');
         mainSvg.appendChild(axis);
 
-        if (state.continuousOutput !== null && state.axisDomain !== null) {
+        // The class partition appears once calibrated (Step 3, end of Phase I) and
+        // then never moves: every sample drawn from this prior lands on the same axis.
+        if (state.axisDomain !== null && state.classSplit !== null) {
             let minVal = state.axisDomain.min;
             let maxVal = state.axisDomain.max;
             let range = maxVal - minVal;
             const mapX = (val) => padX + ((val - minVal) / range) * drawWidth;
 
-            if (state.classData) {
-                let { numClasses, bounds, assignedClass } = state.classData;
+            {
+                let { numClasses, bounds } = state.classSplit;
+                // The winning class is only marked once discretization runs (Step 6).
+                let assignedClass = state.classData ? state.classData.assignedClass : -1;
                 let extBounds = [minVal, ...bounds, maxVal];
 
                 for(let c = 0; c < numClasses; c++) {
@@ -837,39 +1086,43 @@
                     bTxt.setAttribute('font-size', '11px');
                     bTxt.setAttribute('class', 'mono');
                     bTxt.setAttribute('fill', '#dc3545');
-                    bTxt.textContent = `B${idx}: ${b.toFixed(2)}`;
+                    bTxt.textContent = `B${idx}: ${fmtAxis(b)}`;
                     mainSvg.appendChild(bTxt);
                 });
             }
 
-            let yx = mapX(state.continuousOutput);
-            const yLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            yLine.setAttribute('x1', yx);
-            yLine.setAttribute('y1', lineY - 20);
-            yLine.setAttribute('x2', yx);
-            yLine.setAttribute('y2', lineY + 20);
-            yLine.setAttribute('stroke', '#007bff');
-            yLine.setAttribute('stroke-width', '3px');
-            mainSvg.appendChild(yLine);
+            // Plot the continuous target z_y once Phase II has generated it (kept at its
+            // exact absolute coordinate — the partition around it never moves).
+            if (state.continuousOutput !== null) {
+                let yx = mapX(state.continuousOutput);
+                const yLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                yLine.setAttribute('x1', yx);
+                yLine.setAttribute('y1', lineY - 20);
+                yLine.setAttribute('x2', yx);
+                yLine.setAttribute('y2', lineY + 20);
+                yLine.setAttribute('stroke', '#007bff');
+                yLine.setAttribute('stroke-width', '3px');
+                mainSvg.appendChild(yLine);
 
-            const yPoint = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            yPoint.setAttribute('cx', yx);
-            yPoint.setAttribute('cy', lineY);
-            yPoint.setAttribute('r', 6);
-            yPoint.setAttribute('fill', '#007bff');
-            yPoint.setAttribute('stroke', '#ffffff');
-            yPoint.setAttribute('stroke-width', '2px');
-            mainSvg.appendChild(yPoint);
+                const yPoint = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                yPoint.setAttribute('cx', yx);
+                yPoint.setAttribute('cy', lineY);
+                yPoint.setAttribute('r', 6);
+                yPoint.setAttribute('fill', '#007bff');
+                yPoint.setAttribute('stroke', '#ffffff');
+                yPoint.setAttribute('stroke-width', '2px');
+                mainSvg.appendChild(yPoint);
 
-            const yTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            yTxt.setAttribute('x', yx);
-            yTxt.setAttribute('y', lineY - 26);
-            yTxt.setAttribute('text-anchor', 'middle');
-            yTxt.setAttribute('font-size', '12px');
-            yTxt.setAttribute('class', 'mono');
-            yTxt.setAttribute('fill', '#007bff');
-            yTxt.textContent = `z_y: ${state.continuousOutput.toFixed(3)}`;
-            mainSvg.appendChild(yTxt);
+                const yTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                yTxt.setAttribute('x', yx);
+                yTxt.setAttribute('y', lineY - 26);
+                yTxt.setAttribute('text-anchor', 'middle');
+                yTxt.setAttribute('font-size', '12px');
+                yTxt.setAttribute('class', 'mono');
+                yTxt.setAttribute('fill', '#007bff');
+                yTxt.textContent = `z_y: ${fmtAxis(state.continuousOutput)}`;
+                mainSvg.appendChild(yTxt);
+            }
         } else {
             const ph = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             ph.setAttribute('x', 500);
@@ -877,7 +1130,7 @@
             ph.setAttribute('text-anchor', 'middle');
             ph.setAttribute('fill', '#adb5bd');
             ph.setAttribute('font-size', '13px');
-            ph.textContent = 'Awaiting continuous scalar target (z_y) from Phase II causal generation...';
+            ph.textContent = 'Run Phase I (Steps 1–3) to build the prior and fix the class partition...';
             mainSvg.appendChild(ph);
         }
     }

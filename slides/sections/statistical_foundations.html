@@ -484,6 +484,14 @@
         Inference up to \(n = 20\text{k}\), local context capped at \(10\text{k}\).</span>
     </figcaption>
   </figure>
+  <!-- own re-run of the paper's experiment — label says "reproduces", not "[n]:";
+       --figsrc-left clears the bottom-left Q&A button. Carries .cap/.cap1 so it
+       shows on state 1 ONLY: just the v1 plot reproduces the paper's figure, the
+       v2.5 states below are our own extension. Both halves must sit in ONE .cap
+       span — .cap is display:block, so two of them would stack on separate lines. -->
+  <p class="fig-source" style="--figsrc-left: 96px;">
+    <span class="cap cap1">Reproduces a plot from
+      <span data-cite-full="naglerStatisticalFoundationsPriorData2023"></span></span></p>
   <!-- audience Q&A: copy .audience-qa block to other slides; add
        audience-qa--bl for bottom-left placement. Edit <template>
        content (KaTeX supported). See loader.js + theme.css. -->
@@ -599,7 +607,9 @@
     --body-pad-top: 0px;
     --body-pad-bottom: 0px;
     --qa-left: 48px;
-    --qa-bottom: 16px;
+    /* keep in sync with --chrome-bottom (theme.css) so the ? stays on the
+       same line as the slide number */
+    --qa-bottom: 12px;
   }
   #sf-variance .variance-intro {
     padding-left: calc(40px * var(--deck-scale));

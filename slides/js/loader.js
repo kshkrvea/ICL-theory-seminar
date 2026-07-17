@@ -129,9 +129,8 @@
 
      1. TYPE A SLIDE NUMBER, PRESS ENTER (PowerPoint-style). reveal 5
         ships a jump-to-slide box (config `jumpToSlide`, opened with `G`)
-        and — because our `slideNumber` is 'c' (one continuous count) —
-        a plain number in it means exactly the number printed in the
-        corner. The handler below lets you skip the `G`: any digit typed
+        and — because our `slideNumber` is 'c' — a plain number in it means exactly the current-slide
+        number printed in the corner. The handler below lets you skip the `G`: any digit typed
         on the deck opens that box already holding the digit, so "12 ⏎"
         goes to slide 12. Escape cancels.
 
@@ -456,8 +455,6 @@
       transitionSpeed: 'fast',
       backgroundTransition: 'none',
       display: 'flex',
-      /* 'c' = one continuous count; the jump-to-slide box (below) then
-         takes exactly the number printed in the corner. */
       slideNumber: 'c',
       jumpToSlide: true,
       controls: false,
@@ -465,6 +462,17 @@
       plugins: [RevealNotes],
     });
 
+    /* Split the References list over as many slides as it needs. Must run once
+       the slides have real geometry (js/cite.js measures against it) AND once the
+       webfont is in: measuring under the fallback font wraps the entries to a
+       different number of lines, which silently under-counts their height. */
+    Reveal.on('ready', () => {
+      const fonts = document.fonts ? document.fonts.ready : Promise.resolve();
+      fonts.then(() => {
+        Cite.paginateReferences();
+        highlightCurrentSection();   /* slide list changed */
+      });
+    });
     Reveal.on('ready', syncOverlayState);
     Reveal.on('ready', highlightCurrentSection);
     Reveal.on('slidechanged', highlightCurrentSection);

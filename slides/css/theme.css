@@ -43,6 +43,13 @@
   --rule:           rgba(23, 36, 44, 0.12);
   --dim-fg:         #b9c4c9;   /* dimmed TOC entries           */
 
+  /* Bottom chrome strip (design px). The "?" pop-up button, the figure-source
+     label and reveal's slide number are three independently positioned boxes
+     with different font metrics; giving them a shared height + `bottom` makes
+     their contents centre on ONE line so the row reads as a unit. */
+  --chrome-bottom: 12px;
+  --chrome-h:      32px;   /* tall enough for the 21px slide-number pill */
+
   /* legacy aliases (older per-slide styles reference these) */
   --mDarkTeal: var(--ink);
   --mAlert:    var(--accent);
@@ -403,7 +410,11 @@
 .audience-qa--bl {
   position: absolute;
   left: calc(var(--qa-left, 48px) * var(--deck-scale));
-  bottom: calc(var(--qa-bottom, 16px) * var(--deck-scale));
+  /* shares the bottom chrome strip with .fig-source + the slide number */
+  bottom: calc(var(--qa-bottom, var(--chrome-bottom)) * var(--deck-scale));
+  height: calc(var(--chrome-h) * var(--deck-scale));
+  display: flex;
+  align-items: center;   /* centre the button; the inline-block line box would not */
   margin-left: 0;
   z-index: 2;
 }
@@ -503,6 +514,44 @@
 /* ---------- figures ---------- */
 .page-fig figcaption { color: var(--muted); }
 
+/* ---------- figure provenance label ----------
+   Marks a figure as reproduced FROM a paper, so the audience can tell those
+   apart from the deck's own material. Deliberately grayer + smaller than the
+   caption: it is metadata, not part of the caption text.
+
+   Usage (direct child of the <section>, NOT inside the figure — it pins to the
+   slide's bottom-left corner):
+     <p class="fig-source"><span data-cite-full="KEY"></span></p>
+   js/cite.js fills [data-cite-full] with "[n]: A. Author et al. Title, Month Year."
+   — the reference's number on the References slide, then the same formatted entry
+   but with the author list shortened. KEY is normally the section's paper, so the
+   number is the one its divider already assigned (no new reference entry).
+
+   NOT labelled (they are not from a paper): interactive iframes, the native
+   SVG figures (js/figures.js), the architecture diagrams, and own simulations. */
+.fig-source {
+  position: absolute;
+  /* --figsrc-left: per-slide override, e.g. to clear a bottom-left Q&A button */
+  left: calc(var(--figsrc-left, 48px) * var(--deck-scale));
+  /* shares the bottom chrome strip with the "?" button + the slide number */
+  bottom: calc(var(--chrome-bottom) * var(--deck-scale));
+  min-height: calc(var(--chrome-h) * var(--deck-scale));
+  /* NB: block + align-content, NOT flex — a flex <p> would make the lead-in text
+     and the <span data-cite-full> separate flex items instead of one wrapping
+     run (same trick as #v2-regression .viz-caption). A label that wraps to two
+     lines grows upward and keeps its bottom edge on the strip. */
+  display: block;
+  align-content: center;
+  max-width: calc(1040px * var(--deck-scale));  /* stays clear of the slide-number pill */
+  margin: 0;
+  font-size: calc(12.5px * var(--deck-scale));
+  line-height: 1.35;
+  color: #93a0a6;
+  font-style: italic;
+  text-align: left;
+}
+.fig-source em { font-style: normal; }  /* venue names stay distinct inside the italic label */
+
 /* ---------- partial-height inline viz (theorem slides) ----------
    .iframe-fill variant for slides that keep a short intuitive text
    block above the visualization: --fill-top defaults to 260px (clears
@@ -529,16 +578,26 @@
 .reveal .progress span {
   background: linear-gradient(90deg, var(--accent), #f0a35e);
 }
-/* the slide number doubles as the section-menu button (js/loader.js) */
+/* the slide number doubles as the section-menu button (js/loader.js).
+   'c/t' format → "12 / 47"; sized up so it's legible for Q&A references. */
 .reveal .slide-number {
   right: calc(14px * var(--deck-scale));
-  bottom: calc(12px * var(--deck-scale));
-  padding: calc(3px * var(--deck-scale)) calc(9px * var(--deck-scale));
+  /* shares the bottom chrome strip with the "?" button + .fig-source */
+  bottom: calc(var(--chrome-bottom) * var(--deck-scale));
+  height: calc(var(--chrome-h) * var(--deck-scale));
+  box-sizing: border-box;
+  /* reveal.js sets an inline style="display: block" on this element at
+     runtime; !important is required to win over that inline style so the
+     flex centering below actually applies. */
+  display: flex !important;
+  align-items: center;
+  padding: 0 calc(12px * var(--deck-scale));
   border-radius: 999px;
   background: rgba(23, 36, 44, 0.05);
   color: var(--muted);
   font-family: inherit;
-  font-size: calc(13px * var(--deck-scale));
+  font-size: calc(21px * var(--deck-scale));
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;

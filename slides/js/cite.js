@@ -130,6 +130,49 @@
     return names.slice(0, -1).join(', ') + ', and ' + names[names.length - 1];
   }
 
+  /* "A. Author et al." — first author only, given names cut to one initial,
+     "et al." whenever the entry has more. Used by the on-slide [data-cite-full]
+     labels, which must stay short; the References slide keeps the full list. */
+  function shortAuthorsEtAl(raw) {
+    const names = clean(raw).split(/\s+and\s+/).filter(Boolean);
+    if (!names.length) return '';
+    const parts = names[0].split(',').map(s => s.trim());
+    let surname, given;
+    if (parts.length >= 2) {
+      surname = parts[0];            /* "Hollmann, Noah" */
+      given = parts[1];
+    } else {
+      const toks = names[0].split(/\s+/);   /* "Noah Hollmann" */
+      surname = toks.pop();
+      given = toks.join(' ');
+    }
+    const initial = given ? given.trim().charAt(0).toUpperCase() + '. ' : '';
+    return initial + surname + (names.length > 1 ? ' et al.' : '');
+  }
+
+  /* Venue abbreviations, used ONLY by the on-slide labels (short mode) — the
+     References slide keeps the full names. Add a row here when a new venue
+     shows up in references.bib; unmatched venues just lose the
+     "Proceedings of the 40th " scaffolding. */
+  const VENUE_ABBREV = [
+    [/international conference on machine learning/i, 'ICML'],
+    [/neural information processing systems/i, 'NeurIPS'],
+    [/international conference on learning representations/i, 'ICLR'],
+    [/artificial intelligence and statistics/i, 'AISTATS'],
+    [/computer vision and pattern recognition/i, 'CVPR'],
+    [/uncertainty in artificial intelligence/i, 'UAI'],
+    [/aaai conference on artificial intelligence/i, 'AAAI'],
+    [/journal of machine learning research/i, 'JMLR'],
+    [/transactions on machine learning research/i, 'TMLR'],
+    [/ieee transactions on neural networks and learning systems/i, 'IEEE TNNLS'],
+  ];
+
+  function venueShort(raw) {
+    const v = clean(raw);
+    for (const [re, abbr] of VENUE_ABBREV) if (re.test(v)) return abbr;
+    return v.replace(/^proceedings of (the )?(\d+(st|nd|rd|th)\s+)?/i, '');
+  }
+
   const MONTHS = {
     jan: 'January', feb: 'February', mar: 'March', apr: 'April',
     may: 'May', jun: 'June', jul: 'July', aug: 'August',
@@ -149,8 +192,11 @@
   }
 
   /* one formatted reference line (plain-bibliography look, matching the
-     old main.bbl output the hardcoded list reproduced) */
-  function formatEntry(e) {
+     old main.bbl output the hardcoded list reproduced).
+     `short` = the compact on-slide form for [data-cite-full] labels:
+     "A. Author et al." instead of the full author list, the venue abbreviated
+     (ICML, NeurIPS, ...), and no pages / volume / publisher / URL. */
+  function formatEntry(e, short) {
     const f = e.fields;
     const title = f.title ? titleCase(f.title) : '';
     const withDot = t => t + (/[.?!]$/.test(t) ? '' : '.');
@@ -159,49 +205,72 @@
       f.year ? clean(f.year) : '',
     ].filter(Boolean).join(' ');
 
-    let html = f.author ? esc(formatAuthors(f.author)) + '. ' : '';
+    let html = '';
+    if (f.author) {
+      const a = short ? shortAuthorsEtAl(f.author) : formatAuthors(f.author);
+      html = esc(a) + (/\.$/.test(a) ? ' ' : '. ');   /* "et al." already ends in '.' */
+    }
     if (e.type === 'article' && f.journal) {
-      html += esc(withDot(title)) + ' <em>' + esc(clean(f.journal)) + '</em>';
-      if (f.volume) {
-        html += ', ' + esc(clean(f.volume));
-        if (f.number) html += '(' + esc(clean(f.number)) + ')';
-        if (f.pages) html += ':' + esc(clean(f.pages));
-      } else if (f.pages) {
-        html += ', pages ' + esc(clean(f.pages));
+      /* short: abbreviated journal + date only — no volume/number/pages */
+      html += esc(withDot(title)) + ' <em>'
+            + esc(short ? venueShort(f.journal) : clean(f.journal)) + '</em>';
+      if (!short) {
+        if (f.volume) {
+          html += ', ' + esc(clean(f.volume));
+          if (f.number) html += '(' + esc(clean(f.number)) + ')';
+          if (f.pages) html += ':' + esc(clean(f.pages));
+        } else if (f.pages) {
+          html += ', pages ' + esc(clean(f.pages));
+        }
       }
       if (monthYear) html += ', ' + monthYear;
       html += '.';
     } else if (e.type === 'inproceedings' && f.booktitle) {
-      html += esc(withDot(title)) + ' In <em>' + esc(clean(f.booktitle)) + '</em>';
-      if (f.pages) html += ', pages ' + esc(clean(f.pages));
-      html += '.';
-      const tail = [f.publisher ? clean(f.publisher) : '', monthYear].filter(Boolean).join(', ');
-      if (tail) html += ' ' + esc(tail) + '.';
+      /* short: "In ICML, July 2023." — no pages, no publisher */
+      html += esc(withDot(title)) + ' In <em>'
+            + esc(short ? venueShort(f.booktitle) : clean(f.booktitle)) + '</em>';
+      if (short) {
+        html += monthYear ? ', ' + esc(monthYear) + '.' : '.';
+      } else {
+        if (f.pages) html += ', pages ' + esc(clean(f.pages));
+        html += '.';
+        const tail = [f.publisher ? clean(f.publisher) : '', monthYear].filter(Boolean).join(', ');
+        if (tail) html += ' ' + esc(tail) + '.';
+      }
     } else {
       /* @misc (arXiv) and fallback: "Title, Month Year." like plain.bst */
       html += esc(title);
       if (monthYear) html += ', ' + monthYear + '.';
       else if (title && !/[.?!]$/.test(title)) html += '.';
     }
-    if (f.url) {
+    if (f.url && !short) {   /* a URL would dwarf an on-slide label */
       html += ' ' + esc(clean(f.url)) + '.';
       if (f.urldate) html += ' Accessed ' + esc(formatUrldate(f.urldate)) + '.';
     }
     return html;
   }
 
-  /* ---- marker collection (DOM order, including <template> bodies) ---- */
+  /* ---- marker collection (DOM order, including <template> bodies) ----
+     Two marker kinds share the numbering:
+       [data-cite]      -> "[n]"                      (inline citation)
+       [data-cite-full] -> "[n]: A. Author et al. ..." (.fig-source slide labels)
+     Both are numbered by first appearance, so a figure label reuses the number
+     its section divider already assigned rather than creating a new entry. */
+  const CITE_SEL = '[data-cite], [data-cite-full]';
+
   function collectMarkers(slidesEl) {
     const markers = [];
     slidesEl.querySelectorAll('section').forEach(sec => {
-      sec.querySelectorAll('[data-cite]').forEach(el => markers.push(el));
+      sec.querySelectorAll(CITE_SEL).forEach(el => markers.push(el));
       sec.querySelectorAll('template').forEach(t =>
-        t.content.querySelectorAll('[data-cite]').forEach(el => markers.push(el)));
+        t.content.querySelectorAll(CITE_SEL).forEach(el => markers.push(el)));
     });
     return markers;
   }
 
-  const keysOf = el => el.dataset.cite.split(',').map(s => s.trim()).filter(Boolean);
+  const keysOf = el =>
+    (el.dataset.cite !== undefined ? el.dataset.cite : el.dataset.citeFull)
+      .split(',').map(s => s.trim()).filter(Boolean);
 
   async function apply(slidesEl) {
     let entries = {};
@@ -229,7 +298,17 @@
     }
 
     for (const el of markers) {
-      el.textContent = '[' + keysOf(el).map(k => number[k] || '?').join(', ') + ']';
+      const keys = keysOf(el);
+      if (el.dataset.cite !== undefined) {
+        el.textContent = '[' + keys.map(k => number[k] || '?').join(', ') + ']';
+      } else {
+        el.innerHTML = keys.map(k => {
+          const n = number[k] ? '[' + number[k] + ']: ' : '';
+          const body = entries[k] ? formatEntry(entries[k], true)
+                                  : '<em>missing entry: ' + esc(k) + '</em>';
+          return n + body;
+        }).join('<br>');
+      }
     }
 
     /* References slide: cited entries only, in number order */
@@ -242,5 +321,59 @@
     }
   }
 
-  window.Cite = { apply };
+  /* ---- References pagination -------------------------------------------
+     The cited list routinely outgrows one slide. Instead of shrinking the type,
+     spill the overflow onto as many extra "References (cont.)" slides as it
+     actually takes — none if everything already fits.
+
+     Called from js/loader.js on Reveal's 'ready': only by then do the slides
+     have their real geometry, and measuring beats guessing a per-slide count
+     (entries wrap to 1-3 lines each). The slide is display:none until it is
+     presented, so it is laid out invisibly for the measurement and restored.
+
+     No re-run on resize: --deck-scale scales the type AND the box together,
+     so which entries fit does not change. */
+  function paginateReferences() {
+    const box = document.querySelector('[data-references]');
+    if (!box || !box.children.length) return;
+    const section = box.closest('section');
+    if (!section) return;
+
+    section.style.display = 'flex';       /* reveal's `display` config value */
+    section.style.visibility = 'hidden';
+
+    const budget = box.clientHeight;      /* .frame-body is flex:1 => the free space */
+    const pages = [[]];
+    let used = 0;
+    for (const row of Array.from(box.children)) {
+      const h = row.offsetHeight + parseFloat(getComputedStyle(row).marginBottom) || 0;
+      if (used + h > budget && pages[pages.length - 1].length) {
+        pages.push([]);
+        used = 0;
+      }
+      pages[pages.length - 1].push(row);
+      used += h;
+    }
+
+    section.style.display = '';
+    section.style.visibility = '';
+
+    if (pages.length < 2) return;         /* one slide was enough */
+
+    let anchor = section;
+    for (let p = 1; p < pages.length; p++) {
+      const sec = document.createElement('section');
+      sec.id = 'references-' + (p + 1);
+      sec.innerHTML =
+        '<header class="frame-head"><h2 class="frame-title">References (cont.)</h2></header>' +
+        '<div class="frame-body references"></div>';
+      const body = sec.querySelector('.references');
+      pages[p].forEach(row => body.appendChild(row));   /* moves them off slide 1 */
+      anchor.parentNode.insertBefore(sec, anchor.nextSibling);
+      anchor = sec;
+    }
+    if (window.Reveal && Reveal.isReady()) Reveal.sync();   /* register the new slides */
+  }
+
+  window.Cite = { apply, paginateReferences };
 })();

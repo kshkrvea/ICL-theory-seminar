@@ -41,6 +41,7 @@
            src="assets/tabpfn/architecture/pipeline.png" alt="TabPFN pipeline">
     </div>
   </figure>
+  <p class="fig-source"><span data-cite-full="hollmannTabPFNTransformerThat2023"></span></p>
 </section>
 
 <!-- ============================================================
@@ -50,7 +51,7 @@
   interactive/bnn.html (export chrome stripped, layout made to fill
   the iframe box — see the header comment in that file).
 ============================================================ -->
-<section id="tp-bnn">
+<section id="tp-bnn" style="--fill-bottom: 48px;">
   <header class="frame-head">
     <h2 class="frame-title">TabPFN</h2>
     <p class="frame-subtitle">Bayesian Neural Networks Prior</p>
@@ -59,6 +60,32 @@
     <iframe data-src="interactive/bnn.html" data-preload
             title="Interactive BNN prior construction"></iframe>
   </div>
+  <!-- how-to-use pop-up: same .audience-qa pattern as the theorem slides.
+       --fill-bottom above reserves the strip this ? sits in. -->
+  <span class="audience-qa audience-qa--bl">
+    <button type="button" class="audience-qa-btn" data-audience-qa
+            aria-label="How to use this demo" aria-expanded="false">
+      <span class="audience-qa-icon" aria-hidden="true">?</span>
+    </button>
+    <template class="audience-qa-body">
+      <p>A live walk-through of how the TabPFN <strong>BNN prior</strong> generates
+         one synthetic dataset.</p>
+      <ol>
+        <li><strong>▶ Sample Prior</strong> (Phase I) — draws hyperparameters from the
+          paper's meta-prior, builds &amp; sparsifies the network, and <em>fixes</em> how
+          the continuous target \(\hat{y}\) is split into classes (the bounds are sampled
+          from this prior's own outputs).</li>
+        <li><strong>▶ Draw Data Point</strong> (Phase II→III) — samples inputs
+          \(x \sim \mathcal{N}(0, 1)\), runs the forward pass to get \(\hat{y}\), and reads
+          its class off the fixed partition. <em>Click it repeatedly</em> to grow a dataset
+          from the same prior.</li>
+        <li>Steps 1–6 run the same pipeline one click at a time.</li>
+      </ol>
+      <p>Features tagged <strong>(cat)</strong> are categorical: after Step 6 their values are
+         binned into categories (c0, c1, …), just like the target. On the bottom axis the
+         blue marker is \(\hat{y}\) and the green band is its class.</p>
+    </template>
+  </span>
 </section>
 
 <!-- ============================================================
@@ -67,7 +94,7 @@
   Source app: slides/figures/tabpfn/scm/scm.html; adapted copy:
   interactive/scm.html.
 ============================================================ -->
-<section id="tp-scm">
+<section id="tp-scm" style="--fill-bottom: 48px;">
   <header class="frame-head">
     <h2 class="frame-title">TabPFN</h2>
     <p class="frame-subtitle">Structural Causal Models Prior</p>
@@ -76,6 +103,32 @@
     <iframe data-src="interactive/scm.html" data-preload
             title="Interactive SCM prior construction"></iframe>
   </div>
+  <!-- how-to-use pop-up: same .audience-qa pattern as the theorem slides.
+       --fill-bottom above reserves the strip this ? sits in. -->
+  <span class="audience-qa audience-qa--bl">
+    <button type="button" class="audience-qa-btn" data-audience-qa
+            aria-label="How to use this demo" aria-expanded="false">
+      <span class="audience-qa-icon" aria-hidden="true">?</span>
+    </button>
+    <template class="audience-qa-body">
+      <p>A live walk-through of how the TabPFN <strong>SCM prior</strong> generates
+         one synthetic dataset.</p>
+      <ol>
+        <li><strong>▶ Sample Prior</strong> (Phase I) — draws hyperparameters from the
+          paper's meta-prior, builds the DAG, picks the observed features \(Z_X\) and the
+          target \(z_y\), and <em>fixes</em> how \(z_y\) is split into classes (the bounds
+          are sampled from this prior's own outputs).</li>
+        <li><strong>▶ Draw Data Point</strong> (Phase II→III) — samples fresh exogenous noise
+          \(\varepsilon\) at every node, propagates it causally through the DAG to get
+          \(z_y\), and reads its class off the fixed partition. <em>Click it repeatedly</em>
+          to grow a dataset from the same prior.</li>
+        <li>Steps 1–6 run the same pipeline one click at a time.</li>
+      </ol>
+      <p>Features tagged <strong>(cat)</strong> are categorical: after Step 6 their values are
+         binned into categories (c0, c1, …), just like the target. On the bottom axis the
+         blue marker is \(z_y\) and the green band is its class.</p>
+    </template>
+  </span>
 </section>
 
 <!-- ============================================================
@@ -90,6 +143,7 @@
   <figure class="page-fig" style="--img-w:1; --img-y:80px;">
     <img src="assets/tabpfn/prior-data/datasets.png" alt="Synthetic prior datasets">
   </figure>
+  <p class="fig-source"><span data-cite-full="hollmannTabPFNTransformerThat2023"></span></p>
 </section>
 
 <!-- ============================================================
@@ -130,10 +184,11 @@
     <h2 class="frame-title">TabPFN</h2>
     <p class="frame-subtitle">Experiments &amp; Results</p>
   </header>
-  <figure class="page-fig" style="--img-w:0.9; --img-y:24px;">
+  <figure class="page-fig" style="--img-w:0.9; --img-y:-8px;">
     <img src="assets/tabpfn/performance/decision-boundaries.png" alt="Decision boundaries">
     <figcaption>Decision boundaries on toy datasets generated with scikit-learn.</figcaption>
   </figure>
+  <p class="fig-source"><span data-cite-full="hollmannTabPFNTransformerThat2023"></span></p>
 </section>
 
 <!-- ============================================================
@@ -146,7 +201,7 @@
     <h2 class="frame-title">TabPFN</h2>
     <p class="frame-subtitle">Experiments &amp; Results</p>
   </header>
-  <figure class="page-fig" style="--img-w:0.9; --img-y:24px;">
+  <figure class="page-fig" style="--img-w:0.9; --img-y:-8px;">
     <div class="r-stack">
       <img class="fragment fade-out" data-fragment-index="0"
            src="assets/tabpfn/performance/performance.png" alt="ROC AUC vs budget">
@@ -155,6 +210,7 @@
     </div>
     <figcaption>ROC AUC as a function of the time allowed to train &amp; tune methods.</figcaption>
   </figure>
+  <p class="fig-source"><span data-cite-full="hollmannTabPFNTransformerThat2023"></span></p>
 </section>
 
 <!-- ============================================================
@@ -167,13 +223,14 @@
     <h2 class="frame-title">TabPFN</h2>
     <p class="frame-subtitle">Experiments &amp; Results</p>
   </header>
-  <figure class="page-fig" style="--img-w:0.75; --img-y:24px; --cap-gap:-16px;">
+  <figure class="page-fig" style="--img-w:0.75; --img-y:-8px; --cap-gap:-16px;">
     <img src="assets/tabpfn/performance/extrapolation.png" alt="Extrapolation beyond training sizes">
     <figcaption>
       Performance on dataset sizes never seen during training.<br>
       Dashed line is the maximum dataset size seen during training.
     </figcaption>
   </figure>
+  <p class="fig-source"><span data-cite-full="hollmannTabPFNTransformerThat2023"></span></p>
 </section>
 
 <!-- ============================================================
@@ -187,7 +244,7 @@
     <h2 class="frame-title">TabPFN</h2>
     <p class="frame-subtitle">Experiments &amp; Results</p>
   </header>
-  <figure class="page-fig" style="--img-w:1; --img-y:16px;">
+  <figure class="page-fig" style="--img-w:1; --img-y:-32px;">
     <div class="r-stack">
       <img class="fragment fade-out" data-fragment-index="0"
            src="assets/tabpfn/ensembling/correlations.png" alt="Method correlations">
@@ -201,6 +258,7 @@
       <span class="fragment" data-fragment-index="1">Ensemble performance of TabPFN and AutoGluon (right).</span>
     </figcaption>
   </figure>
+  <p class="fig-source"><span data-cite-full="hollmannTabPFNTransformerThat2023"></span></p>
 </section>
 
 <!-- ============================================================
@@ -218,7 +276,7 @@
     <h2 class="frame-title">TabPFN</h2>
     <p class="frame-subtitle">Experiments &amp; Results</p>
   </header>
-  <figure class="page-fig" style="--img-w:1; --img-y:16px; --cap-gap:20px;">
+  <figure class="page-fig" style="--img-w:1; --img-y:-16px; --cap-gap:20px;">
     <img src="assets/tabpfn/performance/performance-complex-tasks.png"
          alt="Performance by dataset characteristics">
     <div class="hl-overlay fragment" data-fragment-index="0">
@@ -227,6 +285,7 @@
     </div>
     <figcaption>Performance on datasets, divided by dataset characteristics.</figcaption>
   </figure>
+  <p class="fig-source"><span data-cite-full="hollmannTabPFNTransformerThat2023"></span></p>
 </section>
 
 <!-- ============================================================
