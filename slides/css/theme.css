@@ -482,6 +482,13 @@
 .qa-modal-body .qa-table th:first-child,
 .qa-modal-body .qa-table td:first-child { padding-left: 0; }
 .qa-modal-body .qa-table th { font-weight: 600; border-bottom: 1px solid rgba(15, 23, 41, 0.2); }
+/* separator between distinct definitions/theorems stacked in one pop-up
+   (e.g. sf-bias: diminishing sensitivity, Thm 5.4, the two \S6.1 examples) */
+.qa-modal-body hr.qa-sep {
+  border: none;
+  border-top: 1px solid rgba(15, 23, 41, 0.15);
+  margin: 0.55em 0;
+}
 .qa-modal-close {
   position: absolute;
   top: 10px; right: 12px;
