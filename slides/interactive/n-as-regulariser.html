@@ -156,11 +156,11 @@
 <div id="legend">
     <div class="legend-item">
         <div class="legend-color" style="background: #f97316; height: 4px;"></div>
-        <span>Posterior Predictive (Consensus)</span>
+        <span>Posterior Predictive</span>
     </div>
     <div class="legend-item">
         <div class="legend-color" style="background: #64748b; opacity: 0.4;"></div>
-        <span>Candidate Hypotheses (150 functions)</span>
+        <span>Prior Hypotheses</span>
     </div>
     <div class="legend-item">
         <div class="dot" style="background: #ef4444;"></div>
@@ -180,24 +180,20 @@
 <div id="controls-container">
     <div class="control-group">
         <div class="control-label">
-            <span>Observed Sample Size (n)</span>
+            <span>Context Size (n)</span>
             <span id="n-val">1</span>
         </div>
         <input type="range" id="n-slider" min="1" max="40" value="1">
     </div>
     <div class="metric-box">
-        <span class="metric-title">Active Hypotheses</span>
+        <span class="metric-title">Active Hypotheses (w &gt; 0.001)</span>
         <span id="active-models" class="metric-value">150</span>
-    </div>
-    <div class="metric-box">
-        <span class="metric-title">Dominant Shape Behavior</span>
-        <span id="complexity-val" class="metric-value">Constant Prior Average</span>
     </div>
 </div>
 
 <script>
     const N_TOTAL_POINTS = 40;
-    const NUM_CANDIDATES = 150;
+    const NUM_CANDIDATES = 500;
     const dataPoints = [];
     const candidates = [];
 
@@ -230,7 +226,14 @@
 
     for (let i = 0; i < NUM_CANDIDATES; i++) {
         const complexity = Math.floor((i / NUM_CANDIDATES) * 18);
-        const priorWeight = Math.exp(-0.2 * complexity);
+        // exp(-0.2*complexity) is the Occam penalty; the extra fixed -2
+        // for any non-constant hypothesis gives the complexity-0
+        // constants a strong head start, so with little data the
+        // posterior average is a near-flat line. Because that -2 is a
+        // fixed offset (it does NOT grow with complexity), the
+        // likelihood — which accumulates with n — still overwhelms it,
+        // so the fit sharpens onto the wiggly target by n≈40.
+        const priorWeight = Math.exp(-0.2 * complexity - (complexity === 0 ? 0 : 2.0));
 
         const coeffs = [];
         for (let c = 0; c <= complexity; c++) {
@@ -270,7 +273,6 @@
     const slider = document.getElementById('n-slider');
     const nValDisplay = document.getElementById('n-val');
     const activeModelsDisplay = document.getElementById('active-models');
-    const complexityDisplay = document.getElementById('complexity-val');
 
     // Logical viewBox is sized to match #viz-container's real aspect
     // ratio (height pinned at 500 units) so the plot fills the whole
@@ -371,19 +373,6 @@
 
         const activeCount = weights.filter(w => w > 0.001).length;
         activeModelsDisplay.innerText = activeCount;
-
-        let expectedComplexity = 0;
-        weights.forEach((w, idx) => expectedComplexity += w * candidates[idx].complexity);
-
-        if (n === 1) {
-            complexityDisplay.innerText = "Constant Prior Average";
-        } else if (expectedComplexity < 4) {
-            complexityDisplay.innerText = "Low-Capacity / Linear";
-        } else if (expectedComplexity < 8) {
-            complexityDisplay.innerText = "Moderate Resolution";
-        } else {
-            complexityDisplay.innerText = "High-Frequency Localized";
-        }
 
         candidates.forEach((c, idx) => {
             const w = weights[idx];

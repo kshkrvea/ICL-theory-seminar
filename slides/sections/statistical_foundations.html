@@ -260,7 +260,7 @@
       If (*) holds with \(\alpha > 1/2\), then the <span class="c-teal">variance</span> \(\xrightarrow{n \to \infty} 0\) </p>
     </div>
   </div>
-  <div class="iframe-fill below-text" style="--fill-top:330px; --fill-bottom:60px">
+  <div class="iframe-fill below-text" style="--fill-top:330px; --fill-bottom:50px">
     <iframe data-src="interactive/diminishing-sensitivity.html" data-preload
             title="Diminishing sensitivity: swap one sample, watch the prediction (not) move"></iframe>
   </div>
@@ -292,11 +292,14 @@
   Frame 6 — Bias and the Need for Locality  (\S5.4 of the paper)
   Intuitive statement on the slide; raw Theorem 5.4 (label-resampling
   formulation) in the "?" pop-up; locality-bias.html inline. The viz
-  illustrates the Definition/eq (5) POSITIVELY: ONE (unbiased,
-  attention-like) model on TWO datasets — teal on D_n, orange on the
-  scrambled D~_n — and the gap between the traces, which IS the
-  quantity |q(y|x,D_n) - q(y|x,D~_n)| of the Definition, closes as n
-  grows. Both converge to p0, hence to each other.
+  contrasts TWO window smoothers (toggle) on TWO datasets — teal on D_n,
+  orange on the scrambled D~_n — where the gap between the traces IS the
+  quantity |q(y|x,D_n) - q(y|x,D~_n)| of the Definition. A FIXED window
+  starts inside the eps_n frame but pokes out as the frame shrinks, so its
+  gap OPENS (biased, non-local); a LOCALISED window (a_n ~ n^{-1/5}) stays
+  inside, so its gap CLOSES (local). The right panel plots Var[q] vs n: the
+  fixed window has the LOWER variance yet is the non-local one — vanishing
+  variance does not imply locality/unbiasedness.
 ============================================================ -->
 <section id="sf-bias">
   <header class="frame-head">
@@ -312,7 +315,7 @@
       \(\big(\|X^{(i)} - x\| > {\color{#f97316}\epsilon_n}\big)\) leaves the prediction unchanged in the limit:
       \(\;\big|\, q_{\theta}(y \mid x, \mathcal{D}_n) - q_{\theta}(y \mid x, \widetilde{\mathcal{D}}_n) \,\big| \xrightarrow{\;n \to \infty\;} 0\) a.s.</p>
   </div>
-  <div class="iframe-fill below-text" style="--fill-top:305px; --fill-bottom:60px">
+  <div class="iframe-fill below-text" style="--fill-top:290px; --fill-bottom:50px">
     <iframe data-src="interactive/locality-bias.html" data-preload
             title="Locality: the same model on the original vs. the far-label-scrambled data set"></iframe>
   </div>
@@ -328,6 +331,7 @@
         \[ \big|\, q_{\theta}(y \mid x, D_n) - q_{\theta}(y \mid x, D_n') \,\big|
            \;\le\; L\, n^{-\alpha}. \tag{*} \]<br></p>
 
+      <hr class="qa-sep">
       <p><strong>Theorem 5.4</strong> <span class="cite" data-cite="naglerStatisticalFoundationsPriorData2023"></span>.
         Let the hypothesis space \(\Phi\) be the class of candidate truths, i.e. suppose
         \[ \mathbb{E}_{\mathcal{D}_n \sim \varphi^n}\big[q_{\theta}(y \mid x, \mathcal{D}_n)\big]
@@ -343,6 +347,18 @@
              = Y^{(i)}, & \text{if } \|X^{(i)} - x\| \le \epsilon_n, \\
              \sim \widetilde{\varphi}(\cdot \mid X^{(i)}), & \text{if } \|X^{(i)} - x\| > \epsilon_n.
            \end{cases} \]</p>
+
+      <hr class="qa-sep">
+      <p><strong>Example (&sect;6.1) — window smoother.</strong> For a bandwidth
+        \(\theta \in (0, \infty)\),
+        \[ q_{\theta}(y \mid x, \mathcal{D}_n) = \frac{\sum_{i=1}^n \mathbf{1}(Y^{(i)} = y)\,\mathbf{1}(\|X^{(i)} - x\| < \theta)}
+                                                     {\sum_{i=1}^n \mathbf{1}(\|X^{(i)} - x\| < \theta)}. \]</p>
+
+      <hr class="qa-sep">
+      <p><strong>Localised window smoother.</strong> Let the window shrink with
+        \(n\) via a sequence \(a_n \to 0\),
+        \[ q_{\theta}(y \mid x, \mathcal{D}_n) = \frac{\sum_{i=1}^n \mathbf{1}(Y^{(i)} = y)\,\mathbf{1}(\|X^{(i)} - x\| < a_n\theta)}
+                                                     {\sum_{i=1}^n \mathbf{1}(\|X^{(i)} - x\| < a_n\theta)}. \]</p>
     </template>
   </span>
   <aside class="notes">
@@ -353,7 +369,15 @@
     
     -> !!! This is only a necessary condition (the constant predictor is local but biased) <br>
     
-    -> locality means the effective sample count is o(n)
+    -> locality means the effective sample count is o(n) <br>
+
+    ON THE SLIDE:<br>
+    -> A window smoother  averages the labels of the test set in the bandwidth θ around x_test. θ* is the KL-optimal bandwidth for datasets from the prior <br>
+    -> Since the bandwith is fixed, with increasing n it exceeds shrinking to zero epsilon neighborhood -> bias gets non-zero.<br>
+    -> A local window smoother shrinks the bandwidth with n, so it stays inside the epsilon neighborhood -> bias goes to zero.<br>
+    -> Variance shinks at the rate of O(n^[−4/(4+d)]) though, which is slower than the O(n^−1) of the TabPFN, especially with high dimensional features. <br>
+
+
   </aside>
 </section>
 
@@ -379,7 +403,7 @@
       <li><span class="c-blue">bias</span> converges to a non-zero value and depends on parameters \(\theta\).</li>
     </ul>
   </div>
-  <div class="iframe-fill below-text" style="--fill-top:270px; --fill-bottom:55px">
+  <div class="iframe-fill below-text" style="--fill-top:270px; --fill-bottom:50px">
     <iframe data-src="interactive/attention-weights.html" data-preload
             title="Attention weights flatten as n grows"></iframe>
   </div>
@@ -389,9 +413,9 @@
       <span class="audience-qa-icon" aria-hidden="true">?</span>
     </button>
     <template class="audience-qa-body">
-      <p><strong>One-layer transformer.</strong> Context tokens
+      <p><strong>Consider a one-layer transformer</strong> with context tokens
         \(V^{(i)} = (Y^{(i)}, X^{(i)}) \in \{0,1\} \times \mathbb{R}^d\), query token
-        \(v = (0, x)\), \(H\) heads:
+        \(v = (0, x)\), \(H\) heads,
         \[ \begin{aligned}
              a_j^{(h)} &= \operatorname{softmax}\big( v^\top W_q^{(h)} V^{(1)}, \dots,
                           v^\top W_q^{(h)} V^{(n)} \big)_j,
@@ -403,6 +427,7 @@
              q_{\theta}(\cdot \mid x, \mathcal{D}_n) &= \operatorname{softmax}(W_o z). &&
            \end{aligned} \]</p>
 
+      <hr class="qa-sep">
       <p><strong>Theorem 6.2</strong> <span class="cite" data-cite="naglerStatisticalFoundationsPriorData2023"></span>
         (<span style="color:var(--tex-teal)">variance</span>).
         For bounded features \(\mathcal{X} = \{x : \|x\| \le K\}\) and bounded matrices
@@ -411,9 +436,9 @@
         \[ \big|\, q_{\theta}(y \mid x, \mathcal{D}_n)
                  - \mathbb{E}\big[q_{\theta}(y \mid x, \mathcal{D}_n)\big] \,\big|
            \;\lesssim\; n^{-1/2}. \]
-        Any \(\theta\): a head's weights sum to one \(\Rightarrow\) each sample carries
-        \(\sim 1/n\) \(\Rightarrow\) \((*)\) with \(\alpha = 1\) \(\Rightarrow\) Thm 5.2.</p>
+        with high probability.</p>
 
+      <hr class="qa-sep">
       <p><strong>Theorem 6.3</strong> <span class="cite" data-cite="naglerStatisticalFoundationsPriorData2023"></span>
         (<span style="color:var(--tex-blue)">bias</span>).
         Under the same assumptions,
@@ -424,13 +449,7 @@
            \qquad
            g_h(s) = \frac{\exp\big(v^\top W_q^{(h)} s\big)}
                          {\mathbb{E}_{V \sim p_0}\big[\exp\big(v^\top W_q^{(h)} V\big)\big]}\, p_0(s). \]</p>
-
-      <p>\(g_h\) is an <em>exponentially tilted</em> \(p_0\): head \(h\) lifts the samples similar
-        to \(v\) and discounts the rest — but never to zero. The network localizes <em>softly</em>,
-        never in the sense of Thm 5.4, so the limiting
-        <span style="color:var(--tex-blue)">bias</span>
-        \(\bar{q}_{\theta}(y \mid x) - p_0(y \mid x)\) does not vanish — and depends entirely
-        on \(\theta\).</p>
+      </p>
     </template>
   </span>
   <aside class="notes">    
