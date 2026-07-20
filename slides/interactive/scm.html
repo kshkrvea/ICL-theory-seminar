@@ -44,36 +44,88 @@
             text-rendering: geometricPrecision;
             -webkit-font-smoothing: antialiased;
         }
+        /* Layout: graph + scatter on top (equal height), the controls as a
+           horizontal bar underneath. Freeing the left column lets the graph
+           use the full width and scale up (requirement 1). */
         .container {
             display: flex;
-            gap: 12px;
+            flex-direction: column;
+            gap: 8px;
             height: 100%;
             box-sizing: border-box;
             padding: 6px;
         }
-        .controls {
-            width: 220px;
-            flex: 0 0 auto;
-            background: #ffffff;
-            padding: 10px 12px;
-            border-radius: 6px;
-            border: 1px solid #e2e5e6;
+        .top-row {
+            flex: 1 1 auto;
             display: flex;
-            flex-direction: column;
-            gap: 6px;
+            gap: 10px;
             min-height: 0;
-            /* scroll rather than clip if the column is taller than the iframe
-               (the deck may size this iframe smaller than the controls' natural height) */
-            overflow-y: auto;
-            box-sizing: border-box;
         }
         .visualization-panel {
+            flex: 1.9;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+        /* right-hand 2D scatter of the generated dataset */
+        .dataset-panel {
             flex: 1;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            gap: 6px;
             min-width: 0;
         }
+        /* controls: horizontal bar of button groups along the bottom */
+        .controls {
+            flex: 0 0 auto;
+            background: #ffffff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #e2e5e6;
+            display: flex;
+            flex-direction: row;
+            gap: 12px;
+            box-sizing: border-box;
+            overflow-x: auto;
+        }
+        /* X / Y covariate pickers above the scatter (requirement 3) */
+        .axis-picker {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex: 0 0 auto;
+            padding: 0 2px;
+        }
+        .axis-picker label {
+            display: inline;
+            margin: 0 4px 0 0;
+            font-size: 0.68rem;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+        .axis-picker select {
+            padding: 3px 4px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            background: #ffffff;
+            color: var(--mDarkTeal);
+        }
+        .bulk-row {
+            display: flex;
+            gap: 4px;
+            align-items: stretch;
+        }
+        .bulk-row input {
+            width: 46px;
+            flex: 0 0 auto;
+            padding: 4px 5px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            box-sizing: border-box;
+        }
+        .bulk-row button { margin-bottom: 0; }
         .canvas-box {
             background: #ffffff;
             padding: 8px;
@@ -82,15 +134,23 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             position: relative;
+            flex: 1;
+            min-height: 0;
         }
         .control-group {
-            padding-bottom: 6px;
-            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1 1 0;
+            min-width: 150px;
+            padding-right: 12px;
+            border-right: 1px solid #e9ecef;
         }
         .control-group:last-child {
-            border-bottom: none;
-            padding-bottom: 0;
+            border-right: none;
+            padding-right: 0;
         }
         label {
             display: block;
@@ -103,7 +163,7 @@
         }
         button {
             width: 100%;
-            padding: 5px 8px;
+            padding: 4px 8px;
             border-radius: 4px;
             border: 1px solid #ced4da;
             box-sizing: border-box;
@@ -112,7 +172,7 @@
             font-weight: 600;
             cursor: pointer;
             transition: background-color 0.2s, border-color 0.2s, color 0.2s;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
             text-align: left;
             font-size: 0.72rem;
         }
@@ -161,9 +221,8 @@
             border-radius: 4px;
             background-color: #ffffff;
             width: 100%;
-            height: auto;
-            max-height: calc(100vh - 30px);
-            aspect-ratio: 1000 / 470;
+            height: 100%;
+            max-height: 100%;
             shape-rendering: geometricPrecision;
             text-rendering: geometricPrecision;
         }
@@ -172,11 +231,34 @@
 <body>
 
 <div class="container">
+    <div class="top-row">
+        <div class="visualization-panel">
+            <div class="canvas-box">
+                <svg id="main-svg" viewBox="0 0 1000 470" xmlns="http://www.w3.org/2000/svg"></svg>
+            </div>
+        </div>
+
+        <div class="dataset-panel">
+            <div class="axis-picker">
+                <span><label for="axis-x">X&nbsp;axis</label><select id="axis-x"></select></span>
+                <span><label for="axis-y">Y&nbsp;axis</label><select id="axis-y"></select></span>
+            </div>
+            <div class="canvas-box">
+                <svg id="dataset-svg" viewBox="0 0 460 470" xmlns="http://www.w3.org/2000/svg"></svg>
+            </div>
+        </div>
+    </div>
+
     <div class="controls">
         <div class="control-group">
             <label>Quick Run</label>
             <button id="btn-run-phase1" class="run-btn">▶ Sample Prior &nbsp;(Phase I)</button>
             <button id="btn-run-sample" class="run-btn" disabled>▶ Draw Data Point &nbsp;(Phase II→III)</button>
+            <div class="bulk-row">
+                <input id="bulk-k" type="number" min="1" max="2000" value="50"
+                       title="how many points to add to the scatter" disabled>
+                <button id="btn-bulk" class="run-btn" disabled>▶ Generate k points</button>
+            </div>
         </div>
 
         <div class="control-group">
@@ -195,12 +277,6 @@
         <div class="control-group">
             <label>Phase III: Target Discretization</label>
             <button id="btn-transform-class" disabled>Step 6: Transform Continuous z_y to Class</button>
-        </div>
-    </div>
-
-    <div class="visualization-panel">
-        <div class="canvas-box">
-            <svg id="main-svg" viewBox="0 0 1000 470" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>
     </div>
 </div>
@@ -225,7 +301,8 @@
         classSplit: null,       // {numClasses, bounds} — FIXED at Step 3 from the probe batch
         catFeatures: null,      // per-feature: null (numeric) or {nCat, bounds} (categorical)
         classData: null,
-        axisDomain: null // probe-calibrated [min,max]; fixed at Step 3, never rescaled per sample
+        axisDomain: null, // probe-calibrated [min,max]; fixed at Step 3, never rescaled per sample
+        datasetPoints: [] // accumulated {x, y, cls} shown in the right-panel 2D scatter
     };
 
     const activations = ['Tanh', 'Leaky ReLU', 'ELU', 'Identity'];
@@ -238,7 +315,12 @@
     const btnTransformClass = document.getElementById('btn-transform-class');
     const btnRunPhase1 = document.getElementById('btn-run-phase1');
     const btnRunSample = document.getElementById('btn-run-sample');
+    const btnBulk = document.getElementById('btn-bulk');
+    const bulkK = document.getElementById('bulk-k');
     const mainSvg = document.getElementById('main-svg');
+    const dsSvg = document.getElementById('dataset-svg');
+    const axisX = document.getElementById('axis-x');
+    const axisY = document.getElementById('axis-y');
     const allStepButtons = [
         btnSampleHyper, btnBuildDense, btnDropoutEdges,
         btnSampleNoise, btnFlowData, btnTransformClass,
@@ -273,6 +355,9 @@
         // One-click shortcuts: Phase I always available; draw-sample needs a built prior.
         btnRunPhase1.disabled = auto;
         btnRunSample.disabled = auto || state.step < 3 || !state.graph;
+        // requirement 3: bulk generation needs a built prior with a fixed partition
+        btnBulk.disabled = auto || state.step < 3 || !state.graph;
+        bulkK.disabled = btnBulk.disabled;
         highlightNextStep();
     }
 
@@ -446,6 +531,7 @@
         state.catFeatures = null;
         state.axisDomain = null;
         state.graph = null;
+        state.datasetPoints = [];   // a new prior → clear the accumulated scatter
         
         logToLedger(`[Step 1: Hyperparameters Sampled]\n` +
             `• SCM Depth (l): ${state.layers}\n` +
@@ -494,7 +580,7 @@
         });
 
         const totalNodes = nodes.length;
-        const featureCount = 2;
+        const featureCount = Math.min(4, totalNodes - 1);   // covariates for axis dropdowns
         let availableIndices = Array.from({length: totalNodes}, (_, i) => i);
         
         // Target node position is sampled uniformly over the whole graph (any layer),
@@ -543,6 +629,7 @@
         state.classSplit = null;   // a rebuilt DAG invalidates the old calibration;
         state.catFeatures = null;  // Step 3 re-runs the probe batch
         state.axisDomain = null;
+        state.datasetPoints = [];
         
         logToLedger(`[Step 2: SCM Topology Constructed]\n` +
             `• Endogenous Variables (|Z|): ${nodes.length}\n` +
@@ -571,6 +658,8 @@
         // The DAG is now final: fix the class partition + categorical bins
         // from a hidden probe batch of this prior's own outputs.
         calibratePartition();
+        populateAxisPickers();   // refresh X/Y covariate dropdowns (requirement 3)
+        renderScatter();
 
         let activeEdges = state.graph.edges.length - dropCount;
         let actualRate = ((dropCount / state.graph.edges.length) * 100).toFixed(1);
@@ -680,6 +769,9 @@
         state.classData = { numClasses, bounds, assignedClass };
         state.step = 6;
         state.stepTitle = "Step 6: Discretize z_y to Class Label (+ Categorical Features)";
+
+        // requirement 2: this stepped-through sample becomes a point in the scatter
+        addDatasetSample(graphFeatureValues(), assignedClass);
 
         renderUnifiedCanvas();
         updateUIState();
@@ -1135,7 +1227,178 @@
         }
     }
 
+    // ============================================================
+    //  Right-panel 2D scatter of the generated dataset.
+    //  Requirement 2: one point per drawn sample; axes are the first
+    //  two covariate marginals (z_X1, z_X2), colour is the class.
+    //  Requirement 3: "Generate k points" adds k silent draws at once.
+    // ============================================================
+    const CLASS_COLORS = ['#4c78a8', '#f58518', '#54a24b', '#e45756', '#b279a2',
+                          '#eeca3b', '#72b7b2', '#ff9da6', '#9d755d', '#bab0ac'];
+    const FEAT_PREFIX = 'z_X';                // covariate name prefix
+
+    function isFeatureNode(n) { return n.role === 'feature'; }
+    function featureLabel(i) { return FEAT_PREFIX + (i + 1); }
+    function isCatFeature(i) { return !!(state.catFeatures && state.catFeatures[i]); }
+
+    function classOf(yv) {
+        let c = 0;
+        if (state.classSplit) state.classSplit.bounds.forEach(b => { if (b < yv) c++; });
+        return c;
+    }
+    // full covariate vector of the sample currently on the graph (featureIdx order)
+    function graphFeatureValues() {
+        return state.graph.nodes.filter(isFeatureNode)
+            .sort((a, b) => a.featureIdx - b.featureIdx).map(n => n.value);
+    }
+    function addDatasetSample(feats, cls) {
+        state.datasetPoints.push({ feats, cls });
+        renderScatter();
+    }
+    // one silent draw from the fixed prior (reuses the probe forward pass)
+    function drawSilentSample() {
+        const { yhat, feats } = probeForward();
+        return { feats, cls: classOf(yhat) };
+    }
+    function runBulk() {
+        if (state.autoRunning || state.step < 3 || !state.graph || !state.classSplit) return;
+        const k = Math.max(1, Math.min(2000, parseInt(bulkK.value, 10) || 0));
+        for (let i = 0; i < k; i++) state.datasetPoints.push(drawSilentSample());
+        state.sampleCount += k;
+        renderScatter();
+        renderUnifiedCanvas();   // refresh the "Data sample #k" counter
+    }
+    btnBulk.addEventListener('click', runBulk);
+
+    // value plotted for covariate f: its category index if categorical, else raw
+    function plottedValue(f, raw) {
+        if (!isCatFeature(f)) return raw;
+        let k = 0; state.catFeatures[f].bounds.forEach(b => { if (b < raw) k++; });
+        return k;
+    }
+    function featCount() {
+        return state.graph ? state.graph.nodes.filter(isFeatureNode).length : 0;
+    }
+    // (re)build the X/Y covariate dropdowns from the current prior (requirement 3)
+    function populateAxisPickers() {
+        const n = featCount();
+        [axisX, axisY].forEach((sel, si) => {
+            const prev = parseInt(sel.value, 10);
+            sel.innerHTML = '';
+            for (let i = 0; i < n; i++) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = featureLabel(i) + (isCatFeature(i) ? ' (cat)' : '');
+                sel.appendChild(opt);
+            }
+            const def = si === 0 ? 0 : Math.min(1, n - 1);
+            sel.value = (!isNaN(prev) && prev >= 0 && prev < n) ? prev : def;
+        });
+    }
+    axisX.addEventListener('change', renderScatter);
+    axisY.addEventListener('change', renderScatter);
+
+    function svgEl(tag, attrs, text) {
+        const e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+        for (const k in attrs) e.setAttribute(k, attrs[k]);
+        if (text !== undefined) e.textContent = text;
+        return e;
+    }
+    function niceNum(v) {
+        const a = Math.abs(v);
+        if (a >= 1000) return v.toExponential(1);
+        if (a >= 100) return v.toFixed(0);
+        if (a >= 1) return v.toFixed(1);
+        return v.toFixed(2);
+    }
+    // axis domain + tick values for covariate `idx` given plotted values `vals`
+    function axisSpec(idx, vals) {
+        if (isCatFeature(idx)) {
+            const nCat = state.catFeatures[idx].nCat, ticks = [];
+            for (let c = 0; c < nCat; c++) ticks.push(c);
+            return { lo: -0.5, hi: nCat - 0.5, ticks, cat: true };
+        }
+        let lo = -3, hi = 3;
+        if (vals.length) { lo = Math.min(...vals); hi = Math.max(...vals); }
+        const s = (hi - lo) || 1; lo -= 0.08 * s; hi += 0.08 * s;
+        const ticks = [];
+        for (let i = 0; i <= 4; i++) ticks.push(lo + (hi - lo) * i / 4);
+        return { lo, hi, ticks, cat: false };
+    }
+    function renderScatter() {
+        dsSvg.innerHTML = '';
+        const W = 460, H = 470, padL = 54, padR = 16, padT = 46, padB = 48;
+        const x0 = padL, x1 = W - padR, yBot = H - padB, yTop = padT;
+
+        dsSvg.appendChild(svgEl('text', { x: 20, y: 26, 'font-size': 16,
+            'font-weight': 'bold', fill: '#212529' }, 'Sampled dataset'));
+
+        const nc = state.classSplit ? state.classSplit.numClasses : (state.numClasses || 0);
+        for (let c = 0; c < nc; c++) {
+            const lx = W - padR - (nc - c) * 44;
+            dsSvg.appendChild(svgEl('circle', { cx: lx, cy: 21, r: 5,
+                fill: CLASS_COLORS[c % CLASS_COLORS.length] }));
+            dsSvg.appendChild(svgEl('text', { x: lx + 8, y: 25, 'font-size': 11,
+                fill: '#495057' }, 'C' + c));
+        }
+
+        const xIdx = parseInt(axisX.value, 10) || 0;
+        const yIdx = parseInt(axisY.value, 10) || 0;
+        const P = state.datasetPoints.map(p => ({
+            x: plottedValue(xIdx, p.feats[xIdx]),
+            y: plottedValue(yIdx, p.feats[yIdx]),
+            cls: p.cls
+        }));
+        const xs = axisSpec(xIdx, P.map(p => p.x));
+        const ys = axisSpec(yIdx, P.map(p => p.y));
+        const mapX = v => x0 + (v - xs.lo) / (xs.hi - xs.lo) * (x1 - x0);
+        const mapY = v => yBot - (v - ys.lo) / (ys.hi - ys.lo) * (yBot - yTop);
+
+        dsSvg.appendChild(svgEl('line', { x1: x0, y1: yBot, x2: x1, y2: yBot,
+            stroke: '#343a40', 'stroke-width': 1.5 }));
+        dsSvg.appendChild(svgEl('line', { x1: x0, y1: yBot, x2: x0, y2: yTop,
+            stroke: '#343a40', 'stroke-width': 1.5 }));
+
+        xs.ticks.forEach(tx => {
+            const px = mapX(tx);
+            dsSvg.appendChild(svgEl('line', { x1: px, y1: yBot, x2: px, y2: yBot + 4,
+                stroke: '#adb5bd', 'stroke-width': 1 }));
+            dsSvg.appendChild(svgEl('text', { x: px, y: yBot + 16, 'font-size': 10,
+                fill: '#6c757d', 'text-anchor': 'middle' },
+                xs.cat ? String(tx) : niceNum(tx)));
+        });
+        ys.ticks.forEach(ty => {
+            const py = mapY(ty);
+            dsSvg.appendChild(svgEl('line', { x1: x0 - 4, y1: py, x2: x0, y2: py,
+                stroke: '#adb5bd', 'stroke-width': 1 }));
+            dsSvg.appendChild(svgEl('text', { x: x0 - 7, y: py + 3, 'font-size': 10,
+                fill: '#6c757d', 'text-anchor': 'end' },
+                ys.cat ? String(ty) : niceNum(ty)));
+        });
+
+        dsSvg.appendChild(svgEl('text', { x: (x0 + x1) / 2, y: H - 10, 'font-size': 12,
+            fill: '#495057', 'text-anchor': 'middle', 'font-style': 'italic' },
+            featureLabel(xIdx) + (xs.cat ? ' (categorical)' : '')));
+        dsSvg.appendChild(svgEl('text', { x: 16, y: (yTop + yBot) / 2, 'font-size': 12,
+            fill: '#495057', 'text-anchor': 'middle', 'font-style': 'italic',
+            transform: `rotate(-90 16 ${(yTop + yBot) / 2})` },
+            featureLabel(yIdx) + (ys.cat ? ' (categorical)' : '')));
+
+        P.forEach(p => {
+            dsSvg.appendChild(svgEl('circle', { cx: mapX(p.x), cy: mapY(p.y), r: 3.5,
+                fill: CLASS_COLORS[p.cls % CLASS_COLORS.length],
+                'fill-opacity': 0.82, stroke: '#ffffff', 'stroke-width': 0.6 }));
+        });
+
+        if (P.length === 0) {
+            dsSvg.appendChild(svgEl('text', { x: (x0 + x1) / 2, y: (yTop + yBot) / 2,
+                'font-size': 12, fill: '#adb5bd', 'text-anchor': 'middle' },
+                'Draw data points to populate this plot'));
+        }
+    }
+
     updateUIState();
+    renderScatter();
 </script>
 </body>
 </html>
