@@ -373,22 +373,6 @@
             }
             distCtx.stroke();
 
-            /* --- E[y|x]: the single number a point regressor would return --- */
-            const mx = X(MEAN_Y);
-            distCtx.save();
-            distCtx.setLineDash([5, 4]);
-            distCtx.strokeStyle = 'rgba(23, 36, 44, 0.55)';
-            distCtx.lineWidth = 1.5;
-            distCtx.beginPath();
-            distCtx.moveTo(mx, M.top);
-            distCtx.lineTo(mx, M.top + plotH);
-            distCtx.stroke();
-            distCtx.restore();
-            distCtx.fillStyle = 'rgba(23, 36, 44, 0.75)';
-            distCtx.textAlign = 'center';
-            distCtx.textBaseline = 'bottom';
-            distCtx.fillText('point prediction  E[y | x]', mx, M.top - 6);
-
             /* --- x axis: line, bin edges, ticks, labels --- */
             const axisY = Math.round(M.top + plotH) + 0.5;
             distCtx.strokeStyle = 'rgba(23, 36, 44, 0.45)';

@@ -6,9 +6,36 @@
 <section id="conn-sbi">
   <header class="frame-head">
     <h2 class="frame-title">Beyond Predictions</h2>
-    <p class="frame-subtitle">PFN for a Simulation-Based Inference</p>
+    <p class="frame-subtitle">Simulation-Based Inference Classical Setup</p>
   </header>
   <div class="frame-body">
-    TBD
+    TO BE UPDATED!!!<br>
+    0. Likelihood is available through simulator: x ~ p(x|theta) for theta from R^d with d~10-ish and x~R^n with n>>10.<br>
+    1. Generate joint p(x, theta) with simulations:<br>
+      - theta_i ~p(theta)<br>
+      - x_i ~ p(x|theta)<br>
+      - p(x,theta)=p(thata)*p(x|theta)~sum{theta_i~p(theta)}{p(x|theta_i)}<br>
+    2. Goal is to learn p(theta|x) with some parametrised q_phi(theta|x).<br>
+    3. To do so people optimize min{phi}{KLD(p(theta|x)||q_phi(theta|x))}.<br>
+    4. For extremely high-dimensional x people try to also learn a "sufficient" <br>
+    (close to sufficient) statistic s_psi(x)~x. Optimization problem looks like:
+    min{psi, phi}{KLD(p(theta|x)||q_phi(theta|s_psi(x)))}
   </div>
+</section>
+
+
+<section id="conn-sbi">
+  <header class="frame-head">
+    <h2 class="frame-title">Beyond Predictions</h2>
+    <p class="frame-subtitle">PFN for an SBI</p>
+  </header>
+  <figure class="page-fig" style="--img-w:0.5; --img-y:-32px;">
+    <div class="r-stack">
+      <img src="assets/beyond_predictions/npe-pfn.png" alt="Method correlations">
+    </div>
+    <figcaption>
+      To be updated.
+    </figcaption>
+  </figure>
+  <p class="fig-source"><span data-cite-full="pickensPretrainedTabularFoundation2026"></span></p>
 </section>
