@@ -4,44 +4,71 @@
   "Transformer Networks" slide (sections/statistical_foundations.html
   #sf-transformer; embedded via .iframe-fill.below-text).
 
-  What it shows — why Theorem 6.2 in [4] needs no training. The bars are
-  a REAL attention head, computed from the definition in \S6.3:
+  WHERE DOES TabPFN LOOK? Same picture as interactive/locality-bias.html, one
+  level deeper: instead of the model's prediction it shows the ATTENTION the
+  pretrained TabPFN v1 puts on every single context point, drawn AT THAT POINT'S
+  POSITION on the x-axis.
 
-      V^(j) = (Y^(j), X^(j)) in {0,1} x R^d      context tokens
-      v     = (0, x)                             query token
-      s_j   = v^T W_q V^(j)                      similarity score
-      a_j   = exp(s_j) / sum_k exp(s_k)          softmax over the context
+      x-axis        data space (the same 1-d pool locality-bias.html draws)
+      bar at X_j    height a_j(x*) = query->context attention of the test point
+                    x* on context point j,  sum_j a_j = 1
+      left y-axis   LOGARITHMIC, fixed 10^-4 .. 10^0 (attention)
+      right y-axis  the true p_0(1|x) = 0.5 + 0.4 sin(2 pi x) of the data set
+                    the context was drawn from (toggleable)
 
-  W_q is a fixed random matrix, X^(j) are fixed bounded features
-  (||x|| <= K, the theorem's assumption) and the query x is fixed, so the
-  SCORES s_j never change — some samples genuinely are more "similar" to
-  the query than others. The only thing the n-slider changes is how many
-  samples the softmax normalizes over.
+  The weights are the UNMODIFIED activations of the pretrained checkpoint
+  (tabpfn==0.1.11, default settings), recorded offline by
+  src/tabpfn_v1/generate_attention_scores.py on the SAME pool
+  (mulberry32(20240733)) that locality-bias.html uses, once per context size n
+  and per test point x*, averaged over the 3 ensemble members and the 4 heads and
+  kept PER ENCODER LAYER — the same attention map whose 50%/90% mass intervals
+  locality-bias.html draws as TabPFN's "attention window". Both sliders are pure
+  lookups into data/attention_scores.js, and every n is a genuinely separate
+  forward pass, so TabPFN's own input normalization (fitted on the n context
+  points) is included exactly as it happens at inference. The only arithmetic
+  this page does is the layer averaging behind the layer picker and the
+  cumulative sum for the 50%/90% brackets.
 
-  Because sum_j a_j = 1 always, growing n squashes every individual
-  weight: max_j a_j -> 0, no single sample can dominate. Swapping one
-  sample therefore moves the output by at most ~max_j a_j -> 0 — that is
-  diminishing sensitivity (*) with alpha = 1, hence deviations ~n^(-1/2)
-  (Thm 6.2), irrespective of the parameters theta.
+  ATTENTION LAYER (same picker as locality-bias.html): "mean of layers" (default)
+  or any single encoder layer. They disagree sharply — layer 0 is a global anchor
+  that piles ~50% of its mass on ONE far context point whatever x* is (h50 ~ 0.71),
+  while layers 1-11 are local bumps centred on x* (h50 ~ 0.09), so the mean's
+  outer band is inflated by layer 0 while its core stays local.
 
-  The y-axis AUTOSCALES to the weights on screen, so the decay is read off
-  the TICK LABELS and the dashed 1/n line rather than off the bar heights
-  (a fixed axis leaves the bars a few pixels tall at n = 200). Measured:
-  max_j a_j = 0.34 at n = 8, 0.043 at n = 100, 0.025 at n = 200, while
-  1/n = 0.005 — i.e. n * max_j a_j stays bounded (~2-5), so max_j a_j
-  really does decay like ~1/n, which is what Thm 6.2 rests on.
+  WHAT TO READ OFF IT
+  - The mass concentrates AROUND x*: attention is a soft kernel in DATA SPACE,
+    not a function of the sample index. That is the transformer's counterpart of
+    a window smoother's averaging window.
+  - max_j a_j falls roughly like 1/n (0.22 at n = 20 down to 0.018 at n = 500,
+    mean of layers) and the bars settle onto the dashed uniform level 1/n: no
+    single sample can dominate as the pool grows, which is precisely the
+    mechanism behind Theorem 6.2's vanishing variance.
+  - The window does NOT shrink with n, though — h50 stays ~0.10 from n = 20 to
+    n = 500 — so the model keeps averaging over a fixed neighbourhood, which is
+    the non-locality of Theorem 6.3.
 
-  Style/layout conventions follow interactive/locality-bias.html.
+  Style/layout conventions and labels follow interactive/locality-bias.html.
 =================================================================== -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Attention Weights Flatten as n Grows</title>
+    <title>Where TabPFN Attends: Attention Weights in Data Space</title>
     <style>
+        :root {
+            --viz-pad-y: 10px;
+            --viz-pad-x: 0px;
+            --legend-top: 12px;
+            --legend-left: 12px;
+            --controls-margin-top: 8px;
+            --controls-pad-y: 4px;
+            --controls-pad-x: 14px;
+            --controls-gap: 16px;
+            --controls-inner-gap: 3px;
+        }
         html, body { height: 100%; overflow: hidden; }
         body {
             margin: 0;
-            padding: 6px 10px;
+            padding: var(--viz-pad-y) var(--viz-pad-x);
             box-sizing: border-box;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #ffffff;
@@ -54,6 +81,7 @@
             width: 100%;
             flex: 1 1 auto;
             min-height: 0;
+            position: relative;
             display: flex;
         }
         svg {
@@ -64,244 +92,367 @@
             border-radius: 8px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
+        #legend {
+            position: absolute;
+            top: var(--legend-top);
+            left: var(--legend-left);
+            background: rgba(255, 255, 255, 0.92);
+            padding: 7px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 11.5px;
+            line-height: 1.15;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            pointer-events: none;
+        }
+        .legend-item { display: flex; align-items: center; margin-bottom: 3px; }
+        .legend-item:last-child { margin-bottom: 0; }
+        .legend-swatch { width: 18px; margin-right: 7px; flex: 0 0 auto; text-align: center; }
         #controls-container {
             width: 100%;
             flex: 0 0 auto;
-            margin-top: 6px;
+            margin-top: var(--controls-margin-top);
             background: #f8fafc;
             border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            padding: 7px 12px;
+            border-radius: 6px;
+            padding: var(--controls-pad-y) var(--controls-pad-x);
             box-sizing: border-box;
             display: flex;
             align-items: center;
-            gap: 22px;
+            gap: var(--controls-gap);
         }
         .control-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
             flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            gap: var(--controls-inner-gap);
             min-width: 0;
-            font-size: 13px;
+        }
+        .control-label {
+            font-size: 12px;
             font-weight: 600;
             color: #1e293b;
+            display: flex;
+            justify-content: space-between;
+            line-height: 1.2;
+        }
+        input[type=range] { width: 100%; cursor: pointer; margin: 0; height: 16px; }
+        .seg-label { font-size: 12px; font-weight: 600; color: #1e293b; margin-bottom: 2px; }
+        .seg {
+            display: flex;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .seg button {
+            padding: 4px 10px;
+            font: inherit;
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            background: #ffffff;
+            border: none;
+            cursor: pointer;
             white-space: nowrap;
         }
-        .control-group .val {
-            font-variant-numeric: tabular-nums;
-            min-width: 34px;
-            text-align: right;
-            color: #475569;
+        .seg button + button { border-left: 1px solid #cbd5e1; }
+        #p0-toggle button.active { background: #2563eb; color: #ffffff; }
+        .seg-wrap { flex: 0 0 auto; display: flex; flex-direction: column; }
+        /* dropdown styled to match the segmented toggle next to it */
+        #layer-select {
+            padding: 4px 8px;
+            font: inherit;
+            font-size: 11px;
+            font-weight: 600;
+            color: #1e293b;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            cursor: pointer;
+            line-height: 1.35;
         }
-        input[type=range] { flex: 1 1 auto; min-width: 0; cursor: pointer; }
+        #layer-select:focus { outline: 2px solid #93c5fd; outline-offset: 1px; }
     </style>
 </head>
 <body>
 
 <div id="viz-container">
-    <svg id="bars-plot" viewBox="0 0 1160 330" preserveAspectRatio="xMidYMid meet">
-        <g id="legend"></g>
+    <svg id="bars-plot" viewBox="0 0 1160 370" preserveAspectRatio="xMidYMid meet">
         <g id="grid-lines"></g>
+        <g id="p0-axis"></g>
+        <path id="p0-line" fill="none" stroke="#94a3b8" stroke-width="2.5"></path>
         <g id="bars-layer"></g>
         <line id="uniform-line" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6,4"></line>
-        <text id="uniform-label" font-size="12" fill="#64748b"></text>
-        <text id="axis-label" font-size="13" fill="#334155" text-anchor="middle"></text>
+        <text id="uniform-label" font-size="11.5" fill="#64748b" text-anchor="end"
+              stroke="#ffffff" stroke-width="3" paint-order="stroke"></text>
+        <line id="test-line" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,3"></line>
+        <g id="attn-window"></g>
+        <text id="test-star" font-size="20" fill="#ef4444" text-anchor="middle">&#9733;</text>
+        <text id="axis-label" font-size="12.5" font-weight="600" fill="#334155" text-anchor="middle">x</text>
+        <text id="y-title" font-size="12.5" font-weight="600" fill="#334155" text-anchor="middle"></text>
     </svg>
+    <div id="legend">
+        <div class="legend-item"><span class="legend-swatch">
+            <svg width="18" height="10"><rect x="2" y="0" width="4" height="10" fill="#64748b" opacity="0.75"/><rect x="9" y="4" width="4" height="6" fill="#64748b" opacity="0.75"/></svg>
+            </span><span>attention a<sub>j</sub>(x*) at context point X<sub>j</sub></span></div>
+        <div class="legend-item"><span class="legend-swatch">
+            <svg width="18" height="10"><rect x="7" y="0" width="4" height="10" fill="#f97316"/></svg>
+            </span><span>most-attended sample</span></div>
+        <div class="legend-item"><span class="legend-swatch">
+            <svg width="18" height="8"><line x1="1" y1="4" x2="17" y2="4" stroke="#2563eb" stroke-width="2"/><line x1="1" y1="1" x2="1" y2="7" stroke="#2563eb" stroke-width="2"/><line x1="17" y1="1" x2="17" y2="7" stroke="#2563eb" stroke-width="2"/></svg>
+            </span><span>attention window &middot; 90% (solid) / 50% (dashed) of the mass</span></div>
+        <div class="legend-item"><span class="legend-swatch">
+            <svg width="18" height="8"><line x1="0" y1="4" x2="18" y2="4" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5,3"/></svg>
+            </span><span>uniform level 1/n</span></div>
+        <div class="legend-item" id="legend-p0"><span class="legend-swatch">
+            <svg width="18" height="4"><line x1="0" y1="2" x2="18" y2="2" stroke="#94a3b8" stroke-width="2.5"/></svg>
+            </span><span>true p&#8320;(1|x) &middot; right axis</span></div>
+    </div>
 </div>
 
 <div id="controls-container">
     <div class="control-group">
-        <span>Context size n</span>
-        <input type="range" id="n-slider" min="8" max="200" step="1" value="12">
-        <span class="val" id="n-val">10</span>
+        <div class="control-label"><span>Test point x*</span><span id="x-val">0.550</span></div>
+        <input type="range" id="x-slider" min="0" max="36" step="1" value="20">
+    </div>
+    <div class="control-group">
+        <div class="control-label"><span>Context size n</span><span id="n-val">316</span></div>
+        <input type="range" id="n-slider" min="0" max="7" step="1" value="6">
+    </div>
+    <!-- same picker as locality-bias.html: mean over layers, or one layer -->
+    <div class="seg-wrap">
+        <span class="seg-label">Attention layer</span>
+        <select id="layer-select" aria-label="Attention layer"></select>
+    </div>
+    <div class="seg-wrap">
+        <span class="seg-label">True p&#8320;(1|x)</span>
+        <div class="seg" id="p0-toggle" role="group" aria-label="Show the true conditional probability">
+            <button type="button" class="active" data-p0="on">show</button>
+            <button type="button" data-p0="off">hide</button>
+        </div>
     </div>
 </div>
 
+<!-- real query->context attention of pretrained TabPFN v1 on the locality-bias
+     pool (generated offline by src/tabpfn_v1/generate_attention_scores.py) -->
+<script src="data/attention_scores.js"></script>
 <script>
-    const N_MIN = 8, N_MAX = 200;
-    const DIM = 3;          /* feature dimension d */
-    const K = 1.6;          /* ||X|| <= K — the boundedness assumption of Thm 6.2 */
-    /* indices of context samples whose FEATURES are close to the query x. They
-       are what a head is supposed to find ("emphasis is put on those V_j that
-       are similar to v"), and they are what gives the softmax its peaks. Spread
-       across the pool so a peak is on screen at every n. */
-    const SIMILAR = [1, 4, 9, 21, 44, 87, 152];
+    /* ACTUAL post-softmax attention weights of the pretrained TabPFN v1, one map
+       per (context size n, test point x*, encoder layer), averaged over ensemble
+       members and heads. Displayed unmodified — no rescaling, no
+       re-normalization, no reordering happens in here. */
+    const A = window.ATTENTION_DATA;
+    const NG = A.nGrid;
+    const xOf = i => A.xMin + i * A.xStep;
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    /* the data set's true conditional, identical to locality-bias.html */
+    const p0 = x => 0.5 + 0.4 * Math.sin(2 * Math.PI * x);
 
-    /* mulberry32 — a real PRNG */
-    function mulberry32(a) {
-        return function () {
-            a |= 0; a = (a + 0x6D2B79F5) | 0;
-            let t = Math.imul(a ^ (a >>> 15), 1 | a);
-            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-        };
-    }
-    const random = mulberry32(8712345);
-    const gauss = () => {
-        const u = Math.max(random(), 1e-12);
-        return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * random());
-    };
-
-    /* ---- one real attention head, exactly as defined in \S6.3 of [4] ----
-       query token v = (0, x), fixed. */
-    const query = [0];                               /* v = (0, x) */
-    const xDir = [0.72, -0.55, 0.42];                /* unit-ish direction of x */
-    for (let k = 0; k < DIM; k++) query.push(K * 0.62 * xDir[k]);
-
-    /* context tokens V^(j) = (Y^(j), X^(j)), features bounded by ||X|| <= K */
-    const Vs = [];
-    for (let j = 0; j < N_MAX; j++) {
-        const V = [random() < 0.5 ? 1 : 0];          /* Y^(j) */
-        let nrm = 0;
-        const X = [];
-        for (let k = 0; k < DIM; k++) { const g = gauss(); X.push(g); nrm += g * g; }
-        nrm = Math.sqrt(nrm);
-        const r = K * Math.pow(random(), 1 / DIM) / (nrm || 1);
-        for (let k = 0; k < DIM; k++) V.push(X[k] * r);
-        Vs.push(V);
-    }
-    /* the SIMILAR samples: features near the query's, i.e. genuine near-duplicates
-       of the test point sitting in the context. Nothing is done to their WEIGHTS —
-       the softmax discovers them because their scores are high. */
-    SIMILAR.forEach((j, t) => {
-        const align = 0.80 + 0.03 * t;               /* later ones slightly closer */
-        for (let k = 0; k < DIM; k++) {
-            Vs[j][k + 1] = K * align * xDir[k] + 0.10 * gauss();
+    /* 0 = mean over all encoder layers (default), k >= 1 = layer k-1 on its own —
+       the same convention as locality-bias.html's layer picker. */
+    let attnLayer = 0;
+    function weights(n, xi) {
+        const L = A.w[n];
+        if (attnLayer > 0) return L[attnLayer - 1][xi];
+        const out = new Float64Array(L[0][xi].length);
+        for (let k = 0; k < L.length; k++) {
+            const row = L[k][xi];
+            for (let j = 0; j < out.length; j++) out[j] += row[j] / L.length;
         }
-    });
-
-    /* W_q = I: the head measures plain feature similarity v^T V^(j) = x . X^(j)
-       (the label coordinate of v is 0, so labels do not steer attention). Fixed
-       and structured, NOT random — a random W_q measures a meaningless direction
-       and the weights come out looking like noise. */
-    const Wq = [];
-    for (let a = 0; a <= DIM; a++) {
-        const row = [];
-        for (let b = 0; b <= DIM; b++) row.push(a === b ? 1 : 0);
-        Wq.push(row);
+        return out;
     }
-    /* v^T W_q is a fixed row vector c, so s_j = c . V^(j) */
-    const c = [];
-    for (let b = 0; b <= DIM; b++) {
-        let s = 0;
-        for (let a = 0; a <= DIM; a++) s += query[a] * Wq[a][b];
-        c.push(s);
-    }
-    /* scores s_j = v^T W_q V^(j) — FIXED, independent of n.
-       Rescaled to a fixed spread (SCORE_SD), which is what the 1/sqrt(d) factor
-       of scaled dot-product attention does: without it the raw scores of a random
-       W_q are spread over several units, the softmax saturates, and one sample
-       takes almost all the weight. The shift/scale is a reparametrization of
-       W_q, so this is still exactly the head defined in \S6.3. */
-    const SCORE_SD = 1.25;
-    const raw = Vs.map(V => {
-        let s = 0;
-        for (let b = 0; b <= DIM; b++) s += c[b] * V[b];
-        return s;
-    });
-    const mean = raw.reduce((s, v) => s + v, 0) / raw.length;
-    const sd = Math.sqrt(raw.reduce((s, v) => s + (v - mean) * (v - mean), 0) / raw.length);
-    const scores = raw.map(v => (v - mean) / (sd || 1) * SCORE_SD);
 
-    /* a_j = softmax(s_1, ..., s_n)_j — the genuine softmax, over the FIRST n
-       scores only. Shifted by the max for numerical stability; the shift
-       cancels in the ratio. */
-    function attention(n) {
-        let m = -Infinity;
-        for (let j = 0; j < n; j++) if (scores[j] > m) m = scores[j];
-        let sum = 0;
-        const a = new Float64Array(n);
-        for (let j = 0; j < n; j++) { a[j] = Math.exp(scores[j] - m); sum += a[j]; }
-        for (let j = 0; j < n; j++) a[j] /= sum;
-        return a;
+    /* smallest symmetric interval around x* holding `q` of the attention mass —
+       the same quantity locality-bias.html draws as TabPFN's attention window,
+       recomputed here from the displayed map so bars and brackets always agree */
+    function massWindow(a, n, xq, q) {
+        const idx = Array.from({ length: n }, (_, j) => j)
+            .sort((i, j) => Math.abs(A.poolX[i] - xq) - Math.abs(A.poolX[j] - xq));
+        let tot = 0;
+        for (let j = 0; j < n; j++) tot += a[j];
+        let cum = 0;
+        for (const j of idx) {
+            cum += a[j] / tot;
+            if (cum >= q) return Math.abs(A.poolX[j] - xq);
+        }
+        return Math.abs(A.poolX[idx[n - 1]] - xq);
     }
 
     /* ---- geometry ---- */
-    const W = 1160, H = 330, PL = 62, PR = 20, PT = 44, PB = 42;
-    const plotW = W - PL - PR, plotH = H - PT - PB;
+    let W = 1160;                /* re-fit to the panel's pixel aspect (fitViewBox) */
+    const H = 370, PL = 62, PR = 50, PT = 52, PB = 52;
+    const gx = v => PL + v * (W - PL - PR);
 
-    /* y-axis AUTOSCALES to the weights actually on screen (a fixed axis pinned to
-       the n = 8 maximum left the bars a few pixels tall at n = 200, since
-       max_j a_j falls like ~1/n). The decay is therefore read off the TICK
-       LABELS and the 1/n line, not off the bar heights: the axis top runs
-       ~0.38 at n = 8 down to ~0.03 at n = 200. */
-    const barY = (v, yTop) => H - PB - (v / yTop) * plotH;
+    /* LOGARITHMIC left y-axis, FIXED across n, x* and layer. The weights span
+       ~3 decades (peak O(0.1) down to ~2e-4), and holding the range fixed means
+       dragging a slider does not rescale the picture, so bars stay comparable.
+       Layer 0 alone has a tail below the floor — a missing bar there means
+       attention under 1e-4. */
+    const LOG_MIN = -4, LOG_MAX = 0;
+    const FLOOR = Math.pow(10, LOG_MIN);
+    const gy = v => H - PB - (Math.log10(v) - LOG_MIN) / (LOG_MAX - LOG_MIN) * (H - PT - PB);
+    /* right y-axis: probabilities in [0, 1], kept clear of the bracket band */
+    const P_TOP = PT + 46, P_BOT = H - PB - 6;
+    const py = v => P_BOT - v * (P_BOT - P_TOP);
 
-    function legend() {
-        const items = [
-            { w: 300, sw: c0 => `<rect x="${c0}" y="-6" width="14" height="11" rx="2" fill="#64748b" opacity="0.85"/>`,
-              t: 'attention weight aⱼ = softmax(v⊤W_q V⁽ʲ⁾)ⱼ' },
-            { w: 210, sw: c0 => `<rect x="${c0}" y="-6" width="14" height="11" rx="2" fill="#f97316" opacity="0.9"/>`,
-              t: 'most-attended sample' },
-            { w: 150, sw: c0 => `<line x1="${c0}" y1="0" x2="${c0 + 18}" y2="0" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6,4"/>`,
-              t: 'uniform level 1/n' },
-        ];
-        const total = items.reduce((s, it) => s + it.w, 0);
-        let cur = PL + (plotW - total) / 2;
+    let showP0 = true;
+
+    const xSlider = document.getElementById('x-slider');
+    const nSlider = document.getElementById('n-slider');
+    xSlider.max = A.xCount - 1;
+    nSlider.max = NG.length - 1;
+
+    function grid() {
         let h = '';
-        items.forEach(it => {
-            h += `<g transform="translate(0, 22)">${it.sw(cur)}` +
-                 `<text x="${cur + 24}" y="4" font-size="12.5" fill="#334155">${it.t}</text></g>`;
-            cur += it.w;
+        for (let d = LOG_MAX; d >= LOG_MIN; d--) {
+            const y = gy(Math.pow(10, d));
+            h += `<line x1="${PL}" y1="${y.toFixed(1)}" x2="${W - PR}" y2="${y.toFixed(1)}" stroke="#e2e8f0" stroke-width="1"/>` +
+                 `<text x="${PL - 8}" y="${(y + 4).toFixed(1)}" font-size="11" fill="#64748b" text-anchor="end">${d === 0 ? '1' : '10' + String(d).replace('-', '⁻').replace(/\d/g, c => '⁰¹²³⁴⁵⁶⁷⁸⁹'[c])}</text>`;
+        }
+        for (let i = 0; i <= 10; i++) {
+            const x = gx(i / 10);
+            h += `<line x1="${x.toFixed(1)}" y1="${PT}" x2="${x.toFixed(1)}" y2="${H - PB}" stroke="#f1f5f9" stroke-width="1"/>`;
+        }
+        [0, 0.25, 0.5, 0.75, 1].forEach(v => {
+            h += `<text x="${gx(v).toFixed(1)}" y="${H - PB + 16}" font-size="12" fill="#64748b" text-anchor="middle">${v}</text>`;
         });
-        document.getElementById('legend').innerHTML = h;
+        document.getElementById('grid-lines').innerHTML = h;
+
+        /* the true p0 of the data set, on its own right axis (toggleable) */
+        const line = document.getElementById('p0-line');
+        const ax = document.getElementById('p0-axis');
+        if (!showP0) { line.setAttribute('d', ''); ax.innerHTML = ''; return; }
+        let d = '';
+        for (let j = 0; j <= 200; j++) {
+            const x = j / 200;
+            d += `${j === 0 ? 'M' : 'L'} ${gx(x).toFixed(1)} ${py(p0(x)).toFixed(1)} `;
+        }
+        line.setAttribute('d', d);
+        let t = `<line x1="${W - PR}" y1="${py(1)}" x2="${W - PR}" y2="${py(0)}" stroke="#cbd5e1" stroke-width="1"/>`;
+        [0, 0.5, 1].forEach(v => {
+            const y = py(v);
+            t += `<line x1="${W - PR}" y1="${y}" x2="${W - PR + 5}" y2="${y}" stroke="#cbd5e1" stroke-width="1"/>` +
+                 `<text x="${W - PR + 9}" y="${y + 4}" font-size="11" fill="#94a3b8">${v}</text>`;
+        });
+        document.getElementById('p0-axis').innerHTML = t;
     }
 
-    const slider = document.getElementById('n-slider');
-
     function update() {
-        const n = parseInt(slider.value);
+        const xi = parseInt(xSlider.value);
+        const n = NG[parseInt(nSlider.value)];
+        const xq = xOf(xi);
+        document.getElementById('x-val').innerText = xq.toFixed(3);
         document.getElementById('n-val').innerText = n;
 
-        const a = attention(n);
+        const a = weights(n, xi);
+        const X = A.poolX;
 
         let argmax = 0;
         for (let j = 1; j < n; j++) if (a[j] > a[argmax]) argmax = j;
-        const yTop = a[argmax] * 1.15;
 
-        /* grid + y labels (autoscaled) */
-        let g = '';
-        for (let i = 0; i <= 4; i++) {
-            const v = yTop * i / 4;
-            const y = barY(v, yTop);
-            g += `<line x1="${PL}" y1="${y}" x2="${W - PR}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>` +
-                 `<text x="${PL - 8}" y="${y + 4}" font-size="11" fill="#64748b" text-anchor="end">${v.toFixed(3)}</text>`;
-        }
-        document.getElementById('grid-lines').innerHTML = g;
-
-        /* bars */
-        const gap = n > 60 ? 0 : 2;
-        const bw = Math.max(1, plotW / n - gap);
-        let bars = '';
+        /* bars — one per context point, standing at ITS OWN x-value, from the
+           axis floor up to a_j. Bars thin enough that neighbours stay separable
+           at n = 500; the most-attended sample is drawn last, in orange. */
+        const bw = clamp((W - PL - PR) / n * 0.55, 1.6, 7);
+        let bars = '', top = '';
         for (let j = 0; j < n; j++) {
-            const x = PL + j * plotW / n;
-            const y = barY(a[j], yTop);
-            const fill = j === argmax ? '#f97316' : '#64748b';
-            bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}"
-                           height="${(H - PB - y).toFixed(1)}" fill="${fill}" opacity="0.85"/>`;
+            const v = a[j];
+            if (!(v > FLOOR)) continue;
+            const x = gx(X[j]) - bw / 2, y = gy(v);
+            const s = `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" ` +
+                      `height="${(H - PB - y).toFixed(1)}" fill="${j === argmax ? '#f97316' : '#64748b'}" ` +
+                      `opacity="${j === argmax ? 1 : 0.75}"/>`;
+            if (j === argmax) top += s; else bars += s;
         }
-        document.getElementById('bars-layer').innerHTML = bars;
+        document.getElementById('bars-layer').innerHTML = bars + top;
 
-        /* uniform 1/n reference */
-        const uy = barY(1 / n, yTop);
+        /* uniform 1/n reference: the level every sample would get if attention
+           were flat. Bars above it are over-weighted, bars below under-weighted. */
+        const uy = gy(1 / n);
         const ul = document.getElementById('uniform-line');
-        ul.setAttribute('x1', PL); ul.setAttribute('y1', uy);
-        ul.setAttribute('x2', W - PR); ul.setAttribute('y2', uy);
-        const lbl = document.getElementById('uniform-label');
-        lbl.setAttribute('x', PL + 6);
-        lbl.setAttribute('y', uy - 6);
-        lbl.textContent = `1/n = ${(1 / n).toFixed(3)}`;
+        ul.setAttribute('x1', PL); ul.setAttribute('y1', uy.toFixed(1));
+        ul.setAttribute('x2', W - PR); ul.setAttribute('y2', uy.toFixed(1));
+        const ulbl = document.getElementById('uniform-label');
+        ulbl.setAttribute('x', W - PR - 6);   /* right end, clear of the legend box */
+        ulbl.setAttribute('y', (uy - 5).toFixed(1));
+        ulbl.textContent = `1/n = ${(1 / n).toPrecision(2)}`;
+
+        /* test point */
+        const tx = gx(xq);
+        const tl = document.getElementById('test-line');
+        tl.setAttribute('x1', tx.toFixed(1)); tl.setAttribute('y1', PT);
+        tl.setAttribute('x2', tx.toFixed(1)); tl.setAttribute('y2', H - PB);
+        const star = document.getElementById('test-star');
+        star.setAttribute('x', tx.toFixed(1)); star.setAttribute('y', H - PB + 34);
+
+        /* MEASURED attention window: smallest symmetric interval around x*
+           holding 90% (solid) / 50% (dashed) of the attention mass — the same
+           bracket, and the same label, locality-bias.html draws. */
+        const h50 = massWindow(a, n, xq, 0.5), h90 = massWindow(a, n, xq, 0.9);
+        const px = h => [clamp(gx(xq - h), PL, W - PR), clamp(gx(xq + h), PL, W - PR)];
+        const [a50, b50] = px(h50), [a90, b90] = px(h90);
+        const y90 = PT + 14, y50 = PT + 25;
+        const tick = (x, y) => `<line x1="${x.toFixed(1)}" y1="${y - 4}" x2="${x.toFixed(1)}" y2="${y + 4}" stroke="#2563eb" stroke-width="2"/>`;
+        document.getElementById('attn-window').innerHTML =
+            `<line x1="${a90.toFixed(1)}" y1="${y90}" x2="${b90.toFixed(1)}" y2="${y90}" stroke="#2563eb" stroke-width="2"/>` +
+            tick(a90, y90) + tick(b90, y90) +
+            `<line x1="${a50.toFixed(1)}" y1="${y50}" x2="${b50.toFixed(1)}" y2="${y50}" stroke="#2563eb" stroke-width="2" stroke-dasharray="5,3"/>` +
+            tick(a50, y50) + tick(b50, y50) +
+            /* white halo so the x* line does not cut through the label */
+            `<text x="${((a90 + b90) / 2).toFixed(1)}" y="${y90 - 6}" font-size="11" fill="#2563eb" ` +
+            `text-anchor="middle" stroke="#ffffff" stroke-width="3" paint-order="stroke">attention window</text>`;
 
         const ax = document.getElementById('axis-label');
-        ax.setAttribute('x', PL + plotW / 2);
-        ax.setAttribute('y', H - 12);
-        ax.textContent = `context samples j = 1 … ${n}`;
+        ax.setAttribute('x', (PL + (W - PL - PR) / 2).toFixed(1));
+        ax.setAttribute('y', H - 6);
+
+        const yt = document.getElementById('y-title');
+        const ym = (PT + (H - PT - PB) / 2).toFixed(1);
+        yt.setAttribute('x', 16);
+        yt.setAttribute('y', ym);
+        yt.setAttribute('transform', `rotate(-90 16 ${ym})`);
+        yt.textContent = 'attention aⱼ(x*)';
     }
 
-    legend();
-    slider.addEventListener('input', update);
-    update();
+    /* 0 = mean over layers, 1..nLayers = encoder layer k-1 (locality-bias.html) */
+    const layerSelect = document.getElementById('layer-select');
+    layerSelect.innerHTML = ['<option value="0">mean of layers</option>']
+        .concat(Array.from({ length: A.nLayers }, (_, k) => `<option value="${k + 1}">layer ${k}</option>`))
+        .join('');
+    layerSelect.value = String(attnLayer);
+    layerSelect.addEventListener('change', () => {
+        attnLayer = parseInt(layerSelect.value);
+        update();
+    });
+
+    xSlider.addEventListener('input', update);
+    nSlider.addEventListener('input', update);
+
+    document.querySelectorAll('#p0-toggle button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const on = btn.dataset.p0 === 'on';
+            if (on === showP0) return;
+            showP0 = on;
+            document.querySelectorAll('#p0-toggle button').forEach(b => b.classList.toggle('active', b === btn));
+            document.getElementById('legend-p0').style.display = showP0 ? '' : 'none';
+            grid(); update();
+        });
+    });
+
+    /* keep the plot filling its box: match the viewBox aspect to the live pixel
+       aspect (height fixed at H), so 'meet' fills instead of letterboxing. */
+    const svg = document.getElementById('bars-plot');
+    const box = document.getElementById('viz-container');
+    function fitViewBox() {
+        const cw = box.clientWidth, ch = box.clientHeight;
+        if (cw > 0 && ch > 0) {
+            W = Math.max(400, Math.round(H * cw / ch));
+            svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+        }
+        grid(); update();
+    }
+    new ResizeObserver(fitViewBox).observe(box);
+    fitViewBox();
 </script>
 </body>
 </html>

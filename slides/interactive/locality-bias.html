@@ -19,7 +19,8 @@
   The gap between the two traces IS the Definition's quantity
   |q(y|x, D_n) - q(y|x, D~_n)|; locality asks it to vanish.
 
-  MODEL TOGGLE (2 models — the "attention" Gaussian analogue was removed):
+  MODEL TOGGLE (3 models — two analytic smoothers plus the real checkpoint).
+  Which of them an embed offers is set by the `models=` URL parameter:
     - Window smoother   uniform average over a FIXED window |X_i-x|<THETA_WIN.
                         At the STARTING n the window sits INSIDE the eps_n
                         frame, so it looks local. But eps_n -> 0 while the
@@ -30,9 +31,23 @@
                         a_n THETA ~ n^{-1/5} (the a_n = n^{-1/(4+d)} rate,
                         d = 1). It stays inside eps_n for all n, so the gap
                         stays closed. LOCAL.
-  The blue "averaging window" bracket vs the orange eps_n band shows the
-  mechanism directly: bracket inside band == local; bracket poking out ==
-  averaging scrambled labels.
+    - TabPFN v1         the ACTUAL pretrained checkpoint (tabpfn==0.1.11),
+                        default settings, precomputed offline by
+                        src/tabpfn_v1/generate_locality_predictions.py on the
+                        SAME pool this page draws, and read from
+                        data/locality_tabpfn.js. The n-slider snaps to the
+                        context sizes that were run (20 .. 3162). Measured on the
+                        [0, 1.8] support: the mean |D_n - D~_n| gap over interior
+                        queries falls from 0.13 (n = 20) only to a PLATEAU of
+                        ~0.06 and stays there up to n = 3162, while Var falls
+                        3.6e-2 -> 6.4e-4 (slope n^-0.85). That is Thm 6.2 + 6.3 in
+                        one picture: the variance vanishes, yet the predictor is
+                        NOT local, so the gap does not follow it to zero.
+  For the window smoothers the blue "averaging window" bracket vs the orange
+  eps_n band shows the mechanism directly: bracket inside band == local; bracket
+  poking out == averaging scrambled labels. For TabPFN the bracket is REPLACED by
+  the measured attention window, drawn as two nested bracket lines (SOLID = 90%
+  of the attention mass, DASHED = 50%) — same comparison, but read off the model.
 
   Rates (the ONLY structural requirements): eps_n -> 0 but SLOWER than the
   localised window, i.e. eps_n ~ n^{-1/9} while a_n ~ n^{-1/5}, so the
@@ -181,6 +196,20 @@
         #model-seg button.active { background: #2563eb; color: #ffffff; }
         #scale-toggle button.active { background: #f97316; color: #ffffff; }
         .seg-wrap { flex: 0 0 auto; display: flex; flex-direction: column; }
+        /* dropdown styled to match the segmented toggles next to it */
+        #layer-select {
+            padding: 4px 8px;
+            font: inherit;
+            font-size: 11px;
+            font-weight: 600;
+            color: #1e293b;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            cursor: pointer;
+            line-height: 1.35;
+        }
+        #layer-select:focus { outline: 2px solid #93c5fd; outline-offset: 1px; }
         /* draggable splitter between the two panels */
         #drag-divider {
             flex: 0 0 12px;
@@ -271,17 +300,24 @@
 <div id="controls-container">
     <div class="control-group">
         <div class="control-label"><span>Test point x*</span><span id="x-val">0.75</span></div>
-        <input type="range" id="x-slider" min="0.05" max="0.95" step="0.01" value="0.75">
+        <input type="range" id="x-slider" min="0.05" max="1.75" step="0.01" value="0.75">
     </div>
     <div class="control-group">
         <div class="control-label"><span>Context size n</span><span id="n-val">40</span></div>
         <input type="range" id="n-slider" min="0" max="1000" step="1" value="112">
+    </div>
+    <!-- only meaningful for the TabPFN toggle; shown/hidden in update().
+         Options are filled in from the data (mean + one per encoder layer). -->
+    <div class="seg-wrap" id="layer-group" style="display:none">
+        <span class="seg-label">Attention layer</span>
+        <select id="layer-select" aria-label="Attention layer"></select>
     </div>
     <div class="seg-wrap">
         <span class="seg-label">Model</span>
         <div class="seg" id="model-seg" role="group" aria-label="Model">
             <button type="button" class="active" data-m="window">Window smoother</button>
             <button type="button" data-m="locwin">Localised window</button>
+            <button type="button" data-m="tabpfn">TabPFN v1</button>
         </div>
     </div>
     <div class="seg-wrap">
@@ -293,7 +329,18 @@
     </div>
 </div>
 
+<!-- real pretrained TabPFN v1 predictions for this demo (generated offline by
+     src/tabpfn_v1/generate_locality_predictions.py) -->
+<script src="data/locality_tabpfn.js"></script>
 <script>
+    /* ---- data support ----
+       X ~ Uniform[X_MIN, X_MAX]. The support is 1.8 periods of p0 (period 1)
+       wide, so the target's periodicity is visible in the picture instead of
+       looking like a one-off bump. Everything else (eps_n, the window widths)
+       is measured in ABSOLUTE x units and so is unaffected; only the sample
+       DENSITY drops by the factor 1.8 at a given n. */
+    const X_MIN = 0, X_MAX = 1.8, X_SPAN = X_MAX - X_MIN;
+
     /* ---- asymptotic scales (see header comment) ---- */
     const N_MIN = 20, N_MAX = 10000;
     const N_REF = 40;
@@ -336,7 +383,7 @@
     const poolAlt = new Float64Array(N_MAX);
     const poolJit = new Float64Array(N_MAX);
     for (let i = 0; i < N_MAX; i++) {
-        const x = random();
+        const x = X_MIN + random() * X_SPAN;
         poolX[i] = x;
         poolY[i] = random() < p0(x) ? 1 : 0;
         poolAlt[i] = random() < P_TILDE ? 1 : 0;
@@ -344,7 +391,59 @@
     }
 
     let nSamples = 40;
-    let model = 'window';          /* 'window' | 'locwin' — the MODEL TOGGLE */
+    /* 'window' | 'locwin' | 'tabpfn' — the MODEL TOGGLE.
+       The first three are computed analytically below; 'tabpfn' is the REAL
+       pretrained TabPFN v1, precomputed offline (window.LOCALITY_TABPFN). */
+    let model = 'window';
+    const MODELS = ['window', 'locwin', 'tabpfn'];
+    /* An embed picks WHICH models it offers and which is selected, via the hash
+       or the query string, e.g.
+         locality-bias.html#models=window,locwin           (the bias slide)
+         locality-bias.html#models=window,locwin,tabpfn&model=tabpfn
+       Buttons outside the allowed set are removed. Defaults to all of them. */
+    let allowedModels = MODELS.slice();
+    {
+        const hp = new URLSearchParams(location.hash.replace(/^#/, ''));
+        const qp = new URLSearchParams(location.search);
+        const par = k => hp.get(k) || qp.get(k);
+        const list = (par('models') || '').split(',').map(s => s.trim()).filter(s => MODELS.includes(s));
+        if (list.length) allowedModels = list;
+        const m = par('model');
+        model = allowedModels.includes(m) ? m : allowedModels[0];
+    }
+
+    /* ---- TabPFN v1 lookup ------------------------------------------------
+       The checkpoint was run once per n in TPF.nGrid on the SAME pool this page
+       draws, giving P(y=1) on a uniform grid of TPF.queryPts query points for
+       both data sets. Nothing is recomputed here: the n-slider snaps to the
+       nearest precomputed context size and the traces are read off. */
+    const TPF = window.LOCALITY_TABPFN;
+    const tpfSnapN = n => TPF.nGrid.reduce((best, c) =>
+        Math.abs(Math.log(c) - Math.log(n)) < Math.abs(Math.log(best) - Math.log(n)) ? c : best,
+        TPF.nGrid[0]);
+    function tpfAt(arr, q) {              /* linear interp over the support */
+        const m = arr.length - 1;
+        const t = clamp((q - X_MIN) / X_SPAN, 0, 1) * m;
+        const i = Math.min(m - 1, Math.floor(t));
+        return arr[i] + (arr[i + 1] - arr[i]) * (t - i);
+    }
+    /* the window TabPFN actually ATTENDS to: the smallest symmetric interval
+       around x* holding 50% / 90% of the query->context attention mass (averaged
+       over the 3 ensemble members and the 4 heads). Measured per (n, x*) on the
+       same grid as the x-slider, so this is a lookup, not an estimate.
+       `attnLayer` selects which map: 0 = mean over all layers, k >= 1 = encoder
+       layer k-1 on its own. The layers disagree sharply — layer 0 anchors on a
+       single FAR point (h50 ~ 0.71) while layers 1.. are local (h50 ~ 0.11), so
+       the mean's outer band is noticeably inflated by layer 0. Only the drawn
+       WINDOW changes with this; the predictions and the variance panel are the
+       whole model either way. */
+    let attnLayer = 0;
+    function tpfWin(n, xq) {
+        const w = TPF.win;
+        const i = clamp(Math.round((xq - w.xMin) / w.xStep), 0, w.xCount - 1);
+        const k = clamp(attnLayer, 0, w.nLayers);
+        return { h50: w.h50[n][k][i], h90: w.h90[n][k][i] };
+    }
 
     /* first n samples sorted by x, so a prediction can binary-search its window
        instead of sweeping all N_MAX. Rebuilt only when n changes. */
@@ -375,16 +474,19 @@
        binary search (== half for a hard window). */
     function modelKernel(n) {
         if (model === 'window') {
-            return { cut: THETA_WIN, half: THETA_WIN, w: d => (Math.abs(d) < THETA_WIN ? 1 : 0) };
+            return { cut: THETA_WIN, half: THETA_WIN, soft: false, w: d => (Math.abs(d) < THETA_WIN ? 1 : 0) };
         }
         const wl = wLocN(n);
-        return { cut: wl, half: wl, w: d => (Math.abs(d) < wl ? 1 : 0) };
+        return { cut: wl, half: wl, soft: false, w: d => (Math.abs(d) < wl ? 1 : 0) };
     }
 
     /* THE selected model at test point q. `scramble` picks the dataset:
          false -> D_n  (original labels)
          true  -> D~_n (labels farther than eps_n FROM q resampled from phi~) */
     function predict(q, n, eps, scramble) {
+        if (model === 'tabpfn') {                  /* read the checkpoint's output */
+            return tpfAt((scramble ? TPF.scr : TPF.orig)[n], q);
+        }
         sortPrefix(n);
         const k = modelKernel(n);
         const lo = lowerBound(q - k.cut, n), hi = lowerBound(q + k.cut, n);
@@ -420,8 +522,9 @@
     /* interior grid, averaged, to get one variance number per n (boundaries
        excluded so their half-empty windows don't spike the mean) */
     const VGRID = [];
-    for (let j = 0; j <= 40; j++) VGRID.push(0.08 + (0.92 - 0.08) * j / 40);
+    for (let j = 0; j <= 40; j++) VGRID.push(X_MIN + X_SPAN * (0.08 + (0.92 - 0.08) * j / 40));
     function varOfN(n) {
+        if (model === 'tabpfn') return TPF.var[n];   /* Monte-Carlo, precomputed */
         let s = 0, c = 0;
         for (const x of VGRID) { const v = varAt(x, n); if (!isNaN(v)) { s += v; c++; } }
         return c ? s / c : 0;
@@ -431,7 +534,7 @@
     let W = 720;                 /* re-fit to the panel's pixel aspect (fitViewBoxes) */
     const H = 430;
     const PL = 46, PR = 16, PT = 42, PB = 40;
-    const gx = v => PL + v * (W - PL - PR);
+    const gx = v => PL + (v - X_MIN) / X_SPAN * (W - PL - PR);
     const gy = v => H - PB - (v + 0.14) / 1.28 * (H - PT - PB);   /* y in [-0.14, 1.14] */
 
     let traceKey = '';
@@ -442,19 +545,26 @@
         const key = n + '|' + model;
         if (key === traceKey) return;
         traceKey = key;
-        for (let j = 0; j <= TRACE_PTS; j++) {
-            const q = j / TRACE_PTS;
-            traceOrig[j] = predict(q, n, eps, false);
-            traceScr[j] = predict(q, n, eps, true);
+        let oArr, sArr, m;
+        if (model === 'tabpfn') {
+            /* the checkpoint's own outputs, on its own query grid */
+            oArr = TPF.orig[n]; sArr = TPF.scr[n]; m = oArr.length - 1;
+        } else {
+            for (let j = 0; j <= TRACE_PTS; j++) {
+                const q = X_MIN + X_SPAN * j / TRACE_PTS;
+                traceOrig[j] = predict(q, n, eps, false);
+                traceScr[j] = predict(q, n, eps, true);
+            }
+            oArr = traceOrig; sArr = traceScr; m = TRACE_PTS;
         }
         const path = arr => {
             let d = '';
-            for (let j = 0; j <= TRACE_PTS; j++)
-                d += `${j === 0 ? 'M' : 'L'} ${gx(j / TRACE_PTS).toFixed(1)} ${gy(arr[j]).toFixed(1)} `;
+            for (let j = 0; j <= m; j++)
+                d += `${j === 0 ? 'M' : 'L'} ${gx(X_MIN + X_SPAN * j / m).toFixed(1)} ${gy(arr[j]).toFixed(1)} `;
             return d;
         };
-        document.getElementById('orig-trace').setAttribute('d', path(traceOrig));
-        document.getElementById('scr-trace').setAttribute('d', path(traceScr));
+        document.getElementById('orig-trace').setAttribute('d', path(oArr));
+        document.getElementById('scr-trace').setAttribute('d', path(sArr));
     }
 
     function grid() {
@@ -464,20 +574,21 @@
             h += `<line x1="${PL}" y1="${y}" x2="${W - PR}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>` +
                  `<text x="${PL - 8}" y="${y + 4}" font-size="12" fill="#64748b" text-anchor="end">${v}</text>`;
         });
-        for (let i = 0; i <= 10; i++) {
-            const x = gx(i / 10);
+        for (let i = 0; i * 0.1 <= X_SPAN + 1e-9; i++) {
+            const x = gx(X_MIN + i * 0.1);
             h += `<line x1="${x}" y1="${PT}" x2="${x}" y2="${H - PB}" stroke="#f1f5f9" stroke-width="1"/>`;
         }
-        [0, 0.25, 0.5, 0.75, 1].forEach(v => {
+        for (let i = 0; i * 0.25 <= X_SPAN + 1e-9; i++) {
+            const v = X_MIN + i * 0.25;
             h += `<text x="${gx(v)}" y="${H - PB + 24}" font-size="12" fill="#64748b" text-anchor="middle">${v}</text>`;
-        });
+        }
         document.getElementById('grid-lines').innerHTML = h;
     }
 
     function p0Path() {
         let d = '';
         for (let j = 0; j <= 200; j++) {
-            const x = j / 200;
+            const x = X_MIN + X_SPAN * j / 200;
             d += `${j === 0 ? 'M' : 'L'} ${gx(x).toFixed(1)} ${gy(p0(x)).toFixed(1)} `;
         }
         document.getElementById('p0-line').setAttribute('d', d);
@@ -499,18 +610,27 @@
 
     let varData = [];                 /* [n, Var[q]] per nGridVar entry */
     let varByN = new Map();
+    let varMarks = markGridVar;
     let varRefL = 0, varAlpha = 1;
     let varKeyModel = '';
 
     function computeVarData() {
         if (varKeyModel === model) return;
         varKeyModel = model;
-        varData = nGridVar.map(n => [n, varOfN(n)]);
+        if (model === 'tabpfn') {
+            /* only the precomputed context sizes exist for the checkpoint */
+            varData = TPF.nGrid.map(n => [n, TPF.var[n]]);
+            varMarks = TPF.nGrid;
+            varAlpha = 0.85;          /* measured log-log slope of the real runs */
+        } else {
+            varData = nGridVar.map(n => [n, varOfN(n)]);
+            varMarks = markGridVar;
+            /* rate guide L n^{-alpha}: alpha is the model's theoretical variance
+               rate (1 for the fixed window, 4/5 for the localised one). */
+            varAlpha = model === 'locwin' ? 0.8 : 1;
+        }
         varByN = new Map(varData);
-        /* rate guide L n^{-alpha}: alpha is the model's theoretical variance
-           rate (1 for the fixed window, 4/5 for the localised one); L is fit as
-           an UPPER bound so the dashed guide sits above the measured curve. */
-        varAlpha = model === 'window' ? 1 : 0.8;
+        /* L is fit as an UPPER bound so the dashed guide sits above the curve. */
         varRefL = Math.max(...varData.map(([n, v]) => v * Math.pow(n, varAlpha))) * 1.15;
     }
 
@@ -559,7 +679,7 @@
         document.getElementById('var-line').setAttribute('d',
             varData.map((d, j) => `${j === 0 ? 'M' : 'L'} ${rx(d[0]).toFixed(1)} ${ry(d[1]).toFixed(1)}`).join(' '));
 
-        document.getElementById('var-marks').innerHTML = markGridVar.map(n =>
+        document.getElementById('var-marks').innerHTML = varMarks.map(n =>
             `<circle cx="${rx(n).toFixed(1)}" cy="${ry(varByN.get(n)).toFixed(1)}" r="3.5" fill="#64748b"/>`).join('');
 
         const REF_PTS = 40;
@@ -573,7 +693,8 @@
         const labelN = N_MIN * 3;
         refLbl.setAttribute('x', rx(labelN) + 4);
         refLbl.setAttribute('y', ry(varRefL * Math.pow(labelN, -varAlpha)) - 6);
-        refLbl.textContent = model === 'window' ? 'L / n' : 'L n^−⁴ᐟ⁵';
+        refLbl.textContent = model === 'locwin' ? 'L n^−⁴ᐟ⁵'
+                          : model === 'tabpfn' ? 'L n^−0.85' : 'L / n';
 
         const cur = document.getElementById('var-current');
         cur.setAttribute('cx', rx(nCur));
@@ -587,6 +708,12 @@
     function update() {
         const xq = parseFloat(xSlider.value);
         nSamples = nOfSlider(parseInt(nSlider.value));
+        /* the checkpoint was only run at the context sizes in TPF.nGrid, so snap
+           to the nearest one — the label and the drawn samples then match the
+           context TabPFN actually saw. */
+        if (model === 'tabpfn') nSamples = tpfSnapN(nSamples);
+        /* the per-layer attention-window picker only applies to TabPFN */
+        layerGroup.style.display = model === 'tabpfn' ? '' : 'none';
         document.getElementById('x-val').innerText = xq.toFixed(2);
         document.getElementById('n-val').innerText = nSamples;
 
@@ -599,22 +726,41 @@
 
         /* eps_n band around x* */
         const band = document.getElementById('window-band');
-        const bx0 = gx(Math.max(0, xq - eps)), bx1 = gx(Math.min(1, xq + eps));
+        const bx0 = gx(Math.max(X_MIN, xq - eps)), bx1 = gx(Math.min(X_MAX, xq + eps));
         band.setAttribute('x', bx0);
         band.setAttribute('width', bx1 - bx0);
         band.setAttribute('y', PT);
         band.setAttribute('height', H - PT - PB);
 
-        /* model averaging window bracket (blue) in the top headroom */
-        const half = modelKernel(nSamples).half;
-        const wxL = clamp(gx(xq - half), PL, W - PR);
-        const wxR = clamp(gx(xq + half), PL, W - PR);
+        /* averaging window: a hard blue bracket for the window smoothers; for
+           TabPFN the MEASURED attention window, drawn as two nested bracket
+           LINES only (no shaded area): SOLID = 90% of the attention mass,
+           DASHED = 50%. Compare against the shrinking eps_n frame the same way
+           the smoothers' bracket is compared — it does NOT shrink with n. */
         const wy = PT + 16;
-        document.getElementById('model-window').innerHTML =
-            `<line x1="${wxL}" y1="${wy}" x2="${wxR}" y2="${wy}" stroke="#2563eb" stroke-width="2"/>` +
-            `<line x1="${wxL}" y1="${wy - 4}" x2="${wxL}" y2="${wy + 4}" stroke="#2563eb" stroke-width="2"/>` +
-            `<line x1="${wxR}" y1="${wy - 4}" x2="${wxR}" y2="${wy + 4}" stroke="#2563eb" stroke-width="2"/>` +
-            `<text x="${(wxL + wxR) / 2}" y="${wy - 6}" font-size="11" fill="#2563eb" text-anchor="middle">averaging window</text>`;
+        if (model === 'tabpfn') {
+            const tw = tpfWin(nSamples, xq);
+            const px = h => [clamp(gx(xq - h), PL, W - PR), clamp(gx(xq + h), PL, W - PR)];
+            const [a50, b50] = px(tw.h50), [a90, b90] = px(tw.h90);
+            const y90 = wy, y50 = wy + 9;
+            const tick = (x, y) => `<line x1="${x}" y1="${y - 4}" x2="${x}" y2="${y + 4}" stroke="#2563eb" stroke-width="2"/>`;
+            document.getElementById('model-window').innerHTML =
+                `<line x1="${a90}" y1="${y90}" x2="${b90}" y2="${y90}" stroke="#2563eb" stroke-width="2"/>` +
+                tick(a90, y90) + tick(b90, y90) +
+                `<line x1="${a50}" y1="${y50}" x2="${b50}" y2="${y50}" stroke="#2563eb" stroke-width="2" stroke-dasharray="5,3"/>` +
+                tick(a50, y50) + tick(b50, y50) +
+                `<text x="${(a90 + b90) / 2}" y="${y90 - 6}" font-size="11" fill="#2563eb" text-anchor="middle">attention window</text>`;
+        } else {
+            const kw = modelKernel(nSamples);
+            const half = kw.half;
+            const wxL = clamp(gx(xq - half), PL, W - PR);
+            const wxR = clamp(gx(xq + half), PL, W - PR);
+            document.getElementById('model-window').innerHTML =
+                `<line x1="${wxL}" y1="${wy}" x2="${wxR}" y2="${wy}" stroke="#2563eb" stroke-width="2"/>` +
+                `<line x1="${wxL}" y1="${wy - 4}" x2="${wxL}" y2="${wy + 4}" stroke="#2563eb" stroke-width="2"/>` +
+                `<line x1="${wxR}" y1="${wy - 4}" x2="${wxR}" y2="${wy + 4}" stroke="#2563eb" stroke-width="2"/>` +
+                `<text x="${(wxL + wxR) / 2}" y="${wy - 6}" font-size="11" fill="#2563eb" text-anchor="middle">averaging window</text>`;
+        }
 
         /* samples: dots outside the eps_n band show the scrambled label (hollow
            violet); inside the band the two datasets agree. */
@@ -655,6 +801,19 @@
         drawVarPanel(nSamples, varOfN(nSamples));
     }
 
+    /* 0 = mean over layers, 1..nLayers = encoder layer k-1 */
+    const layerGroup = document.getElementById('layer-group');
+    const layerSelect = document.getElementById('layer-select');
+    layerSelect.innerHTML = ['<option value="0">mean of layers</option>']
+        .concat(Array.from({ length: TPF.win.nLayers },
+            (_, k) => `<option value="${k + 1}">layer ${k}</option>`))
+        .join('');
+    layerSelect.value = String(attnLayer);
+    layerSelect.addEventListener('change', () => {
+        attnLayer = parseInt(layerSelect.value);
+        update();
+    });
+
     xSlider.addEventListener('input', update);
     nSlider.addEventListener('input', update);
 
@@ -664,6 +823,11 @@
         model = btn.dataset.m;
         document.querySelectorAll('#model-seg button').forEach(b => b.classList.toggle('active', b === btn));
         update();
+    });
+    /* drop any model this embed does not offer, then mark the starting one */
+    document.querySelectorAll('#model-seg button').forEach(b => {
+        if (!allowedModels.includes(b.dataset.m)) b.remove();
+        else b.classList.toggle('active', b.dataset.m === model);
     });
     document.querySelectorAll('#scale-toggle button').forEach(btn => {
         btn.addEventListener('click', () => {

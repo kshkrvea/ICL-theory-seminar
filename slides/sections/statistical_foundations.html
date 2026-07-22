@@ -24,8 +24,9 @@
                         Lemma 5.3; inline diminishing-sensitivity.html)
     6.  sf-bias         Bias and the Need for Locality       (\S5.4: Thm 5.4;
                         inline locality-bias.html)
-    7.  sf-transformer  Transformer Networks                 (\S6.3: Thm 6.2;
-                        inline attention-weights.html)
+    7.  sf-transformer  Transformer Networks   (\S6.3: Thm 6.2 & 6.3; ONE slide with
+                        TWO versions of the figure, swapped by a fragment:
+                        attention-weights.html, then locality-bias.html?model=tabpfn)
     8.  sf-numerical    Numerical Validation  (\S6.5; 4-state image swap of our own
                         src/results/ reproductions: v1 -> untrained v1 -> v2.5 -> 20k/ub10000
                         — absorbs the deleted "Localized PFNs" placeholder)
@@ -316,7 +317,7 @@
       \(\;\big|\, q_{\theta}(y \mid x, \mathcal{D}_n) - q_{\theta}(y \mid x, \widetilde{\mathcal{D}}_n) \,\big| \xrightarrow{\;n \to \infty\;} 0\) a.s.</p>
   </div>
   <div class="iframe-fill below-text" style="--fill-top:290px; --fill-bottom:50px">
-    <iframe data-src="interactive/locality-bias.html" data-preload
+    <iframe data-src="interactive/locality-bias.html#models=window,locwin" data-preload
             title="Locality: the same model on the original vs. the far-label-scrambled data set"></iframe>
   </div>
   <span class="audience-qa audience-qa--bl">
@@ -386,7 +387,14 @@
   One takeaway on the slide (variance vanishes for free, any theta);
   attention definition + raw Theorem 6.2 with all boundedness
   assumptions in the "?" pop-up; attention-weights.html inline
-  (weights flatten as n grows, argmax jumps to later samples).
+  (the ACTUAL query->context attention of pretrained TabPFN v1, drawn IN DATA
+  SPACE on the same pool as the locality slide: a soft kernel centred on x*
+  whose peak falls ~1/n onto the uniform level — Thm 6.2's mechanism — while
+  its 50%/90% mass window does NOT shrink with n — Thm 6.3's non-locality.
+  See the viz header comment). ONE fragment step then swaps that figure for
+  locality-bias.html on the real checkpoint (formerly the separate frame 7b):
+  same theorem text, same figure box, so both versions carry the same slide
+  number.
 ============================================================ -->
 <section id="sf-transformer">
   <header class="frame-head">
@@ -403,9 +411,21 @@
       <li><span class="c-blue">bias</span> converges to a non-zero value and depends on parameters \(\theta\).</li>
     </ul>
   </div>
-  <div class="iframe-fill below-text" style="--fill-top:270px; --fill-bottom:50px">
+  <!-- TWO versions of the same frame, swapped by ONE fragment step (same
+       geometry, same text above, so the slide number does not advance):
+       step 1 = the attention weights themselves, step 2 = what they do to the
+       predictions (the locality demo with the real checkpoint). Same r-stack
+       idea as #sf-numerical, but with iframes: .iframe-fill is absolutely
+       positioned, so both boxes already sit on top of each other. -->
+  <div class="iframe-fill below-text fragment fade-out" data-fragment-index="1"
+       style="--fill-top:270px; --fill-bottom:50px">
     <iframe data-src="interactive/attention-weights.html" data-preload
-            title="Attention weights flatten as n grows"></iframe>
+            title="Actual attention weights of TabPFN v1 in data space, vs. context size n and test point x*"></iframe>
+  </div>
+  <div class="iframe-fill below-text fragment" data-fragment-index="1"
+       style="--fill-top:270px; --fill-bottom:50px">
+    <iframe data-src="interactive/locality-bias.html#models=window,locwin,tabpfn&model=tabpfn" data-preload
+            title="Locality of the real TabPFN v1 checkpoint"></iframe>
   </div>
   <span class="audience-qa audience-qa--bl">
     <button type="button" class="audience-qa-btn" data-audience-qa
@@ -452,10 +472,13 @@
       </p>
     </template>
   </span>
-  <aside class="notes">    
+  <aside class="notes">
     -> Theorem 5.2 turns that into the n^(-1/2) deviation bound. This holds irrespective of the tuned parameters theta-hat.<br>
     -> The bias depends entirely on theta, converges to a limit != 0 <br>
-  </aside>
+    -> [2nd version, after the click] the same theorems seen on the predictions: the real
+       checkpoint on D_n vs D~_n. The gap OPENS with n (non-zero bias, Thm 6.3) while the
+       variance still falls ~1/n (Thm 6.2) -- the attention window measured on the previous
+       view is exactly why: concentrated, but it does not shrink with n.<br>
 </section>
 
 <!-- ============================================================
