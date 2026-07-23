@@ -1,41 +1,301 @@
 <!-- ===================================================================
-  sections/beyond_predictions.html — port of slides/sections/connections.tex
-  (section "Beyond Predictions").
+  sections/beyond_predictions.html — "Beyond Predictions" section.
+
+  Connects PFNs to Simulation-Based Inference (SBI). Three slides:
+    1. conn-sbi-setup    Classical SBI setup: the joint p(x,theta), the
+                         simulated dataset D, and the amortized posterior in
+                         two forms (i) q_phi(theta|x) and (ii) q_phi(theta|h_psi(x)).
+    2. conn-npe-pfn      TabPFN in SBI, two ways (merged): NPE-PFN (upper half,
+                         Vetter et al. 2025) queries TabPFN autoregressively AS
+                         the posterior; PFN-NPE (lower half, Pickens et al. 2026)
+                         freezes TabPFN as the summary net feeding a trained head.
+    3. conn-sbi-results  Reproduced Figure 2 of the PFN-NPE paper.
+
+  Slide 1 (stage ii) and the PFN-NPE half share the SAME head-unit layout (q_phi
+  with a summary box feeding it from below) so the swap reads as one box.
+  Trained blocks carry a red 🔥 mark; the frozen TabPFN carries a blue ❄ mark.
+  Diagrams are NATIVE (card + arrow + KaTeX) — see the <style> block at the
+  END (loader.js copies `body > style` into <head>). px scale by
+  var(--deck-scale); palette vars from css/theme.css.
 =================================================================== -->
 
-<section id="conn-sbi">
+
+<!-- =====================================================================
+  1. Classical SBI setup
+===================================================================== -->
+<section id="conn-sbi-setup">
   <header class="frame-head">
     <h2 class="frame-title">Beyond Predictions</h2>
-    <p class="frame-subtitle">Simulation-Based Inference Classical Setup</p>
+    <p class="frame-subtitle">Classical Setup for Simulation-Based Inference</p>
   </header>
-  <div class="frame-body">
-    TO BE UPDATED!!!<br>
-    0. Likelihood is available through simulator: x ~ p(x|theta) for theta from R^d with d~10-ish and x~R^n with n>>10.<br>
-    1. Generate joint p(x, theta) with simulations:<br>
-      - theta_i ~p(theta)<br>
-      - x_i ~ p(x|theta)<br>
-      - p(x,theta)=p(thata)*p(x|theta)~sum{theta_i~p(theta)}{p(x|theta_i)}<br>
-    2. Goal is to learn p(theta|x) with some parametrised q_phi(theta|x).<br>
-    3. To do so people optimize min{phi}{KLD(p(theta|x)||q_phi(theta|x))}.<br>
-    4. For extremely high-dimensional x people try to also learn a "sufficient" <br>
-    (close to sufficient) statistic s_psi(x)~x. Optimization problem looks like:
-    min{psi, phi}{KLD(p(theta|x)||q_phi(theta|s_psi(x)))}
+  <div class="frame-body sbi-stage">
+
+    <!-- Band A: the generative model + the joint -->
+    <div class="sbi-band-label"><span class="n">①</span>&nbsp; Generate data</div>
+    <div class="sbi-flow" style="margin-bottom: calc(18px * var(--deck-scale));">
+      <div class="sbi-inputs">
+        <div class="sbi-node"><span class="ttl">Prior</span>\(\theta \sim p(\theta)\)</div>
+        <div class="sbi-node"><span class="ttl">Simulator</span>\(x \sim p(x \mid \theta)\)</div>
+      </div>
+      <div class="sbi-arrow"><span class="glyph">→</span></div>
+      <div class="sbi-node"><span class="ttl">Sample Joint</span>\(\;p(x,\theta)\approx\;\sum_{\theta_i\sim p(\theta)} p(x\mid\theta_i)\;\)</div>
+      <div class="sbi-arrow"><span class="alab">\(\times\,N\)</span><span class="glyph">→</span></div>
+      <div class="sbi-node"><span class="ttl">Dataset</span>\(\mathcal{D}=\{(\theta_i,x_i)\}_{i=1}^{N}\)</div>
+    </div>
+    
+    <!-- Band B: the amortized posterior, built in TWO animation steps (i)->(ii).
+         ONE evolving pipeline (not two figures): step (i) conditions on x; step (ii)
+         inserts the trained summary net s_psi feeding q_phi and cross-fades the
+         conditioning label  q_phi(θ|x) -> q_phi(θ|s). -->
+    <div class="sbi-band fragment" data-fragment-index="1" style="width:100%; margin-top: calc(28px * var(--deck-scale));">
+      <div class="sbi-band-label"><span class="n">②</span>&nbsp; Learn amortized posterior</div>
+
+      <!-- (i)/(ii) caption cross-fades above the pipeline -->
+      <div class="sbi-slot" style="margin-bottom: calc(6px * var(--deck-scale));">
+      </div>
+
+      <div class="sbi-flow has-feed" style="--feed-h:124px;">
+        <div class="sbi-node"><span class="ttl">Inputs</span>\(\mathcal{D},\ x_o\)</div>
+        <div class="sbi-arrow"><span class="glyph">→</span></div>
+        <div class="sbi-node trained sbi-headunit"><span class="mark fire">🔥</span><span class="ttl">Approximation</span>
+          <!-- conditioning label cross-fades x -> s at step (ii) -->
+          <span class="sbi-slot">
+            <span class="fragment fade-out" data-fragment-index="2">\(q_\phi(\theta \mid x)\)</span>
+            <span class="fragment" data-fragment-index="2">\(q_\phi(\theta \mid h_\psi(x))\)</span>
+          </span>
+          <!-- summary net appears (feeds q_phi from below) at step (ii) -->
+          <div class="sbi-feed fragment" data-fragment-index="2">
+            <div class="sbi-uparrow" style="--arrow-len:34px;"><span class="stem"><span class="head">▲</span><span class="line"></span></span><span class="alab"></span></div>
+            <div class="sbi-node trained" style="min-width: 230px;"><span class="mark fire">🔥</span><span class="ttl">Summary network</span>\(h_\psi(x)\)</div>
+          </div>
+        </div>
+        <div class="sbi-arrow produce"><span class="glyph">⇒</span></div>
+        <div class="sbi-node output"><span class="ttl">Posterior</span>\(q_\phi(\theta \mid x_o)\)
+          <svg class="sbi-bump" viewBox="0 0 60 22" preserveAspectRatio="none"><path d="M2,20 C 16,20 18,3 30,3 C 42,3 44,20 58,20"/></svg></div>
+      </div>
+    </div>
+
   </div>
+
 </section>
 
 
-<section id="conn-sbi">
+<!-- =====================================================================
+  2. TabPFN in SBI, two ways (merged slide): NPE-PFN (upper half) queries
+     TabPFN autoregressively as the posterior; PFN-NPE (lower half) freezes
+     TabPFN as the summary network feeding a trained density head.
+===================================================================== -->
+<section id="conn-npe-pfn">
   <header class="frame-head">
     <h2 class="frame-title">Beyond Predictions</h2>
-    <p class="frame-subtitle">PFN for an SBI</p>
+    <p class="frame-subtitle">TabPFN for SBI</p>
   </header>
-  <figure class="page-fig" style="--img-w:0.5; --img-y:-32px;">
-    <div class="r-stack">
-      <img src="assets/beyond_predictions/npe-pfn.png" alt="Method correlations">
+  <div class="frame-body sbi-stage sbi-twohalf">
+
+    <!-- Upper half: NPE-PFN — TabPFN IS the posterior -->
+    <div class="sbi-half" style="margin-bottom: calc(66px * var(--deck-scale));">
+      <div class="sbi-half-title">NPE-PFN <span class="cite" data-cite="vetterEffortlessSimulationEfficientBayesian2025"></span> — TabPFN <em>is</em> the Posterior</div>
+      <div class="sbi-flow">
+      <div class="sbi-node"><span class="ttl">Inputs</span>\(\mathcal{D},\ x_o\)</div>
+      <div class="sbi-arrow"><span class="glyph">→</span></div>
+      <div class="sbi-node frozen"><span class="mark snow">❄</span><span class="ttl">TabPFN</span>\(\theta^{j}_k\sim p(\theta^{j}\mid \theta^{&lt;j}_k,x_o,\mathcal{D})\)<br><br>
+      \(\theta^{1}_k\!\to\!\theta^{2}_k\!\to\cdots\to\theta^{d}_k\)</div>
+      <div class="sbi-arrow produce"><span class="glyph">⇒</span></div>
+      <div class="sbi-node output"><span class="ttl">Posterior samples</span>
+        \(\theta_k = (\theta^{1}_k, \theta^{2}_k, \cdots, \theta^{d}_k)\)
+        <span class="lab"></span>
+        <svg class="sbi-bump" viewBox="0 0 60 22" preserveAspectRatio="none"><path d="M2,20 C 16,20 18,3 30,3 C 42,3 44,20 58,20"/></svg></div>
     </div>
-    <figcaption>
-      To be updated.
+    </div>
+
+
+    <!-- Lower half: PFN-NPE — frozen TabPFN as the summary network (appears after the upper half) -->
+    <div class="sbi-half fragment" data-fragment-index="1">
+      <div class="sbi-half-title">PFN-NPE <span class="cite" data-cite="pickensPretrainedTabularFoundation2026"></span> — TabPFN as a Summary Network</div>
+      <div class="sbi-flow has-feed" style="--feed-h:160px;">
+      <div class="sbi-node"><span class="ttl">Inputs</span>\(\mathcal{D},\ x_o\)</div>
+      <div class="sbi-arrow"><span class="glyph">→</span></div>
+
+      <div class="sbi-node trained sbi-headunit"><span class="mark fire">🔥</span><span class="ttl">Approximation</span>\(q_\phi(\theta \mid h(x))\)<span class="lab"></span>
+        <div class="sbi-feed">
+          <div class="sbi-uparrow" style="--arrow-len:34px;"><span class="stem"><span class="head">▲</span><span class="line"></span></span><span class="alab"></span></div>
+          <!-- the one swapped slot: s_psi (trained) cross-fades to frozen TabPFN -->
+          <div class="sbi-slotwrap">
+            <div class="sbi-slot">
+              <div class="sbi-node trained fragment fade-out" data-fragment-index="2" style="min-width: 230px;">
+                <span class="mark fire">🔥</span><span class="ttl">Summary network</span>\(h_\psi(x)\)<span class="lab"></span></div>
+              <div class="sbi-node frozen fragment" data-fragment-index="2" style="min-width: 230px;">
+                <span class="mark snow">❄</span><span class="ttl">TabPFN</span>\(h(x)\)<span class="lab">frozen · emb. + PCA</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sbi-arrow produce"><span class="glyph">⇒</span></div>
+      <div class="sbi-node output"><span class="ttl">Posterior</span>\(q_\phi(\theta \mid x_o)\)
+        <svg class="sbi-bump" viewBox="0 0 60 22" preserveAspectRatio="none"><path d="M2,20 C 16,20 18,3 30,3 C 42,3 44,20 58,20"/></svg></div>
+      </div>
+    </div>
+  </div>
+
+  <aside class="notes">
+    Two ways to bring TabPFN into SBI, both against the classical pipeline (slide 1).<br>
+    UPPER — NPE-PFN (Vetter et al. 2025): the radical version — TabPFN replaces the ENTIRE posterior estimator. Format the simulated pairs as a tabular regression context (features = x, target = θ), feed x_o, and read off the posterior autoregressively: θ¹, then θ² | θ¹, … — each coordinate conditioned on the earlier ones, x_o, and D. No per-task training; it's TabPFN's in-context forward pass.<br>
+    LOWER — PFN-NPE (Pickens et al. 2026): the minimal version — keep the classical stage-(ii) pipeline and swap ONLY the summary network: freeze a pretrained TabPFN and use its final-layer embeddings (parameter-wise context + PCA→64) as the representation h(x). The trained density head q_φ(θ|h) is unchanged. That single swap is the method.<br>
+    ~1.5 min each: contrast "TabPFN IS the estimator" vs "TabPFN is just the frozen summary".
+  </aside>
+</section>
+
+
+<!-- =====================================================================
+  4. Results — reproduced Figure 2 of the PFN-NPE paper
+===================================================================== -->
+<section id="conn-sbi-results">
+  <header class="frame-head">
+    <h2 class="frame-title">Beyond Predictions</h2>
+    <p class="frame-subtitle">PFN-NPE — Results</p>
+  </header>
+  <figure class="page-fig" style="--img-w:0.8; --img-y:-26px;">
+    <img src="assets/beyond_predictions/results.png" alt="Joint C2ST vs. simulation budget across SBI tasks">
+    <figcaption style="width: calc(1140px * var(--deck-scale)); max-width: none;">
+      The first row shows the joint C2ST vs. simulation budget across standard SBIBM tasks.<br>
+      The second row shows four distractor variants followed by three time-series tasks.
     </figcaption>
   </figure>
   <p class="fig-source"><span data-cite-full="pickensPretrainedTabularFoundation2026"></span></p>
+
+  <aside class="notes">
+    -> No single winner — NPE-PFN leads many standard tasks, PFN-NPE wins mixture / nuisance settings.<br>
+
+    Takeaway is task-dependent, not "PFN wins":<br>
+    - NPE-PFN (autoregressive) has the lowest joint C2ST on many standard benchmark tasks.<br>
+    - PFN-NPE (frozen summary + flow) is strongest on mixture and nuisance-coordinate settings, and beats the learned-summary NPE baseline on most tasks.<br>
+    - Both PFN approaches still struggle on hard joint-structure tasks (SLCP, Lotka–Volterra): frozen summaries keep good marginals but lose some dependence structure.<br>
+    Framing: this is a supplement — the point is that a tabular foundation model plugs cleanly into SBI two different ways. Read the papers for the details.
+  </aside>
 </section>
+
+
+<!-- ===================================================================
+  Local styles — SBI pipeline diagram vocabulary (native "spine").
+  Placed at the END so it parses into <body>; loader.js copies
+  `body > style` into <head>. All px scale by var(--deck-scale).
+=================================================================== -->
+<style>
+/* vertically-centred stage under the frame head */
+.sbi-stage { display:flex; flex-direction:column; justify-content:center;
+  align-items:center; gap: calc(4px * var(--deck-scale)); }
+.sbi-band { display:flex; flex-direction:column; align-items:center; }
+
+/* band label, e.g. "① How the data is generated" */
+.sbi-band-label { font-size: calc(15px * var(--deck-scale)); font-weight:650;
+  letter-spacing:.13em; text-transform:uppercase; color: var(--muted);
+  text-align:center; margin: calc(3px * var(--deck-scale)) 0; }
+.sbi-band-label .n { color: var(--accent); }
+
+/* two method pipelines stacked as halves of one slide */
+.sbi-twohalf { gap: calc(6px * var(--deck-scale)); }
+.sbi-half { display:flex; flex-direction:column; align-items:center; width:100%; }
+.sbi-half-title { font-size: calc(18.5px * var(--deck-scale)); font-weight:700;
+  color: var(--accent-deep); text-align:center;
+  margin: 0 0 calc(24px * var(--deck-scale)); }
+.sbi-half-title em { font-style:italic; }
+.sbi-divider { width: calc(820px * var(--deck-scale)); height:1px;
+  background: var(--surface-border); margin: calc(4px * var(--deck-scale)) 0; }
+
+/* horizontal spine + stacked input group */
+.sbi-flow   { display:flex; align-items:center; justify-content:center;
+  gap: calc(8px * var(--deck-scale)); flex-wrap:nowrap; }
+.sbi-inputs { display:flex; flex-direction:column;
+  gap: calc(8px * var(--deck-scale)); }
+/* reserve vertical room under a row whose head-unit has a summary box below it */
+.sbi-flow.has-feed { margin-bottom: calc(var(--feed-h, 100px) * var(--deck-scale)); }
+
+/* stage tag "(i)" / "(ii)" */
+.sbi-stagetag { align-self:center; font-weight:700; color: var(--accent);
+  font-size: calc(19px * var(--deck-scale)); min-width: calc(28px * var(--deck-scale)); }
+
+/* a pipeline card */
+.sbi-node { box-sizing:border-box; position:relative;
+  border-radius: calc(11px * var(--deck-scale));
+  border: calc(1.5px * var(--deck-scale)) solid var(--surface-border);
+  background: var(--surface);
+  padding: calc(7px * var(--deck-scale)) calc(13px * var(--deck-scale));
+  text-align:center; line-height:1.22;
+  box-shadow: 0 1px 2px rgba(23,36,44,.05); }
+.sbi-node .ttl { display:block; font-size: calc(14.5px * var(--deck-scale));
+  font-weight:650; letter-spacing:.02em; margin-bottom: calc(6px * var(--deck-scale)); color: var(--ink); }
+.sbi-node .lab { display:block; font-size: calc(13px * var(--deck-scale));
+  color: var(--muted); margin-top: calc(2px * var(--deck-scale)); }
+
+.sbi-node.engine  { border-color: var(--accent); background: var(--alert-surface); }
+.sbi-node.frozen  { border-color: var(--tex-blue); background: rgba(36,88,230,.08); }
+.sbi-node.trained { border-color: var(--accent); background: var(--alert-surface); }
+.sbi-node.output  { background:#fff; }
+
+/* corner marks: 🔥 = trained, ❄ = frozen (blue) */
+.sbi-node .mark { position:absolute; top: calc(-10px * var(--deck-scale));
+  right: calc(-6px * var(--deck-scale)); font-size: calc(16px * var(--deck-scale)); line-height:1; }
+.sbi-node .mark.snow { color: var(--tex-blue); }
+
+/* head-unit: a density-head node with a summary box hanging below it */
+.sbi-headunit { position: relative; }
+.sbi-feed { position:absolute; top: calc(100% + 5px * var(--deck-scale)); left:50%;
+  transform: translateX(-50%); display:flex; flex-direction:column; align-items:center;
+  gap: calc(1px * var(--deck-scale)); }
+.sbi-uparrow { display:flex; align-items:center; gap: calc(6px * var(--deck-scale)); color: var(--muted); }
+.sbi-uparrow .stem { display:flex; flex-direction:column; align-items:center; line-height:1; }
+.sbi-uparrow .stem .head { font-size: calc(13px * var(--deck-scale)); }
+.sbi-uparrow .stem .line { width: calc(2px * var(--deck-scale));
+  height: calc(var(--arrow-len, 24px) * var(--deck-scale)); background: var(--muted); }
+.sbi-uparrow .alab  { font-size: calc(14px * var(--deck-scale)); white-space:nowrap; }
+
+/* arrows, with an optional label floating above the glyph */
+.sbi-arrow { display:flex; align-items:center; justify-content:center;
+  position:relative; min-width: calc(40px * var(--deck-scale)); color: var(--muted); }
+.sbi-arrow .glyph { font-size: calc(27px * var(--deck-scale)); line-height:1; }
+.sbi-arrow .alab  { position:absolute; bottom: calc(50% + 9px * var(--deck-scale));
+  font-size: calc(15px * var(--deck-scale)); white-space:nowrap; color: var(--muted); }
+.sbi-arrow.produce .glyph { color: var(--accent-deep); font-weight:700; }
+
+/* badge pinned under a node's content */
+.sbi-badge { display:inline-block; margin-top: calc(6px * var(--deck-scale));
+  font-size: calc(13px * var(--deck-scale)); font-weight:600;
+  padding: calc(2px * var(--deck-scale)) calc(9px * var(--deck-scale));
+  border-radius:999px; white-space:nowrap; }
+.sbi-badge.teal   { background: rgba(14,123,112,.14); color: var(--sec); }
+.sbi-badge.accent { background: rgba(232,102,26,.15); color: var(--accent-deep); }
+
+/* posterior bell-curve glyph */
+.sbi-bump { display:block; margin: calc(3px * var(--deck-scale)) auto 0;
+  width: calc(46px * var(--deck-scale)); height: calc(15px * var(--deck-scale)); }
+.sbi-bump path { fill:none; stroke: var(--accent); stroke-width:2.4; stroke-linecap:round; }
+
+/* one-line intuition under the flow */
+.sbi-note { text-align:center; color: var(--muted);
+  font-size: calc(19.5px * var(--deck-scale));
+  margin: calc(14px * var(--deck-scale)) auto 0;
+  max-width: calc(1020px * var(--deck-scale)); line-height:1.4; }
+.sbi-note strong { color: var(--ink); }
+
+/* method tag under the headline (naming defuser) */
+.sbi-tag { text-align:center; color: var(--accent-deep); font-weight:650;
+  font-size: calc(16px * var(--deck-scale)); letter-spacing:.05em;
+  text-transform:uppercase; margin: 0 0 calc(14px * var(--deck-scale)); }
+
+/* small caption line (joint / objective) */
+.sbi-cap { text-align:center; color: var(--body-fg);
+  font-size: calc(17.5px * var(--deck-scale)); margin-top: calc(5px * var(--deck-scale));
+  max-width: calc(1080px * var(--deck-scale)); line-height:1.35; }
+.sbi-cap.muted { color: var(--muted); font-size: calc(16px * var(--deck-scale)); }
+
+/* ---- slide 3: in-place swap of the summary box ----
+   The two summary nodes share ONE grid cell so replacing one never
+   reflows; matched data-fragment-index cross-fades them. */
+.sbi-slotwrap { display:flex; flex-direction:column; align-items:center; }
+.sbi-slot { display:grid; justify-items:center; }
+.sbi-slot > * { grid-area: 1 / 1; }
+.sbi-swaphint { margin-top: calc(4px * var(--deck-scale));
+  font-size: calc(14px * var(--deck-scale)); color: var(--tex-blue);
+  font-weight:600; white-space:nowrap; }
+</style>
