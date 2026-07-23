@@ -5,8 +5,51 @@
   so forward navigation lands here only after the References slide.
 =================================================================== -->
 
-<!-- Appendix — TabPFN / Hyperparameters priors
-     \imgwidth=0.75  \imgy=-0.5cm -> +40px;  caption below=0.0cm -> 0px -->
+
+<!-- ============================================================
+  Bayesian Neural Networks Prior  (INTERACTIVE)
+  Replaces the 8-step \only<1..8> PDF flip of BNN_Prior_Step_*.pdf.
+  Source app: slides/figures/tabpfn/bnn/bnn.html; adapted copy:
+  interactive/bnn.html (export chrome stripped, layout made to fill
+  the iframe box — see the header comment in that file).
+============================================================ -->
+<section id="tp-bnn" style="--fill-bottom: 48px;">
+  <header class="frame-head">
+    <h2 class="frame-title">Appendix</h2>
+    <p class="frame-subtitle">Bayesian Neural Networks Prior</p>
+  </header>
+  <div class="iframe-fill">
+    <iframe data-src="interactive/bnn.html" data-preload
+            title="Interactive BNN prior construction"></iframe>
+  </div>
+  <!-- how-to-use pop-up: same .audience-qa pattern as the theorem slides.
+       --fill-bottom above reserves the strip this ? sits in. -->
+  <span class="audience-qa audience-qa--bl">
+    <button type="button" class="audience-qa-btn" data-audience-qa
+            aria-label="How to use this demo" aria-expanded="false">
+      <span class="audience-qa-icon" aria-hidden="true">?</span>
+    </button>
+    <template class="audience-qa-body">
+      <p>TLDR: keep pressing the highlighted button to walk through BNN-prior dataset generation.</p>
+      <hr class="qa-sep">
+      <ol>
+        <li><strong>Sample Prior</strong> (Phase I) — draws hyperparameters from the
+          meta-prior, builds &amp; sparsifies the network, and <em>fixes</em> how
+          the continuous target \(\hat{y}\) is split into classes.</li>
+        <li><strong>Draw Data Point</strong> (Phase II→III) — samples inputs
+          \(x \sim \mathcal{N}(0, 1)\), runs the forward pass to get \(\hat{y}\). <em>Click it repeatedly</em> to grow a dataset
+          from the same prior.</li>
+        <li>Repeat step 2 multiple times. Use orange buttons to speed up the process.</li>
+      </ol>
+      <hr class="qa-sep">
+      <p>Features tagged <strong>(cat)</strong> are categorical: after Step 6 their values are
+         binned into categories just like the target.</p>
+    </template>
+  </span>
+</section>
+
+
+<!-- Appendix — TabPFN / Hyperparameters priors -->
 <section id="apx-hp-priors">
   <header class="frame-head">
     <h2 class="frame-title">Appendix &mdash; TabPFN</h2>
