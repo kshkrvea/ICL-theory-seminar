@@ -30,6 +30,12 @@
     <img src="assets/background/tabular-dl-before-2022.png"
          alt="Tabular DL before 2022 overview">
   </figure>
+  <aside class="notes">
+    - Let's begin with motivation of the works: <br><br>
+    - Before the first TabPFN paper, DL was not considered a good fit for tabular data. <br><br>
+    - You can go to scholar and find a bunch of papers showing that tree-based dominate tabular data domain. <br><br>
+    - Looking ahead, Tabular foundation models has changed that.
+  </aside>
 </section>
 
 <!-- ============================================================
@@ -58,6 +64,13 @@
       </div>
     </div>
   </div>
+  <aside class="notes">
+    -> quickly introduce notation:<br><br>
+    -> X is the feature space<br><br>
+    -> Y is the label space<br><br>
+    -> D_n is the training dataset of n data points coming from p0<br><br>
+    -> p0 is the true data generating distribution.<br>
+  </aside>
 </section>
 
 <!-- ============================================================
@@ -85,6 +98,14 @@
       </div>
     </div>
   </div>
+
+  <aside class="notes">
+    -> In classical SL setup we assume p0 is fixed and we're gonna to learn it. <br><br>
+    -> Train a model  on data, make predictions <br><br>
+    -> For data from another distribution, retrain the model.<br><br>
+    --------------------------------------------------------<br><br>
+    (go back to slide 8)
+  </aside>
 </section>
 
 <!-- ============================================================
@@ -98,7 +119,7 @@
     <p class="frame-subtitle">Bayesian Framework</p>
   </header>
   <div class="frame-body">
-    <p>For every \(n\), the statistical model gives a tuple \( (\mathcal{D}_n \cup (Y, X),\, \varphi). \)</p>
+    <p>For every \(n\), the statistical model gives a tuple \( (\mathcal{D}_n \cup (Y, X),\, p_0). \)</p>
 
     <p style="margin-top:0.6em;">We want to approximate \(p_0(Y \mid X)\) by</p>
     <div class="formula-line">
@@ -122,12 +143,19 @@
     </div>
 
     <!-- \begin{alertblock}{} — empty title: body only -->
-    <div class="alertblock fragment" data-fragment-index="2" style="margin-top:0.4em;">
+    <div class="alertblock fragment" data-fragment-index="2" style="margin-top:2.4em;">
       <div class="block-body center">
         \(\pi\) is called the <strong>Posterior Predictive Distribution</strong>
       </div>
     </div>
   </div>
+
+  <aside class="notes">
+    -> In bayesian approach we want to ammortize p0 with a function pi, which takes the training dataset as a conditioned input. <br><br>
+    -> And by parametrising this model,<br><br>
+    -> We can make predictions for new test points without retraining the model. <br><br>
+    -> Think what pi should intuitively do implicitly? "Extract" information about relation x-to-y from the training dataset and "apply" it to the new test points. <br><br>
+  </aside>
 </section>
 
 <!-- ============================================================
@@ -145,8 +173,8 @@
     <div class="block">
       <div class="block-title">Prior \(\mathbb{P}_\Phi\)</div>
       <div class="block-body center">
-        <p style="margin:0 0 0.5em;">Define a hypothesis space \(\Phi\) of DGPs where each hypothesis
-          \(\varphi \in \Phi\) is s.t. \((y \mid x) \sim \varphi\).</p>
+        <p style="margin:0 0 0.5em;">Define a space \(\Phi\) of all possible DGPs, where each hypothesis
+          \(\varphi \in \Phi\) is s.t. \((x, y) \sim \varphi\).</p>
         <p style="margin:0;">The distribution \(\mathbb{P}_\Phi\) is called <strong>prior</strong> and
           expresses our beliefs about \(\varphi\) before seeing any data.</p>
       </div>
@@ -155,16 +183,23 @@
     <div class="columns top" style="margin-top:20px;">
       <div class="col centered" style="width:50%;">
         <div data-fig="metapanel"
-             data-label="\mathbb{P}_{\Phi(\cdot)}(\varphi)"
+             data-label="\mathbb{P}_{\Phi}(\varphi)"
              data-bars="0.3,0.3,0.3,0.3"></div>
       </div>
       <div class="col centered" style="width:50%;">
         <div data-fig="metapanel"
-             data-label="\mathbb{P}_{\Phi(\cdot \mid \cdot)}(\varphi \mid D_n)"
+             data-label="\mathbb{P}_{\Phi}(\varphi \mid D_n)"
              data-bars="2.0,0.05,0.6,0.05"></div>
       </div>
     </div>
   </div>
+
+  <aside class="notes">
+    -> To define this mechanism, define a space of these relationships, i.e. hypothesis space Phi. <br><br>
+    -> LHS: "uniform" prior over the hypotheses. <br><br>
+    -> RHS: hypothesis "likelihood" after seeing the training dataset D_n. <br><br>
+    -> Recall slide 6 for the data example
+  </aside>
 </section>
 
 <!-- ============================================================
@@ -189,7 +224,7 @@
     <div class="formula-line">
       \[ \pi(y \mid \htmlClass{ppd-xa}{x},\; D_n)
          = \int \htmlClass{ppd-int}{\varphi(y \mid x)}\,
-           \htmlClass{ppd-meas}{d\mathbb{P}_{\Phi(\cdot \mid \cdot)}}
+           \htmlClass{ppd-meas}{d\mathbb{P}_{\Phi}}
            (\varphi \mid \htmlClass{ppd-xb}{x,\;} D_n) \tag{1} \]
     </div>
 
@@ -227,6 +262,15 @@
          drops the "x," from the conditionings above -->
     <span class="fragment" data-fragment-index="2" data-slide-class="s4"></span>
   </div>
+
+
+  <aside class="notes">
+    -> Oce we have this space, let's integrate over it to get a ppd.<br><br>
+    -> PPD is a distribution and you can think about it as a weighted sum of hypotheses<br>
+     with weights given by likelihood of each hypothesis given the training dataset.<br><br>
+    -> The assumption is that the test point is not informative about the hypothesis.<br>
+    i.e. all info is in Dn<br>
+  </aside>
 </section>
 
 <!-- ============================================================
@@ -242,7 +286,7 @@
     <p>Dropping \(x\) from the conditioning on \(\varphi\):</p>
     <div class="formula-line">
       \[ \pi(y \mid x, D_n)
-         = \int \varphi(y \mid x)\, d\mathbb{P}_{\Phi(\cdot \mid \cdot)}(\varphi \mid D_n)
+         = \int \varphi(y \mid x)\, d\mathbb{P}_{\Phi}(\varphi \mid D_n)
          = \int p(y \mid x, \varphi) \cdot \underbrace{p(\varphi \mid D_n)}_{\text{not available}} \, d\varphi \]
     </div>
 
@@ -259,6 +303,12 @@
       </div>
     </div>
   </div>
+
+  <aside class="notes">
+    -> The problem of this view is that likelihood is not available.<br><br>
+    -> Apply bayes rule and read from right to left.<br><br>
+    -> But this object is still theoretical
+  </aside>
 </section>
 
 <!-- ============================================================
@@ -310,16 +360,19 @@
   </div>
 
   <aside class="notes">
-    -> The expectation in Theorem 2.2 follows the hierarchical data-generating
-    mechanism: first draw the true model (data-generating process)
-    phi ~ Phi; then generate the training sample D_n and the test pair
-    (Y, X) from that selected phi.<br>
+    -> To get it in practice, we may use result of the theorem from T.Nagler's paper:<br><br>
 
-    -> Basically PFN may be viewed as a special case of a neural process since it is
-    invariant to permutations of both context and test dataset samples and models PPD.<br>
+    -> It gives us a form of a loss function to optimize.<br><br>
 
-    -> But instead of optimizing ELBO, which we've seen in previous talk, PFN optimizes the 
-    log-likelihood of the PPD directly, which is a more direct approach to learning the distribution of interest.<br>
+    -> So in practice we parameterize the model and optimize that loss.<br><br>
+
+    <hr class="qa-sep">
+
+    -> Basically PFN == special case of a neural process:<br> 
+        - invariant to permutations of both context and test dataset samples <br>
+        - models PPD.<br><br>
+
+    -> Optimize not ELBO but log-likelihood, thanks to acess to the data prior via proposed DGP.<br><br>
   </aside>
 </section>
 
