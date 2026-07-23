@@ -310,10 +310,16 @@
   </div>
 
   <aside class="notes">
-    The expectation in Theorem 2.2 follows the hierarchical data-generating
+    -> The expectation in Theorem 2.2 follows the hierarchical data-generating
     mechanism: first draw the true model (data-generating process)
     phi ~ Phi; then generate the training sample D_n and the test pair
-    (Y, X) from that selected phi.
+    (Y, X) from that selected phi.<br>
+
+    -> Basically PFN may be viewed as a special case of a neural process since it is
+    invariant to permutations of both context and test dataset samples and models PPD.<br>
+
+    -> But instead of optimizing ELBO, which we've seen in previous talk, PFN optimizes the 
+    log-likelihood of the PPD directly, which is a more direct approach to learning the distribution of interest.<br>
   </aside>
 </section>
 
