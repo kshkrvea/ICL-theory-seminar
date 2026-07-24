@@ -252,42 +252,40 @@
 
 <!-- ============================================================
   Frame 11 — TabPFN (no subtitle): Conclusions + Limitations
-  \footnotesize; both itemizes are [<+->]: items appear one per step,
-  numbering continues across the blocks (Beamer beamerpauses), so:
-    conclusions item 1  visible from the start
-    conclusions item 2  fragment 0
-    limitations items 1-5  fragments 1-5
+  \footnotesize; blocks reveal one at a time (whole block per step):
+    Recepie block      fragment 0
+    Limitations block  fragment 1
 ============================================================ -->
 <section id="tp-conclusions" class="footnotesize">
   <header class="frame-head">
     <h2 class="frame-title">TabPFN</h2>
   </header>
   <div class="frame-body">
-    <div class="block">
+    <div class="block fragment" data-fragment-index="0">
       <div class="block-title">Recepie</div>
       <div class="block-body">
         <ul style="margin-bottom:0;">
-          <li class="fragment" data-fragment-index="0">Generate millions of synthetic datasets;</li>
-          <li class="fragment" data-fragment-index="1">Pre-train a transformer;</li>
-          <li class="fragment" data-fragment-index="2">Approximate the PPD and predicts on a new dataset in one forward pass;</li>
-          <li class="fragment" data-fragment-index="3">Beat the strongest AutoML baselines in seconds rather than hours.</li>
+          <li>Generate millions of synthetic datasets;</li>
+          <li>Pre-train a transformer;</li>
+          <li>Approximate the PPD and predicts on a new dataset in one forward pass;</li>
+          <li>Beat the strongest AutoML baselines in seconds rather than hours.</li>
         </ul>
       </div>
     </div>
-    <div class="alertblock">
+    <div class="alertblock fragment" data-fragment-index="1">
       <div class="block-title">Limitations</div>
       <div class="block-body">
         <ul style="margin-bottom:0;">
-          <li class="fragment" data-fragment-index="4">Focuses on datasets with \(n \le 10\text{k}\), 
+          <li>Focuses on datasets with \(n \le 10\text{k}\),
             \(\le 100\) numerical features and \(\le 10\) classes; beyond these limits baselines
               still win.</li>
-          <li class="fragment" data-fragment-index="5">Memory scales <em>quadratically</em>
+          <li>Memory scales <em>quadratically</em>
               with <em>n</em>;</li>
-          <li class="fragment" data-fragment-index="6">Supports only classification,
+          <li>Supports only classification,
               without regression.</li>
-          <li class="fragment" data-fragment-index="7">Only approximates causal reasoning
+          <li>Only approximates causal reasoning
               over a distribution of SCMs, without explicitly performing it.</li>
-          <li class="fragment" data-fragment-index="8">Only IID samples.</li>
+          <li>Only IID samples.</li>
         </ul>
       </div>
     </div>
