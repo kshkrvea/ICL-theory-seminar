@@ -176,7 +176,34 @@
 </section>
 
 <!-- ============================================================
-  Frame 8 — Experiments & Results (extrapolation)
+  Frame 8 — Experiments & Results (complex tasks + highlights)
+  \imgwidth=1  \imgy=-0.2cm -> +16px
+  The two magenta rectangles appear on step 2 (\only<2>). Coordinates
+  are FRACTIONS of the image box, straight from tabpfn.tex:
+    rect 1: left .30  right .38  bottom .75  top .85
+    rect 2: left .58  right .66  bottom .75  top .85
+  CSS mapping (y flipped): left=left, width=right-left,
+                           top=1-top,  height=top-bottom.
+============================================================ -->
+<section id="tp-complex">
+  <header class="frame-head">
+    <h2 class="frame-title">TabPFN</h2>
+    <p class="frame-subtitle">Experiments &amp; Results</p>
+  </header>
+  <figure class="page-fig" style="--img-w:1; --img-y:-16px; --cap-gap:20px;">
+    <img src="assets/tabpfn/performance/performance-complex-tasks.png"
+         alt="Performance by dataset characteristics">
+    <div class="hl-overlay fragment" data-fragment-index="0">
+      <div class="hl-rect" style="left:30%; width:8%; top:15%; height:10%;"></div>
+      <div class="hl-rect" style="left:58%; width:8%; top:15%; height:10%;"></div>
+    </div>
+    <figcaption>Performance on datasets, divided by dataset characteristics.</figcaption>
+  </figure>
+  <p class="fig-source"><span data-cite-full="hollmannTabPFNTransformerThat2023"></span></p>
+</section>
+
+<!-- ============================================================
+  Frame 9 — Experiments & Results (extrapolation)
   \imgwidth=0.75  \imgy=-0.3cm -> +24px;  caption: \shortstack 2 lines,
   below=-0.2cm of img -> --cap-gap:-16px (caption tucked close).
 ============================================================ -->
@@ -196,7 +223,7 @@
 </section>
 
 <!-- ============================================================
-  Frame 9 — Experiments & Results (correlations -> ensembling)
+  Frame 10 — Experiments & Results (correlations -> ensembling)
   \only<1>correlations \only<2>correlations-highlighted \only<3>ensembling-table
   \imgwidth=1  \imgy=-0.2cm -> +16px
   Caption line 2 appears only on step 3 (\only<3> inside \shortstack).
@@ -219,33 +246,6 @@
       Spearman correlation of ROC AUC performance (left);<br>
       <span class="fragment" data-fragment-index="1">Ensemble performance of TabPFN and AutoGluon (right).</span>
     </figcaption>
-  </figure>
-  <p class="fig-source"><span data-cite-full="hollmannTabPFNTransformerThat2023"></span></p>
-</section>
-
-<!-- ============================================================
-  Frame 10 — Experiments & Results (complex tasks + highlights)
-  \imgwidth=1  \imgy=-0.2cm -> +16px
-  The two magenta rectangles appear on step 2 (\only<2>). Coordinates
-  are FRACTIONS of the image box, straight from tabpfn.tex:
-    rect 1: left .30  right .38  bottom .75  top .85
-    rect 2: left .58  right .66  bottom .75  top .85
-  CSS mapping (y flipped): left=left, width=right-left,
-                           top=1-top,  height=top-bottom.
-============================================================ -->
-<section id="tp-complex">
-  <header class="frame-head">
-    <h2 class="frame-title">TabPFN</h2>
-    <p class="frame-subtitle">Experiments &amp; Results</p>
-  </header>
-  <figure class="page-fig" style="--img-w:1; --img-y:-16px; --cap-gap:20px;">
-    <img src="assets/tabpfn/performance/performance-complex-tasks.png"
-         alt="Performance by dataset characteristics">
-    <div class="hl-overlay fragment" data-fragment-index="0">
-      <div class="hl-rect" style="left:30%; width:8%; top:15%; height:10%;"></div>
-      <div class="hl-rect" style="left:58%; width:8%; top:15%; height:10%;"></div>
-    </div>
-    <figcaption>Performance on datasets, divided by dataset characteristics.</figcaption>
   </figure>
   <p class="fig-source"><span data-cite-full="hollmannTabPFNTransformerThat2023"></span></p>
 </section>
