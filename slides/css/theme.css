@@ -215,6 +215,52 @@
   margin: 0;
 }
 
+/* ---------- title page (v2): QR to the repo ---------- */
+.title-qr-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(56px * var(--deck-scale));
+  width: 100%;
+}
+.title-qr-row .title-block { width: auto; flex: 1 1 auto; }
+.title-qr {
+  position: relative;               /* sit above the corner wash */
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(14px * var(--deck-scale));
+}
+.title-qr-card {                     /* white quiet-zone card — scannable in any theme */
+  background: #fff;
+  padding: calc(16px * var(--deck-scale));
+  border-radius: calc(12px * var(--deck-scale));
+  box-shadow: 0 calc(6px * var(--deck-scale)) calc(24px * var(--deck-scale)) rgba(0, 0, 0, 0.12);
+}
+.title-qr-card svg {
+  display: block;
+  width: calc(200px * var(--deck-scale));
+  height: calc(200px * var(--deck-scale));
+  shape-rendering: crispEdges;      /* keep module edges sharp — anti-aliasing blurs
+                                       adjacent modules together and breaks scanning */
+}
+.title-qr-caption {
+  font-size: calc(19px * var(--deck-scale));
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+}
+.title-qr-link {
+  font-size: calc(17px * var(--deck-scale));
+  color: var(--muted);
+  text-decoration: none;
+  overflow-wrap: break-word;
+  text-align: center;
+  max-width: calc(248px * var(--deck-scale));
+}
+
 /* ---------- outline / dividers ---------- */
 .toc {
   list-style: none;

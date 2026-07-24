@@ -126,6 +126,18 @@
             box-sizing: border-box;
         }
         .bulk-row button { margin-bottom: 0; }
+        /* saved-examples dropdown: match the button column width/typography */
+        #saved-select {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 4px 5px;
+            margin-bottom: 2px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            background: #ffffff;
+            color: var(--mDarkTeal);
+        }
         .canvas-box {
             background: #ffffff;
             padding: 8px;
@@ -278,10 +290,45 @@
             <label>Phase III: Target Discretization</label>
             <button id="btn-transform-class" disabled>Step 6: Transform Continuous z_y to Class</button>
         </div>
+
+        <div class="control-group">
+            <label>Saved Examples</label>
+            <button id="btn-save-prior" disabled>★ Save current prior</button>
+            <select id="saved-select" title="pick a saved prior to load"></select>
+            <div class="bulk-row">
+                <button id="btn-load-saved" disabled>Load</button>
+                <button id="btn-delete-saved" disabled>Delete</button>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
+    // ---- seedable RNG -------------------------------------------------------
+    // The whole pipeline draws from Math.random(). To make a "good-looking"
+    // prior reproducible we override Math.random with a seedable generator
+    // (mulberry32). While unseeded (_rngState === null) it delegates to the real
+    // Math.random, so behaviour is unchanged until a run seeds it. Seeding at the
+    // start of Phase I makes the entire prior — topology, weights, edge dropout,
+    // class partition and categorical bins — a deterministic function of the seed.
+    const _origRandom = Math.random.bind(Math);
+    let _rngState = null;                     // null → use the real Math.random
+    function _mulberry32() {
+        _rngState = (_rngState + 0x6D2B79F5) | 0;
+        let t = Math.imul(_rngState ^ (_rngState >>> 15), 1 | _rngState);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    }
+    Math.random = function () { return _rngState === null ? _origRandom() : _mulberry32(); };
+    function seedRng(seed) { _rngState = seed | 0; }
+    function freshSeed() { return (_origRandom() * 4294967296) >>> 0; }
+
+    // A saved example, when selected, is not rebuilt on screen — instead its seed
+    // is QUEUED here. The next Phase-I run (Step 1 / "Sample Prior") consumes it,
+    // so the presenter walks through the pipeline live and it deterministically
+    // yields that curated prior. Cleared after one use → later runs are fresh.
+    let pendingSeed = null;
+
     let state = {
         step: 0,
         stepTitle: "System Idle",
@@ -295,6 +342,7 @@
         forwardComplete: false, // set once causal generation reaches the target; blocks re-runs within a sample
         autoRunning: false,     // a one-click orchestrator (Phase I / draw-sample) is mid-sequence
         sampleCount: 0,         // how many data samples have been drawn from the CURRENT prior (Phase I)
+        priorSeed: null,        // RNG seed that reproduces the CURRENT prior (set at Step 1)
         sigmaW: 1.0,            // weights std        ~ TNLU(0.01, 10)     (paper Table)
         sigmaEps: 0.1,          // exogenous noise std ~ TNLU(0.0001, 0.3) (paper Table)
         numClasses: 0,          // N_c, sampled at Step 1
@@ -321,6 +369,10 @@
     const dsSvg = document.getElementById('dataset-svg');
     const axisX = document.getElementById('axis-x');
     const axisY = document.getElementById('axis-y');
+    const btnSavePrior = document.getElementById('btn-save-prior');
+    const btnLoadSaved = document.getElementById('btn-load-saved');
+    const btnDeleteSaved = document.getElementById('btn-delete-saved');
+    const savedSelect = document.getElementById('saved-select');
     const allStepButtons = [
         btnSampleHyper, btnBuildDense, btnDropoutEdges,
         btnSampleNoise, btnFlowData, btnTransformClass,
@@ -358,6 +410,8 @@
         // requirement 3: bulk generation needs a built prior with a fixed partition
         btnBulk.disabled = auto || state.step < 3 || !state.graph;
         bulkK.disabled = btnBulk.disabled;
+        // Saving needs a finished prior (Step 3+) with a seed to reproduce it.
+        btnSavePrior.disabled = auto || state.step < 3 || !state.graph || state.priorSeed === null;
         highlightNextStep();
     }
 
@@ -504,7 +558,19 @@
         }
     }
 
-    function stepSampleHyper() {
+    function stepSampleHyper(seedArg) {
+        // Seed the RNG that governs this entire prior. Seed priority:
+        //   1. an explicit numeric argument (direct replay),
+        //   2. a queued pendingSeed from a selected saved example (consumed once),
+        //   3. otherwise a fresh random seed.
+        // The click handler passes an Event object here, hence the typeof guard.
+        let seed;
+        if (typeof seedArg === 'number') seed = seedArg >>> 0;
+        else if (pendingSeed !== null) { seed = pendingSeed >>> 0; pendingSeed = null; }
+        else seed = freshSeed();
+        seedRng(seed);
+        state.priorSeed = seed;
+
         // Paper meta-prior (structural sizes display-scaled: the paper allows up
         // to 12 nodes per layer, which is not drawable in this SVG):
         //   SCM #nodes/layer  TNLU(1, 12, round, min 1) → here TNLU(1, 4) in [2, 4]
@@ -659,6 +725,11 @@
         // from a hidden probe batch of this prior's own outputs.
         calibratePartition();
         populateAxisPickers();   // refresh X/Y covariate dropdowns (requirement 3)
+        // Phase I is now fully determined; restart the RNG on a fixed, prior-derived
+        // seed so data generation (the scatter) reproduces deterministically —
+        // "the first N points drawn from this prior" — independent of how many
+        // random draws Phase I happened to consume.
+        seedRng((state.priorSeed ^ 0x9E3779B9) >>> 0);
         renderScatter();
 
         let activeEdges = state.graph.edges.length - dropCount;
@@ -853,7 +924,7 @@
         subText.setAttribute('y', 47);
         subText.setAttribute('font-size', '13px');
         subText.setAttribute('fill', '#6c757d');
-        subText.textContent = `${state.layers} Layers | Width: ${state.hiddenUnits} | f_i: ${state.activation} | Dropout: ${(state.dropoutRate*100).toFixed(0)}% | σ_w = ${fmt(state.sigmaW)} | σ_ε = ${fmt(state.sigmaEps)} | N_c = ${state.numClasses}`;
+        subText.textContent = `${state.layers} Layers | Width: ${state.hiddenUnits} | f_i: ${state.activation} | Dropout: ${(state.dropoutRate*100).toFixed(0)}% | σ_w = ${fmt(state.sigmaW)} | σ_ε = ${fmt(state.sigmaEps)} | N_c = ${state.numClasses}${state.priorSeed !== null ? ` | seed = ${state.priorSeed}` : ''}`;
         mainSvg.appendChild(subText);
 
         // Data-sample counter (top-right): the Phase-I prior is fixed; each Phase II→III
@@ -1222,7 +1293,9 @@
             ph.setAttribute('text-anchor', 'middle');
             ph.setAttribute('fill', '#adb5bd');
             ph.setAttribute('font-size', '13px');
-            ph.textContent = 'Run Phase I (Steps 1–3) to build the prior and fix the class partition...';
+            ph.textContent = pendingSeed !== null
+                ? 'Primed from a saved example — press ▶ Sample Prior (Phase I) to reproduce it.'
+                : 'Run Phase I (Steps 1–3) to build the prior and fix the class partition...';
             mainSvg.appendChild(ph);
         }
     }
@@ -1397,8 +1470,126 @@
         }
     }
 
+    // ============================================================
+    //  Saved examples: persist good-looking priors and replay them.
+    //  Each entry stores the RNG seed (which reproduces the whole prior) plus
+    //  the scatter point count. Persisted in localStorage so they survive a
+    //  reload. Selecting an example does NOT draw it — it QUEUES the seed
+    //  (pendingSeed) and clears the canvas; the presenter then runs Phase I
+    //  live and it reproduces the curated prior. On load the first entry is
+    //  queued this way, so the slide opens empty but primed.
+    // ============================================================
+    const LS_KEY = 'scm-saved-priors-v1';
+
+    function loadSavedList() {
+        try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; }
+        catch (e) { return []; }
+    }
+    function persistSavedList(arr) {
+        try { localStorage.setItem(LS_KEY, JSON.stringify(arr)); }
+        catch (e) { /* storage may be unavailable (e.g. file:// + strict browser) */ }
+    }
+    function priorSummary() {
+        return `${state.layers}L·w${state.hiddenUnits}·${state.activation}` +
+               `·d${Math.round(state.dropoutRate * 100)}·Nc${state.numClasses}`;
+    }
+    function refreshSavedSelect(selectIdx) {
+        const arr = loadSavedList();
+        savedSelect.innerHTML = '';
+        if (!arr.length) {
+            const o = document.createElement('option');
+            o.value = ''; o.textContent = '(none saved)';
+            savedSelect.appendChild(o);
+        } else {
+            arr.forEach((e, i) => {
+                const o = document.createElement('option');
+                o.value = i;
+                o.textContent = e.label || `#${i + 1} · ${e.summary || ('seed ' + e.seed)}`;
+                savedSelect.appendChild(o);
+            });
+        }
+        if (selectIdx != null && selectIdx >= 0 && selectIdx < arr.length) {
+            savedSelect.value = String(selectIdx);
+        }
+        btnLoadSaved.disabled = !arr.length;
+        btnDeleteSaved.disabled = !arr.length;
+        savedSelect.disabled = !arr.length;
+    }
+
+    // Return the demo to its empty idle state (nothing built, no data plotted).
+    function resetToIdle() {
+        state.step = 0;
+        state.stepTitle = 'System Idle';
+        state.layers = 0; state.hiddenUnits = 0;
+        state.activation = 'Identity'; state.dropoutRate = 0.0;
+        state.numClasses = 0;
+        state.graph = null;
+        state.classData = null; state.classSplit = null;
+        state.catFeatures = null; state.axisDomain = null;
+        state.continuousOutput = null; state.forwardComplete = false;
+        state.currentPropagationLayer = -1;
+        state.sampleCount = 0;
+        state.priorSeed = null;          // not realized yet — pendingSeed holds the queue
+        state.datasetPoints = [];
+        renderUnifiedCanvas();
+        renderScatter();
+        updateUIState();
+    }
+
+    // Select a saved example WITHOUT drawing it: queue its seed and clear the
+    // canvas. The presenter then walks through Phase I → III live and the run
+    // deterministically reproduces this prior (hyperparameters + network + scatter).
+    function primePrior(entry) {
+        pendingSeed = entry.seed >>> 0;
+        resetToIdle();
+    }
+
+    function saveCurrentPrior() {
+        if (state.priorSeed === null || !state.graph) return;
+        const arr = loadSavedList();
+        arr.push({
+            seed: state.priorSeed >>> 0,
+            n: state.datasetPoints.length,
+            summary: priorSummary(),
+            ts: Date.now()
+        });
+        persistSavedList(arr);
+        refreshSavedSelect(arr.length - 1);
+    }
+    function loadSelectedPrior() {
+        const arr = loadSavedList();
+        const i = parseInt(savedSelect.value, 10);
+        if (isNaN(i) || i < 0 || i >= arr.length) return;
+        primePrior(arr[i]);
+    }
+    function deleteSelectedPrior() {
+        const arr = loadSavedList();
+        const i = parseInt(savedSelect.value, 10);
+        if (isNaN(i) || i < 0 || i >= arr.length) return;
+        arr.splice(i, 1);
+        persistSavedList(arr);
+        const next = Math.min(i, arr.length - 1);
+        refreshSavedSelect(next);
+        if (arr.length) primePrior(arr[next]); else { pendingSeed = null; resetToIdle(); }
+    }
+
+    btnSavePrior.addEventListener('click', saveCurrentPrior);
+    btnLoadSaved.addEventListener('click', loadSelectedPrior);
+    btnDeleteSaved.addEventListener('click', deleteSelectedPrior);
+    // Picking from the dropdown queues that example (does not draw it) — the next
+    // "Sample Prior (Phase I)" run reproduces it. Handy for cueing an example
+    // just before walking the audience through the pipeline.
+    savedSelect.addEventListener('change', loadSelectedPrior);
+
     updateUIState();
     renderScatter();
+    refreshSavedSelect();
+    // On reload, QUEUE the first curated example but keep the canvas empty; the
+    // presenter presses Sample Prior to reproduce it live.
+    {
+        const saved = loadSavedList();
+        if (saved.length) { savedSelect.value = '0'; primePrior(saved[0]); }
+    }
 </script>
 </body>
 </html>

@@ -22,7 +22,7 @@
   knobs: --img-w:1  --img-x:0  --img-y:0  --cap-gap:24 -->
 <section id="v2-recap" style="--img-w:1;">
   <header class="frame-head">
-    <h2 class="frame-title">TabPFNv2</h2>
+    <h2 class="frame-title">Recent Methods</h2>
     <p class="frame-subtitle">Recap: v1 Architecture</p>
   </header>
   <figure class="page-fig">
@@ -37,8 +37,8 @@
 ============================================================ -->
 <section id="v2-arch" style="--img-w:1;">
   <header class="frame-head">
-    <h2 class="frame-title">TabPFNv2</h2>
-    <p class="frame-subtitle">Architecture</p>
+    <h2 class="frame-title">Recent Methods</h2>
+    <p class="frame-subtitle">TabPFNv2 Architecture</p>
   </header>
   <figure class="page-fig">
     <div class="r-stack">
@@ -54,12 +54,33 @@
   </figure>
 </section>
 
+<!-- Features' Statistical Properties (moved from sections/tabicl.html) -->
+<section id="icl-disc">
+  <header class="frame-head">
+    <h2 class="frame-title">Recent Methods</h2>
+    <p class="frame-subtitle">Features' Statistical Properties</p>
+  </header>
+  <figure class="page-fig" style="--img-w:0.6; --img-y:-20px; ">
+    <img src="assets/tabicl/features-statistical-properties.png" alt="TabICL vs TabPFNv2">
+    <figcaption style="width: calc(1140px * var(--deck-scale)); max-width: none;">
+      First two principal components of learned column-wise embeddings of 40k features.
+    </figcaption>
+  </figure>
+  <p class="fig-source"><span data-cite-full="quTabICLTabularFoundation2025"></span></p>
+
+  <aside class="notes">
+    -> Columns with similar skewness (resp. kurtosis) tend to cluster together<br>
+    -> This suggests that TFcol encodes distributional properties in a structured manner, and cells in a column are probably embedded to reflect their statistical role (e.g., min, max, mean, mode). <br>
+    -> Therefore, the learned feature embeddings should distinguish features based on their unique distributional properties, effectively serving as feature identifiers.<br>
+  </aside>
+</section>
+
 <!-- Frame 3 — Extension to Regression (INTERACTIVE)
   knobs: --fill-top:128  --fill-left:48  --fill-right:48  --fill-bottom:16 -->
 <section id="v2-regression"
          style="--fill-top: 200px; --fill-left: 48px; --fill-right: 48px; --fill-bottom: 64px;">
   <header class="frame-head">
-    <h2 class="frame-title">TabPFNv2</h2>
+    <h2 class="frame-title">Recent Methods</h2>
     <p class="frame-subtitle">Extension to Regression</p>
   </header>
   <div class="iframe-fill">
@@ -74,7 +95,7 @@
   knobs: --img-w:1  --img-x:0  --img-y:0  --cap-gap:24 -->
 <section id="v2-hard-tasks" style="--img-w:1;">
   <header class="frame-head">
-    <h2 class="frame-title">TabPFNv2</h2>
+    <h2 class="frame-title">Recent Methods</h2>
     <p class="frame-subtitle">Problematic for v1 Tasks</p>
   </header>
   <figure class="page-fig">
@@ -84,27 +105,6 @@
   <p class="fig-source"><span data-cite-full="hollmannAccuratePredictionsSmall2025"></span></p>
 </section>
 
-<!-- Frame 5 — Results
-  knobs: --img-w:1  --img-x:0  --img-y:0  --cap-gap:24 -->
-<section id="v2-results" style="--img-w:0.9; --img-y:-30px;">
-  <header class="frame-head">
-    <h2 class="frame-title">TabPFNv2</h2>
-    <p class="frame-subtitle">Results</p>
-  </header>
-  <figure class="page-fig">
-    <img src="assets/tabpfn-v2/tab-arena-v2.5.png" alt="Tab Arena v2.5 benchmark results">
-    <figcaption>
-      TabArena-Lite results on classification (left) and regression (right),<br>
-      evaluated on all datasets, going up to 100K training rows and 2K features.
-    </figcaption>
-  </figure>
-  <p class="fig-source"><span data-cite-full="grinsztajnTabPFN25AdvancingState2026"></span></p>
-
-  <aside class="notes"e>
-    Conclude that it's an incremental improvement: complicated architecture, improved prior,
-    engineering trics (caching, flash-attention), added regression, fixed some problems of v1.
-  </aside>
-</section>
 
 <!-- ============================================================
   Section CSS (moved to <head> by js/loader.js).

@@ -2,48 +2,21 @@
   sections/tabicl.html — port of slides/sections/tabicl.tex (3 frames).
 
   Slides, in order:
-    1. icl-arch  Architecture      (5-step PNG swap)
-    2. icl-vs    (no subtitle)     (comparison image)
-    3. icl-disc  Discussion        (placeholder)
+    1. icl-disc  Features' Statistical Properties
+  (The Architecture 5-step swap slide and both TabICL vs. TabPFNv2
+   slides moved to sections/appendix.html.)
 =================================================================== -->
-
-<!-- ============================================================
-  Frame 1 — Architecture (5-step swap)
-  \only<1>encode \only<2>within-rows \only<3>fusion
-  \only<4>inter-rows \only<5>mlp;  \imgwidth=1.0  \imgy=0
-============================================================ -->
-<section id="icl-arch">
-  <header class="frame-head">
-    <h2 class="frame-title">TabICL</h2>
-    <p class="frame-subtitle">Architecture</p>
-  </header>
-  <figure class="page-fig" style="--img-w:1;">
-    <div class="r-stack">
-      <img class="fragment fade-out" data-fragment-index="0"
-           src="assets/tabicl/tabicl-encode.png" alt="TabICL: encoding">
-      <img class="fragment current-visible" data-fragment-index="0"
-           src="assets/tabicl/tabicl-within-rows-attention.png" alt="TabICL: within-rows attention">
-      <img class="fragment current-visible" data-fragment-index="1"
-           src="assets/tabicl/tabicl-fusion.png" alt="TabICL: fusion">
-      <img class="fragment current-visible" data-fragment-index="2"
-           src="assets/tabicl/tabicl-inter-rows-attention.png" alt="TabICL: inter-rows attention">
-      <img class="fragment" data-fragment-index="3"
-           src="assets/tabicl/tabicl-mlp.png" alt="TabICL: MLP head">
-    </div>
-  </figure>
-</section>
-
 
 <!-- Frame 4 — TabICL vs TabPFNv2 empirical time comparison -->
 <section id="icl-disc">
   <header class="frame-head">
-    <h2 class="frame-title">TabICL</h2>
+    <h2 class="frame-title">Recent Methods</h2>
     <p class="frame-subtitle">Features' Statistical Properties</p>
   </header>
-  <figure class="page-fig" style="--img-w:0.66; --img-y:-20px;">
+  <figure class="page-fig" style="--img-w:0.6; --img-y:-20px;">
     <img src="assets/tabicl/features-statistical-properties.png" alt="TabICL vs TabPFNv2">
     <figcaption>
-      First two principal components of learned column-wise embeddings
+      First two principal components of learned column-wise embeddings of 40k features.
     </figcaption>
   </figure>
   <p class="fig-source"><span data-cite-full="quTabICLTabularFoundation2025"></span></p>
@@ -52,41 +25,5 @@
     -> Columns with similar skewness (resp. kurtosis) tend to cluster together<br>
     -> This suggests that TFcol encodes distributional properties in a structured manner, and cells in a column are probably embedded to reflect their statistical role (e.g., min, max, mean, mode). <br>
     -> Therefore, the learned feature embeddings should distinguish features based on their unique distributional properties, effectively serving as feature identifiers.<br>
-  </aside>
-</section>
-
-
-<!-- ============================================================
-  Frame 2 — (empty \framesubtitle{}) TabICL vs TabPFNv2
-  \imgwidth=1  \imgy=-0.7cm  ->  --img-y:+56px
-============================================================ -->
-<section id="icl-vs">
-  <header class="frame-head">
-    <h2 class="frame-title">TabICL</h2>
-    <p class="frame-subtitle">TabICL vs. TabPFNv2</p>
-  </header>
-  <figure class="page-fig" style="--img-w:1; --img-y:56px;">
-    <img src="assets/tabicl/tabicl-vs-tabpfnv2.png" alt="TabICL vs TabPFNv2">
-  </figure>
-</section>
-
-<!-- Frame 3 — TabICL vs TabPFNv2 empirical time comparison -->
-<section id="icl-disc">
-  <header class="frame-head">
-    <h2 class="frame-title">TabICL</h2>
-    <p class="frame-subtitle">TabICL vs. TabPFNv2</p>
-  </header>
-  <figure class="page-fig" style="--img-w:0.6; --img-y:0px;">
-    <img src="assets/tabicl/tabicl-vs-tabpfnv2-empirical.png" alt="TabICL vs TabPFNv2">
-    <figcaption>
-      Training+inference times of TabICL and TabPFNv2.<br>
-      Each point represents the time on one dataset.
-    </figcaption>
-  </figure>
-  <p class="fig-source"><span data-cite-full="quTabICLTabularFoundation2025"></span></p>
-
-  <aside class="notes">
-    So here the main point is that by arcitectual optimizations they achieved more efficient computations, 
-    and "used" this gap to train on larger context sizes => perform better in that case
   </aside>
 </section>

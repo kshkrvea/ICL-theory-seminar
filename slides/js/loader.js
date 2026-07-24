@@ -44,14 +44,13 @@
       cite: 'hollmannTabPFNTransformerThat2023' },
     { file: 'sections/statistical_foundations.html', toc: 'Statistical Foundations of PFNs',
       cite: 'naglerStatisticalFoundationsPriorData2023' },
-    { file: 'sections/tabpfnv2.html',                toc: 'TabPFNv2',
-      cite: 'hollmannAccuratePredictionsSmall2025' },
-    { file: 'sections/tabicl.html',                  toc: 'TabICL',
-      cite: 'quTabICLTabularFoundation2025' },
-    { file: 'sections/recent_sota.html',             toc: 'SOTA' },
-    { file: 'sections/beyond_predictions.html',      toc: 'Beyond Predictions' },
+    /* Recent Methods: TabPFNv2, TabICL and SOTA share one outline section —
+       only the first file carries the divider; the rest flow under it. */
+    { file: 'sections/tabpfnv2.html',                toc: 'Recent Methods' },
+    { file: 'sections/recent_sota.html',             toc: null },
     { file: 'sections/conclusion.html',              toc: 'Conclusion' },
     { file: 'sections/appendix.html',                toc: null, menu: 'Appendix', goto: 'apx-hp-priors' },
+    { file: 'sections/beyond_predictions.html',      toc: null, menu: 'Beyond Predictions', goto: 'conn-sbi-setup' },
   ];
 
   const TOC_SECTIONS = SECTIONS.filter(s => s.toc !== null);
@@ -86,12 +85,20 @@
      is not cited earlier in the deck gets its number here, at the
      divider that opens its section. */
   function outlineHTML(currentIdx) {
-    return TOC_SECTIONS.map((s, i) => {
+    const rows = TOC_SECTIONS.map((s, i) => {
       const cite = (s.cite && currentIdx === i)
         ? ` <span class="cite" data-cite="${s.cite}"></span>` : '';
       const dimmed = currentIdx != null && i !== currentIdx ? 'dimmed' : '';
       return `<li class="${dimmed}" data-goto-id="divider-${i}">${s.toc}${cite}</li>`;
-    }).join('');
+    });
+    /* Appendix: a bullet that jumps to the appendix, kept out of the numbered
+       sections (toc: null) but still listed at the end of the outline. */
+    const apx = SECTIONS.find(s => s.menu === 'Appendix');
+    if (apx) {
+      const dimmed = currentIdx != null ? 'dimmed' : '';
+      rows.push(`<li class="appendix ${dimmed}" data-goto-id="${apx.goto}">${apx.menu}</li>`);
+    }
+    return rows.join('');
   }
 
   function dividerSlide(idx) {
